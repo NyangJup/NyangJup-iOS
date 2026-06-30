@@ -13,13 +13,6 @@ enum ModuleLayer: String, CaseIterable {
         }
     }
     
-    var hasTesting: Bool {
-        switch self {
-        case .feature, .domain, .core: true
-        case .shared: false
-        }
-    }
-    
     var dependencyHelperName: String {
         rawValue.prefix(1).lowercased() + rawValue.dropFirst()
     }

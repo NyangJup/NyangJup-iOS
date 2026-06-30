@@ -37,19 +37,15 @@ let package = Package(
 // MARK: - Module
 enum Module {
     enum Feature: String {
-        case home = "Home"
     }
 
     enum Domain: String {
-        case feed = "Fead"
     }
 
     enum Core: String {
-        case network = "Network"
     }
 
     enum Shared: String {
-        case design = "Design"
     }
     
     enum Target: String {

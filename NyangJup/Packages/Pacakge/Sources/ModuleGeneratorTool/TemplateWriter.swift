@@ -6,7 +6,7 @@ struct TemplateWriter {
     func write(_ spec: ModuleSpec) throws {
         let rootURL = URL(fileURLWithPath: packagePath)
         let moduleURL = rootURL.appendingPathComponent(spec.modulePath)
-        
+
         if spec.layer.hasInterface {
             try writeSourceFile(
                 at: moduleURL.appendingPathComponent(ModuleTarget.interface.sourcePathComponent),
@@ -14,21 +14,19 @@ struct TemplateWriter {
                 contents: "public protocol \(spec.targetPrefix)Interface {}\n"
             )
         }
-        
+
         try writeSourceFile(
             at: moduleURL.appendingPathComponent(ModuleTarget.feature.sourcePathComponent),
             fileName: "\(spec.targetPrefix).swift",
             contents: "public struct \(spec.targetPrefix) {}\n"
         )
-        
-        if spec.layer.hasTesting {
-            try writeSourceFile(
-                at: moduleURL.appendingPathComponent(ModuleTarget.testing.sourcePathComponent),
-                fileName: "\(spec.targetPrefix)Testing.swift",
-                contents: "public struct \(spec.targetPrefix)Testing {}\n"
-            )
-        }
-        
+
+        try writeSourceFile(
+            at: moduleURL.appendingPathComponent(ModuleTarget.testing.sourcePathComponent),
+            fileName: "\(spec.targetPrefix)Testing.swift",
+            contents: "public struct \(spec.targetPrefix)Testing {}\n"
+        )
+
         try writeSourceFile(
             at: moduleURL.appendingPathComponent(ModuleTarget.tests.sourcePathComponent),
             fileName: "\(spec.targetPrefix)Tests.swift",

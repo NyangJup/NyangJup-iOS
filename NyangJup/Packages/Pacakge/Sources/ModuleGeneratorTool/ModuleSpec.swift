@@ -23,9 +23,7 @@ struct ModuleSpec {
             targets.append("\(targetPrefix)Interface")
         }
 
-        if layer.hasTesting {
-            targets.append("\(targetPrefix)Testing")
-        }
+        targets.append("\(targetPrefix)Testing")
 
         return targets
     }

@@ -19,13 +19,12 @@ struct PackageManifestEditor {
     private func insertEnumCase(for spec: ModuleSpec, into contents: String) throws -> String {
         let marker = "    enum \(spec.layer.rawValue): String {"
         let newCase = "        case \(spec.enumCaseName) = \"\(spec.name)\""
-        
+
         guard !contents.contains(newCase) else {
             return contents
         }
-        
+
         return try contents.inserting("\(newCase)\n", afterLineContaining: marker)
-        
     }
 
     private func insertProduct(for spec: ModuleSpec, into contents: String) throws -> String {
@@ -59,7 +58,7 @@ struct PackageManifestEditor {
     private func buildTargetDeclarations(for spec: ModuleSpec) -> String {
         var declarations: [String] = []
         var implementationDependencies: [String] = []
-        
+
         if spec.layer.hasInterface {
             declarations.append(
                 targetDeclaration(
@@ -73,7 +72,7 @@ struct PackageManifestEditor {
                 ".\(spec.layer.dependencyHelperName)(module: .\(spec.enumCaseName), target: .interface)"
             )
         }
-        
+
         declarations.append(
             targetDeclaration(
                 type: ".target",
@@ -82,19 +81,16 @@ struct PackageManifestEditor {
                 path: "\(spec.modulePath)/\(ModuleTarget.feature.sourcePathComponent)"
             )
         )
-        
-        if spec.layer.hasTesting {
-            declarations.append(
-                targetDeclaration(
-                    type: ".target",
-                    name: "\(spec.targetPrefix)Testing",
-                    dependencies: [],
-                    path: "\(spec.modulePath)/\(ModuleTarget.testing.sourcePathComponent)"
-                )
+
+        declarations.append(
+            targetDeclaration(
+                type: ".target",
+                name: "\(spec.targetPrefix)Testing",
+                dependencies: [],
+                path: "\(spec.modulePath)/\(ModuleTarget.testing.sourcePathComponent)"
             )
-        }
-        
-        
+        )
+
         declarations.append(
             targetDeclaration(
                 type: ".testTarget",
