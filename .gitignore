@@ -9,7 +9,7 @@ build/
 
 # Swift Package Manager
 .build/
-Packages/
+/Packages/
 Package.resolved
 .swiftpm/
 
@@ -44,6 +44,9 @@ GoogleService-Info.plist
 # IDE
 .vscode/
 *.swp
+
+# Local study notes
+study/
 
 # OS
 .DS_Store
