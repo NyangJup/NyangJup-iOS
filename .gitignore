@@ -4,12 +4,15 @@ build/
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
 *.xcodeproj/project.xcworkspace/xcuserdata/
+**/*.xcworkspace/xcuserdata/
+**/*.xcodeproj/xcuserdata/
+**/*.xcodeproj/project.xcworkspace/xcuserdata/
 *.xccheckout
 *.xcscmblueprint
 
 # Swift Package Manager
 .build/
-Packages/
+/Packages/
 Package.resolved
 .swiftpm/
 
@@ -44,6 +47,12 @@ GoogleService-Info.plist
 # IDE
 .vscode/
 *.swp
+
+# Local study notes
+study/
+
+# Local package ignore override
+NyangJup/Packages/Pacakge/.gitignore
 
 # OS
 .DS_Store
