@@ -14,7 +14,7 @@
 		CAE683822FF24EF500F5116A /* Exceptions for "Packages" folder in "NyangJup" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Pacakge,
+				Package,
 			);
 			target = CAE6836C2FF24C7500F5116A /* NyangJup */;
 		};

@@ -13,19 +13,6 @@ let package = Package(
     ],
     targets: [
         .executableTarget(name: "ModuleGeneratorTool"),
-        .plugin(
-            name: "GenerateModulePlugin",
-            capability: .command(
-                intent: .custom(
-                    verb: "generate-module",
-                    description: "Generate a new module"
-                ),
-                permissions: [
-                    .writeToPackageDirectory(reason: "Generate module files and update Package.swift")
-                ]
-            ),
-            dependencies: ["ModuleGeneratorTool"]
-        ),
 
         // MARK: - Feature Targets
         // MARK: - Domain Targets
@@ -37,15 +24,23 @@ let package = Package(
 // MARK: - Module
 enum Module {
     enum Feature: String {
+        @available(*, unavailable)
+        case placeholder = "__Placeholder"
     }
 
     enum Domain: String {
+        @available(*, unavailable)
+        case placeholder = "__Placeholder"
     }
 
     enum Core: String {
+        @available(*, unavailable)
+        case placeholder = "__Placeholder"
     }
 
     enum Shared: String {
+        @available(*, unavailable)
+        case placeholder = "__Placeholder"
     }
     
     enum Target: String {

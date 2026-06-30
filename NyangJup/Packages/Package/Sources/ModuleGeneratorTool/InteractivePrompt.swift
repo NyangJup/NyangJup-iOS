@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 struct InteractivePrompt {
     func askModuleSpec() throws -> ModuleSpec {
@@ -18,7 +19,8 @@ struct InteractivePrompt {
             print("  \(index + 1)) \(layer.rawValue)")
         }
 
-        print("Enter number: ", terminator: "")
+        print("Enter number:")
+        fflush(stdout)
 
         guard
             let input = readLine(),
@@ -32,7 +34,8 @@ struct InteractivePrompt {
     }
 
     private func askName(_ question: String) throws -> String {
-        print("\(question): ", terminator: "")
+        print("\(question):")
+        fflush(stdout)
 
         guard let input = readLine() else {
             throw PromptError.invalidInput
