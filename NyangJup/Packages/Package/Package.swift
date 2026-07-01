@@ -40,6 +40,7 @@ let package = Package(
         .testTarget(
             name: "SharedDesignTests",
             dependencies: [
+                .shared(module: .design, target: .feature),
                 .shared(module: .design, target: .testing)
             ],
             path: "Projects/Shared/Design/Tests"
