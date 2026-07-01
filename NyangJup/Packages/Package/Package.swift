@@ -4,9 +4,17 @@ import PackageDescription
 
 let package = Package(
     name: "NJPackage",
-    platforms: [.iOS(.v26)],
+    platforms: [.iOS(.v26), .macOS(.v14)],
     products: [
         // MARK: - Feature Products
+        .library(
+            name: "FeatureCommon",
+            targets: ["FeatureCommon", "FeatureCommonInterface", "FeatureCommonTesting"]
+        ),
+        .library(
+            name: "FeatureHome",
+            targets: ["FeatureHome", "FeatureHomeInterface", "FeatureHomeTesting"]
+        ),
         // MARK: - Domain Products
         .library(
             name: "DomainProfile",
@@ -38,6 +46,58 @@ let package = Package(
         .executableTarget(name: "ModuleGeneratorTool"),
 
         // MARK: - Feature Targets
+        .target(
+            name: "FeatureCommonInterface",
+            dependencies: [],
+            path: "Projects/Feature/FeatureCommon/Interface/Sources"
+        ),
+        .target(
+            name: "FeatureCommon",
+            dependencies: [
+                .feature(module: .common, target: .interface)
+            ],
+            path: "Projects/Feature/FeatureCommon/Sources"
+        ),
+        .target(
+            name: "FeatureCommonTesting",
+            dependencies: [],
+            path: "Projects/Feature/FeatureCommon/Testing/Sources"
+        ),
+        .testTarget(
+            name: "FeatureCommonTests",
+            dependencies: [
+                .feature(module: .common, target: .feature)
+            ],
+            path: "Projects/Feature/FeatureCommon/Tests"
+        ),
+        .target(
+            name: "FeatureHomeInterface",
+            dependencies: [
+                .feature(module: .common, target: .interface)
+            ],
+            path: "Projects/Feature/Home/Interface/Sources"
+        ),
+        .target(
+            name: "FeatureHome",
+            dependencies: [
+                .shared(module: .design, target: .feature),
+                .feature(module: .common, target: .interface),
+                .feature(module: .home, target: .interface)
+            ],
+            path: "Projects/Feature/Home/Sources"
+        ),
+        .target(
+            name: "FeatureHomeTesting",
+            dependencies: [],
+            path: "Projects/Feature/Home/Testing/Sources"
+        ),
+        .testTarget(
+            name: "FeatureHomeTests",
+            dependencies: [
+                .feature(module: .home, target: .feature)
+            ],
+            path: "Projects/Feature/Home/Tests"
+        ),
         // MARK: - Domain Targets
         .target(
             name: "DomainProfileInterface",
@@ -193,6 +253,8 @@ let package = Package(
 // MARK: - Module
 enum Module {
     enum Feature: String {
+        case common = "Common"
+        case home = "Home"
         @available(*, unavailable)
         case placeholder = "__Placeholder"
     }
