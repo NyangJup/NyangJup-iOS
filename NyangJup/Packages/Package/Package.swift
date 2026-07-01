@@ -10,6 +10,10 @@ let package = Package(
         // MARK: - Domain Products
         // MARK: - Core Products
         // MARK: - Shared Products
+        .library(
+            name: "SharedDesign",
+            targets: ["SharedDesign", "SharedDesignTesting"]
+        ),
     ],
     targets: [
         .executableTarget(name: "ModuleGeneratorTool"),
@@ -18,6 +22,29 @@ let package = Package(
         // MARK: - Domain Targets
         // MARK: - Core Targets
         // MARK: - Shared Targets
+        .target(
+            name: "SharedDesign",
+            dependencies: [],
+            path: "Projects/Shared/Design",
+            exclude: ["Tests", "Testing"],
+            sources: ["Sources"],
+            resources: [
+                .process("Resources")
+            ]
+        ),
+        .target(
+            name: "SharedDesignTesting",
+            dependencies: [],
+            path: "Projects/Shared/Design/Testing/Sources"
+        ),
+        .testTarget(
+            name: "SharedDesignTests",
+            dependencies: [
+                .shared(module: .design, target: .feature),
+                .shared(module: .design, target: .testing)
+            ],
+            path: "Projects/Shared/Design/Tests"
+        ),
     ]
 )
 
@@ -39,6 +66,7 @@ enum Module {
     }
 
     enum Shared: String {
+        case design = "Design"
         @available(*, unavailable)
         case placeholder = "__Placeholder"
     }
