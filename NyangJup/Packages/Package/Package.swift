@@ -9,6 +9,10 @@ let package = Package(
         // MARK: - Feature Products
         // MARK: - Domain Products
         // MARK: - Core Products
+        .library(
+            name: "CoreNetwork",
+            targets: ["CoreNetwork", "CoreNetworkInterface", "CoreNetworkTesting"]
+        ),
         // MARK: - Shared Products
         .library(
             name: "SharedDesign",
@@ -21,6 +25,31 @@ let package = Package(
         // MARK: - Feature Targets
         // MARK: - Domain Targets
         // MARK: - Core Targets
+        .target(
+            name: "CoreNetworkInterface",
+            dependencies: [],
+            path: "Projects/Core/Network/Interface/Sources"
+        ),
+        .target(
+            name: "CoreNetwork",
+            dependencies: [
+                .core(module: .network, target: .interface)
+            ],
+            path: "Projects/Core/Network/Sources"
+        ),
+        .target(
+            name: "CoreNetworkTesting",
+            dependencies: [],
+            path: "Projects/Core/Network/Testing/Sources"
+        ),
+        .testTarget(
+            name: "CoreNetworkTests",
+            dependencies: [
+                .core(module: .network, target: .feature),
+                .core(module: .network, target: .testing)
+            ],
+            path: "Projects/Core/Network/Tests"
+        ),
         // MARK: - Shared Targets
         .target(
             name: "SharedDesign",
@@ -61,6 +90,7 @@ enum Module {
     }
 
     enum Core: String {
+        case network = "Network"
         @available(*, unavailable)
         case placeholder = "__Placeholder"
     }
