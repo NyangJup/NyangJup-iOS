@@ -8,6 +8,18 @@ let package = Package(
     products: [
         // MARK: - Feature Products
         // MARK: - Domain Products
+        .library(
+            name: "DomainProfile",
+            targets: ["DomainProfile", "DomainProfileInterface", "DomainProfileTesting"]
+        ),
+        .library(
+            name: "DomainMedia",
+            targets: ["DomainMedia", "DomainMediaInterface", "DomainMediaTesting"]
+        ),
+        .library(
+            name: "DomainCats",
+            targets: ["DomainCats", "DomainCatsInterface", "DomainCatsTesting"]
+        ),
         // MARK: - Core Products
         .library(
             name: "CoreNetwork",
@@ -24,6 +36,99 @@ let package = Package(
 
         // MARK: - Feature Targets
         // MARK: - Domain Targets
+        .target(
+            name: "DomainProfileInterface",
+            dependencies: [
+                .core(module: .network, target: .interface),
+            ],
+            path: "Projects/Domain/Profile/Interface/Sources"
+        ),
+        .target(
+            name: "DomainProfile",
+            dependencies: [
+                .domain(module: .profile, target: .interface)
+            ],
+            path: "Projects/Domain/Profile/Sources"
+        ),
+        .target(
+            name: "DomainProfileTesting",
+            dependencies: [
+                .domain(module: .profile, target: .interface),
+                .core(module: .network, target: .interface)
+            ],
+            path: "Projects/Domain/Profile/Testing/Sources"
+        ),
+        .testTarget(
+            name: "DomainProfileTests",
+            dependencies: [
+                .core(module: .network, target: .interface),
+                .domain(module: .profile, target: .interface),
+                .domain(module: .profile, target: .testing)
+            ],
+            path: "Projects/Domain/Profile/Tests"
+        ),
+        .target(
+            name: "DomainMediaInterface",
+            dependencies: [
+                .core(module: .network, target: .interface)
+            ],
+            path: "Projects/Domain/Media/Interface/Sources"
+        ),
+        .target(
+            name: "DomainMedia",
+            dependencies: [
+                .domain(module: .media, target: .interface)
+            ],
+            path: "Projects/Domain/Media/Sources"
+        ),
+        .target(
+            name: "DomainMediaTesting",
+            dependencies: [
+                .domain(module: .media, target: .interface)
+            ],
+            path: "Projects/Domain/Media/Testing/Sources"
+        ),
+        .testTarget(
+            name: "DomainMediaTests",
+            dependencies: [
+                .domain(module: .media, target: .interface),
+                .domain(module: .media, target: .testing)
+            ],
+            path: "Projects/Domain/Media/Tests"
+        ),
+        .target(
+            name: "DomainCatsInterface",
+            dependencies: [
+                .core(module: .network, target: .interface),
+                .domain(module: .media, target: .interface)
+            ],
+            path: "Projects/Domain/Cats/Interface/Sources"
+        ),
+        .target(
+            name: "DomainCats",
+            dependencies: [
+                .domain(module: .cats, target: .interface)
+            ],
+            path: "Projects/Domain/Cats/Sources"
+        ),
+        .target(
+            name: "DomainCatsTesting",
+            dependencies: [
+                .core(module: .network, target: .interface),
+                .domain(module: .cats, target: .interface),
+                .domain(module: .media, target: .interface)
+            ],
+            path: "Projects/Domain/Cats/Testing/Sources"
+        ),
+        .testTarget(
+            name: "DomainCatsTests",
+            dependencies: [
+                .domain(module: .cats, target: .interface),
+                .domain(module: .cats, target: .testing),
+                .domain(module: .media, target: .interface)
+            ],
+            path: "Projects/Domain/Cats/Tests"
+        ),
         // MARK: - Core Targets
         .target(
             name: "CoreNetworkInterface",
@@ -85,6 +190,9 @@ enum Module {
     }
 
     enum Domain: String {
+        case profile = "Profile"
+        case media = "Media"
+        case cats = "Cats"
         @available(*, unavailable)
         case placeholder = "__Placeholder"
     }
