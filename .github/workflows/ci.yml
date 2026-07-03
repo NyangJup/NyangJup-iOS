@@ -11,7 +11,8 @@ permissions:
 env:
   XCODE_PROJECT: ./NyangJup/NyangJup.xcodeproj
   APP_SCHEME: NyangJup
-  PACKAGE_PATH: ./NyangJup/Packages/Package
+  PACKAGE_DIR: ./NyangJup/Packages/Package
+  PACKAGE_SCHEME: NJPackage-Package
 
 jobs:
   ios-build:
@@ -42,5 +43,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
       - name: Test
-        run: swift test --package-path "$PACKAGE_PATH"
+        working-directory: ${{ github.workspace }}/NyangJup/Packages/Package
+        run: |
+          xcodebuild \
+            -scheme "$PACKAGE_SCHEME" \
+            -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation),OS=26.2' \
+            -skipMacroValidation \
+            test
