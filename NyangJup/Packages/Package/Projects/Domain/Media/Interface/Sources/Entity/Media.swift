@@ -8,9 +8,9 @@
 import Foundation
 
 public struct Media {
-    let id: Int64
-    let thumbnailURL: String
-    let mediaType: MediaType
+    public let id: Int64
+    public let thumbnailURL: String
+    public let mediaType: MediaType
     
     public init(
         id: Int64,

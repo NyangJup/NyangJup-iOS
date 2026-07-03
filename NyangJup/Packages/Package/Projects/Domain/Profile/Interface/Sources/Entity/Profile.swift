@@ -8,8 +8,8 @@
 import Foundation
 
 public struct Profile {
-    let id: Int64
-    let nickname: String
+    public let id: Int64
+    public let nickname: String
     
     public init(
         id: Int64,
