@@ -49,8 +49,15 @@ jobs:
       - name: Test
         working-directory: ${{ github.workspace }}/NyangJup/Packages/Package
         run: |
+          DESTINATION="$(xcodebuild -scheme "$PACKAGE_SCHEME" -showdestinations | awk '/platform:iOS Simulator/ && /OS:/ {print; exit}' | sed -E 's/.*id:([^,}]+).*/id=\1/')"
+
+          if [ -z "$DESTINATION" ]; then
+            echo "No iOS Simulator destination found for $PACKAGE_SCHEME"
+            exit 1
+          fi
+
           xcodebuild \
             -scheme "$PACKAGE_SCHEME" \
-            -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation),OS=26.2' \
+            -destination "$DESTINATION" \
             -skipMacroValidation \
             test
