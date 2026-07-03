@@ -31,6 +31,9 @@ let package = Package(
             targets: ["SharedDesign", "SharedDesignTesting"]
         ),
     ],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-testing.git", from: "6.2.4")
+    ],
     targets: [
         .executableTarget(name: "ModuleGeneratorTool"),
 
@@ -63,7 +66,8 @@ let package = Package(
             dependencies: [
                 .core(module: .network, target: .interface),
                 .domain(module: .profile, target: .interface),
-                .domain(module: .profile, target: .testing)
+                .domain(module: .profile, target: .testing),
+                .product(name: "Testing", package: "swift-testing")
             ],
             path: "Projects/Domain/Profile/Tests"
         ),
@@ -92,7 +96,8 @@ let package = Package(
             name: "DomainMediaTests",
             dependencies: [
                 .domain(module: .media, target: .interface),
-                .domain(module: .media, target: .testing)
+                .domain(module: .media, target: .testing),
+                .product(name: "Testing", package: "swift-testing")
             ],
             path: "Projects/Domain/Media/Tests"
         ),
@@ -125,7 +130,8 @@ let package = Package(
             dependencies: [
                 .domain(module: .cats, target: .interface),
                 .domain(module: .cats, target: .testing),
-                .domain(module: .media, target: .interface)
+                .domain(module: .media, target: .interface),
+                .product(name: "Testing", package: "swift-testing")
             ],
             path: "Projects/Domain/Cats/Tests"
         ),
@@ -151,7 +157,8 @@ let package = Package(
             name: "CoreNetworkTests",
             dependencies: [
                 .core(module: .network, target: .feature),
-                .core(module: .network, target: .testing)
+                .core(module: .network, target: .testing),
+                .product(name: "Testing", package: "swift-testing")
             ],
             path: "Projects/Core/Network/Tests"
         ),
@@ -175,7 +182,8 @@ let package = Package(
             name: "SharedDesignTests",
             dependencies: [
                 .shared(module: .design, target: .feature),
-                .shared(module: .design, target: .testing)
+                .shared(module: .design, target: .testing),
+                .product(name: "Testing", package: "swift-testing")
             ],
             path: "Projects/Shared/Design/Tests"
         ),
