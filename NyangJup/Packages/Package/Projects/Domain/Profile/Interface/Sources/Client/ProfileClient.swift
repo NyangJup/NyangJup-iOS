@@ -10,18 +10,18 @@ import Foundation
 import CoreNetworkInterface
 
 public struct ProfileClient: Sendable {
-    public typealias ID = Int64
+    public typealias UUID = String
     
     public let networkClient: NetworkClient?
     
-    public var fetchIndividualCode: @Sendable () -> String
-    public var fetchProfile: @Sendable (ID) async throws -> Profile
+    public var fetchIndividualCode: @Sendable (UUID) async throws -> String
+    public var fetchProfile: @Sendable (UUID) async throws -> Profile
     public var updateNickname: @Sendable (UpdateNicknameRequestDTO) async throws -> Void
     
     public init(
         networkClient: NetworkClient?,
-        fetchIndividualCode: @escaping @Sendable () -> String,
-        fetchProfile: @escaping @Sendable (ID) async throws -> Profile,
+        fetchIndividualCode: @escaping @Sendable (UUID) -> String,
+        fetchProfile: @escaping @Sendable (UUID) async throws -> Profile,
         updateNickname: @escaping @Sendable (UpdateNicknameRequestDTO) async throws -> Void
     ) {
         self.networkClient = networkClient

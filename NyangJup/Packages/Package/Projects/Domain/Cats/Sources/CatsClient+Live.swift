@@ -19,7 +19,7 @@ extension CatsClient {
         }, fetchCatFeed: { id in
             // FIXME: - 임시
             CatFeed(
-                id: 1,
+                id: "1",
                 name: "꾸꾸",
                 place: "구로구",
                 thumbnailURL: "https://picsum.photos/200/300",

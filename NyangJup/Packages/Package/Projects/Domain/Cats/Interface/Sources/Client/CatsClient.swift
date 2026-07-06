@@ -10,17 +10,17 @@ import Foundation
 import CoreNetworkInterface
 
 public struct CatsClient: Sendable {
-    public typealias ID = Int64
+    public typealias UUID = String
     
     public let networkClient: NetworkClient?
     
-    public var fetchCats: @Sendable (ID) async throws -> [Cat]
-    public var fetchCatFeed: @Sendable (ID) async throws -> CatFeed
+    public var fetchCats: @Sendable (UUID) async throws -> [Cat]
+    public var fetchCatFeed: @Sendable (UUID) async throws -> CatFeed
     
     public init(
         networkClient: NetworkClient?,
-        fetchCats: @escaping @Sendable (ID) async throws -> [Cat],
-        fetchCatFeed: @escaping @Sendable (ID) async throws -> CatFeed
+        fetchCats: @escaping @Sendable (UUID) async throws -> [Cat],
+        fetchCatFeed: @escaping @Sendable (UUID) async throws -> CatFeed
     ) {
         self.networkClient = networkClient
         self.fetchCats = fetchCats

@@ -10,7 +10,7 @@ import Foundation
 import CoreNetworkInterface
 
 public struct MediaClient: Sendable {
-    public typealias ID = Int64
+    public typealias ID = String
     
     public let networkClient: NetworkClient?
     

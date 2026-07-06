@@ -8,14 +8,14 @@
 import Foundation
 
 public struct UploadMediaResponseDTO: Decodable {
-    let catId: Int64
-    let mediaId: Int64
+    let catId: String
+    let mediaId: String
     let mediaType: String
     let place: String
 
     public init(
-        catId: Int64,
-        mediaId: Int64,
+        catId: String,
+        mediaId: String,
         mediaType: String,
         place: String
     ) {
