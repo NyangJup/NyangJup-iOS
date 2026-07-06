@@ -8,11 +8,11 @@
 import Foundation
 
 public struct UpdateNicknameRequestDTO: Encodable {
-    let id: Int64
+    let id: String
     let nickname: String
     
     public init(
-        id: Int64,
+        id: String,
         nickname: String
     ) {
         self.id = id

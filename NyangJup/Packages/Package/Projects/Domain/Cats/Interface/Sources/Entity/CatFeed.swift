@@ -10,7 +10,7 @@ import Foundation
 import DomainMediaInterface
 
 public struct CatFeed {
-    let id: Int64
+    let id: String
     let name: String
     let place: String
     let thumbnailURL: String
@@ -18,7 +18,7 @@ public struct CatFeed {
     let feed: [Media]
     
     public init(
-        id: Int64,
+        id: String,
         name: String,
         place: String,
         thumbnailURL: String,

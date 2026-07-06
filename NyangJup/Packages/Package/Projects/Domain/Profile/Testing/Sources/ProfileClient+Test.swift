@@ -12,7 +12,7 @@ import DomainProfileInterface
 extension ProfileClient {
     public static let test = Self(
         networkClient: nil,
-        fetchIndividualCode: {
+        fetchIndividualCode: { _ in
             "NYANG-7K2P"
         },
         fetchProfile: { id in

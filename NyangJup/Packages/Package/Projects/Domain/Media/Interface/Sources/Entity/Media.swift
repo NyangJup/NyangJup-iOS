@@ -8,12 +8,12 @@
 import Foundation
 
 public struct Media {
-    public let id: Int64
+    public let id: String
     public let thumbnailURL: String
     public let mediaType: MediaType
     
     public init(
-        id: Int64,
+        id: String,
         thumbnailURL: String,
         mediaType: MediaType
     ) {

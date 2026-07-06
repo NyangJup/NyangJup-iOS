@@ -8,13 +8,13 @@
 import Foundation
 
 public struct Cat {
-    public let id: Int64
+    public let id: String
     public let name: String
     public let place: String
     public let imageURL: String
     
     public init(
-        id: Int64,
+        id: String,
         name: String,
         place: String,
         imageURL: String

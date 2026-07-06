@@ -8,12 +8,12 @@
 import Foundation
 
 public struct UploadMediaRequestDTO: Encodable {
-    let catId: Int64
+    let catId: String
     let mediaType: String
     let place: String
 
     public init(
-        catId: Int64,
+        catId: String,
         mediaType: String,
         place: String
     ) {
