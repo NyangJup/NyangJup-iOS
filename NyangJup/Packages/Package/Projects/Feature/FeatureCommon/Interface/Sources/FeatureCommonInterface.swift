@@ -5,6 +5,7 @@ public protocol Factorable {
     var makeViewModel: () -> any NZViewModel { get }
 }
 
+@MainActor
 public protocol NZViewModel {
     associatedtype State
     associatedtype Action
