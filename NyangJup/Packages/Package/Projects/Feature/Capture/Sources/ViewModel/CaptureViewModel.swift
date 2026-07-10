@@ -7,6 +7,7 @@
 
 import Foundation
 import _PhotosUI_SwiftUI
+import UniformTypeIdentifiers
 
 import CoreCameraInterface
 import FeatureCommonInterface
@@ -143,7 +144,15 @@ private extension CaptureViewModel {
                     return
                 }
 
-                await MainActor.run {
+                if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) {
+                    let url = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(UUID().uuidString)
+                        .appendingPathExtension("mov")
+                    guard (try? data.write(to: url, options: .atomic)) != nil else {
+                        return
+                    }
+                    self.send(.internal(.captureCompleted(CapturedMedia(url: url, mode: .video))))
+                } else {
                     self.state.capturedMedia = CapturedMedia(data: data, mode: .photo)
                 }
             }

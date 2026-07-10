@@ -113,6 +113,7 @@ private extension LiveCameraController {
         session.beginConfiguration()
         session.sessionPreset = .high
         addInput(position: .back)
+        addAudioInput()
         addOutput(photoOutput)
         addOutput(movieOutput)
         session.commitConfiguration()
@@ -129,6 +130,18 @@ private extension LiveCameraController {
 
         session.addInput(input)
         currentInput = input
+    }
+
+    func addAudioInput() {
+        guard
+            let device = AVCaptureDevice.default(for: .audio),
+            let input = try? AVCaptureDeviceInput(device: device),
+            session.canAddInput(input)
+        else {
+            return
+        }
+
+        session.addInput(input)
     }
 
     func addOutput(_ output: AVCaptureOutput) {
