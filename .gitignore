@@ -15,6 +15,11 @@ build/
 /Packages/
 Package.resolved
 .swiftpm/
+!NyangJup/Packages/Package/.swiftpm/
+!NyangJup/Packages/Package/.swiftpm/xcode/
+!NyangJup/Packages/Package/.swiftpm/xcode/xcshareddata/
+!NyangJup/Packages/Package/.swiftpm/xcode/xcshareddata/xcschemes/
+!NyangJup/Packages/Package/.swiftpm/xcode/xcshareddata/xcschemes/FeatureCapture.xcscheme
 
 # CocoaPods
 Pods/
