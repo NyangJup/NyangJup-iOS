@@ -75,7 +75,8 @@ let package = Package(
         .testTarget(
             name: "FeatureCommonTests",
             dependencies: [
-                .feature(module: .common, target: .feature)
+                .feature(module: .common, target: .feature),
+                .product(name: "Testing", package: "swift-testing")
             ],
             path: "Projects/Feature/FeatureCommon/Tests"
         ),
@@ -110,7 +111,8 @@ let package = Package(
             dependencies: [
                 .feature(module: .home, target: .feature),
                 .domain(module: .cats, target: .testing),
-                .domain(module: .profile, target: .testing)
+                .domain(module: .profile, target: .testing),
+                .product(name: "Testing", package: "swift-testing")
             ],
             path: "Projects/Feature/Home/Tests"
         ),
@@ -142,7 +144,8 @@ let package = Package(
             name: "FeatureCaptureTests",
             dependencies: [
                 .feature(module: .capture, target: .feature),
-                .core(module: .camera, target: .testing)
+                .core(module: .camera, target: .testing),
+                .product(name: "Testing", package: "swift-testing")
             ],
             path: "Projects/Feature/Capture/Tests"
         ),

@@ -13,7 +13,7 @@ public enum VideoTrimError: Error {
     case exportFailed
 }
 
-public struct VideoTrimClient {
+public struct VideoTrimClient: Sendable {
     func loadDuration(from url: URL) async throws -> Double {
         let asset = AVURLAsset(url: url)
         let duration = try await asset.load(.duration)
