@@ -20,16 +20,18 @@ public final class HomeViewModel: NZViewModel {
         let uuidString: String = UUID().uuidString
         var cats: [Cat] = []
         var individualCode: String = ""
+        var isCapturePresented: Bool = false
     }
 
     public enum Action {
         case view(View)
         case network(Network)
         case `internal`(Internal)
-        case delegate(Delegate)
 
         public enum View {
             case onAppear
+            case plusButtonTapped
+            case captureDismissed
         }
 
         public enum Network {
@@ -37,10 +39,6 @@ public final class HomeViewModel: NZViewModel {
         }
 
         public enum Internal {
-
-        }
-
-        public enum Delegate {
 
         }
     }
@@ -62,6 +60,8 @@ public final class HomeViewModel: NZViewModel {
         switch action {
         case let .view(viewAction):
             handleViewAction(viewAction)
+        case .network, .internal:
+            break
         }
     }
 
@@ -76,6 +76,10 @@ public final class HomeViewModel: NZViewModel {
 
                 }
             }
+        case .plusButtonTapped:
+            state.isCapturePresented = true
+        case .captureDismissed:
+            state.isCapturePresented = false
         }
 
     }

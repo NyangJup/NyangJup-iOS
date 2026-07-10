@@ -15,6 +15,10 @@ let package = Package(
             name: "FeatureHome",
             targets: ["FeatureHome", "FeatureHomeInterface", "FeatureHomeTesting"]
         ),
+        .library(
+            name: "FeatureCapture",
+            targets: ["FeatureCapture", "FeatureCaptureInterface", "FeatureCaptureTesting"]
+        ),
         // MARK: - Domain Products
         .library(
             name: "DomainProfile",
@@ -32,6 +36,10 @@ let package = Package(
         .library(
             name: "CoreNetwork",
             targets: ["CoreNetwork", "CoreNetworkInterface", "CoreNetworkTesting"]
+        ),
+        .library(
+            name: "CoreCamera",
+            targets: ["CoreCamera", "CoreCameraInterface", "CoreCameraTesting"]
         ),
         // MARK: - Shared Products
         .library(
@@ -86,6 +94,8 @@ let package = Package(
                 .shared(module: .design, target: .feature),
                 .feature(module: .common, target: .interface),
                 .feature(module: .home, target: .interface),
+                .feature(module: .capture, target: .interface),
+                .feature(module: .capture, target: .feature),
                 .thirdParty(module: .kingfisher)
             ],
             path: "Projects/Feature/Home/Sources"
@@ -98,9 +108,43 @@ let package = Package(
         .testTarget(
             name: "FeatureHomeTests",
             dependencies: [
-                .feature(module: .home, target: .feature)
+                .feature(module: .home, target: .feature),
+                .domain(module: .cats, target: .testing),
+                .domain(module: .profile, target: .testing)
             ],
             path: "Projects/Feature/Home/Tests"
+        ),
+        .target(
+            name: "FeatureCaptureInterface",
+            dependencies: [
+                .feature(module: .common, target: .interface),
+                .core(module: .camera, target: .interface)
+            ],
+            path: "Projects/Feature/Capture/Interface/Sources"
+        ),
+        .target(
+            name: "FeatureCapture",
+            dependencies: [
+                .feature(module: .common, target: .interface),
+                .feature(module: .capture, target: .interface),
+                .core(module: .camera, target: .interface)
+            ],
+            path: "Projects/Feature/Capture/Sources"
+        ),
+        .target(
+            name: "FeatureCaptureTesting",
+            dependencies: [
+                .core(module: .camera, target: .interface)
+            ],
+            path: "Projects/Feature/Capture/Testing/Sources"
+        ),
+        .testTarget(
+            name: "FeatureCaptureTests",
+            dependencies: [
+                .feature(module: .capture, target: .feature),
+                .core(module: .camera, target: .testing)
+            ],
+            path: "Projects/Feature/Capture/Tests"
         ),
         // MARK: - Domain Targets
         .target(
@@ -226,6 +270,34 @@ let package = Package(
             ],
             path: "Projects/Core/Network/Tests"
         ),
+        .target(
+            name: "CoreCameraInterface",
+            dependencies: [],
+            path: "Projects/Core/Camera/Interface/Sources"
+        ),
+        .target(
+            name: "CoreCamera",
+            dependencies: [
+                .core(module: .camera, target: .interface)
+            ],
+            path: "Projects/Core/Camera/Sources"
+        ),
+        .target(
+            name: "CoreCameraTesting",
+            dependencies: [
+                .core(module: .camera, target: .interface)
+            ],
+            path: "Projects/Core/Camera/Testing/Sources"
+        ),
+        .testTarget(
+            name: "CoreCameraTests",
+            dependencies: [
+                .core(module: .camera, target: .feature),
+                .core(module: .camera, target: .testing),
+                .product(name: "Testing", package: "swift-testing")
+            ],
+            path: "Projects/Core/Camera/Tests"
+        ),
         // MARK: - Shared Targets
         .target(
             name: "SharedDesign",
@@ -258,6 +330,7 @@ let package = Package(
 enum Module {
     enum Feature: String {
         case common = "Common"
+        case capture = "Capture"
         case home = "Home"
         @available(*, unavailable)
         case placeholder = "__Placeholder"
@@ -272,6 +345,7 @@ enum Module {
     }
 
     enum Core: String {
+        case camera = "Camera"
         case network = "Network"
         @available(*, unavailable)
         case placeholder = "__Placeholder"

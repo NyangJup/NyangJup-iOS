@@ -1,7 +1,8 @@
 import SwiftUI
 
+import CoreCamera
+import FeatureCapture
 import FeatureHome
-import FeatureHomeInterface
 import DomainProfileTesting
 import DomainCatsTesting
 
@@ -16,6 +17,7 @@ struct HomeExampleApp: App {
                         profileClient: .test
                     )
                 )
+                .environment(\.captureFactory, .live(cameraClient: .live))
             }
         }
     }
