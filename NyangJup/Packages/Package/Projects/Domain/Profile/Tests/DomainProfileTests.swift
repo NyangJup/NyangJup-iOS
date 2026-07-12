@@ -3,8 +3,8 @@ import Testing
 import DomainProfileTesting
 
 @Test
-func testClientFetchIndividualCodeReturnsSampleCode() {
-    let code = ProfileClient.test.fetchIndividualCode("123")
+func testClientFetchIndividualCodeReturnsSampleCode() async throws {
+    let code = try await ProfileClient.test.fetchIndividualCode("123")
 
     #expect(code == "NYANG-7K2P")
 }
