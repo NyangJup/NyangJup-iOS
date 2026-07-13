@@ -2,15 +2,12 @@ import SwiftUI
 
 import FeatureCommonInterface
 
-public struct HomeFactory: Factorable {
-    public var makeView: () -> AnyView
-    public var makeViewModel: () -> any NZViewModel
+public struct HomeFactory: Factorable, Sendable {
+    public var makeView: @MainActor @Sendable (FeatureConfiguration?, FeatureDelegate?) -> AnyView
     
     public init(
-        makeView: @escaping () -> AnyView,
-        makeViewModel: @escaping () -> any NZViewModel
+        makeView: @escaping @MainActor @Sendable (FeatureConfiguration?, FeatureDelegate?) -> AnyView
     ) {
         self.makeView = makeView
-        self.makeViewModel = makeViewModel
     }
 }

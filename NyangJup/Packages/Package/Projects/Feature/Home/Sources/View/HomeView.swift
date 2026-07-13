@@ -1,8 +1,11 @@
 import SwiftUI
 import SpriteKit
 
+import FeatureCaptureInterface
+
 public struct HomeView: View {
     @State private var viewModel: HomeViewModel
+    @Environment(\.captureFactory) private var captureFactory
 
     public init(
         viewModel: HomeViewModel
@@ -23,6 +26,19 @@ public struct HomeView: View {
         .ignoresSafeArea()
         .onAppear {
             viewModel.send(.view(.onAppear))
+        }
+        .fullScreenCover(isPresented: $viewModel.state.isCapturePresented) {
+            captureFactory.makeView(
+                CaptureConfiguration(showsModePicker: true),
+                CaptureDelegate { action in
+                    switch action {
+                    case .captured:
+                        break
+                    case .close:
+                        viewModel.send(.view(.captureDismissed))
+                    }
+                }
+            )
         }
     }
 }
@@ -52,7 +68,7 @@ private extension HomeView {
 
     var bottomButton: some View {
         Button {
-
+            viewModel.send(.view(.plusButtonTapped))
         } label: {
             bottomButtonImage
         }
@@ -69,6 +85,16 @@ private extension HomeView {
             .foregroundStyle(.black)
             .frame(width: Constant.bottomButtonImageSize, height: Constant.bottomButtonImageSize)
     }
+
+//    var capturePresented: Binding<Bool> {
+//        Binding {
+//            viewModel.state.isCapturePresented
+//        } set: { isPresented in
+//            if !isPresented {
+//                viewModel.send(.view(.captureDismissed))
+//            }
+//        }
+//    }
 }
 
 // MARK: - Constants

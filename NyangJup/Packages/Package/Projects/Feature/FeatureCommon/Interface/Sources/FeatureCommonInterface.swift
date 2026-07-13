@@ -1,8 +1,12 @@
 import SwiftUI
 
+
+public protocol FeatureDelegate { }
+
+public protocol FeatureConfiguration: Sendable { }
+
 public protocol Factorable {
-    var makeView: () -> AnyView { get }
-    var makeViewModel: () -> any NZViewModel { get }
+    var makeView: @MainActor @Sendable (FeatureConfiguration?, FeatureDelegate?) -> AnyView { get }
 }
 
 @MainActor

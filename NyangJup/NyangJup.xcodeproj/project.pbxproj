@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		CA6BE5392FF7A59100458997 /* DomainCats in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE5382FF7A59100458997 /* DomainCats */; };
 		CA6BE53B2FF7A59100458997 /* DomainProfile in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE53A2FF7A59100458997 /* DomainProfile */; };
+		CA6BE53D2FF7A59100458997 /* CoreCamera in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE53C2FF7A59100458997 /* CoreCamera */; };
 		CAE6840A2FF3000000F5116A /* FeatureHome in Frameworks */ = {isa = PBXBuildFile; productRef = CAE684092FF3000000F5116A /* FeatureHome */; };
 		CAE6840E2FF3000000F5116A /* SharedDesign in Frameworks */ = {isa = PBXBuildFile; productRef = CAE6840F2FF3000000F5116A /* SharedDesign */; };
 /* End PBXBuildFile section */
@@ -64,6 +65,7 @@
 				CA6BE5392FF7A59100458997 /* DomainCats in Frameworks */,
 				CAE6840A2FF3000000F5116A /* FeatureHome in Frameworks */,
 				CA6BE53B2FF7A59100458997 /* DomainProfile in Frameworks */,
+				CA6BE53D2FF7A59100458997 /* CoreCamera in Frameworks */,
 				CAE6840E2FF3000000F5116A /* SharedDesign in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -161,6 +163,7 @@
 				CAE6840F2FF3000000F5116A /* SharedDesign */,
 				CA6BE5382FF7A59100458997 /* DomainCats */,
 				CA6BE53A2FF7A59100458997 /* DomainProfile */,
+				CA6BE53C2FF7A59100458997 /* CoreCamera */,
 			);
 			productName = HomeExample;
 			productReference = CAE684002FF3000000F5116A /* HomeExample.app */;
@@ -376,6 +379,8 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "고양이 사진과 영상을 촬영하기 위해 카메라 접근이 필요합니다.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "고양이 영상을 촬영하기 위해 마이크 접근이 필요합니다.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -408,6 +413,8 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "고양이 사진과 영상을 촬영하기 위해 카메라 접근이 필요합니다.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "고양이 영상을 촬영하기 위해 마이크 접근이 필요합니다.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -440,6 +447,8 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "고양이 사진과 영상을 촬영하기 위해 카메라 접근이 필요합니다.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "고양이 영상을 촬영하기 위해 마이크 접근이 필요합니다.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -472,6 +481,8 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "고양이 사진과 영상을 촬영하기 위해 카메라 접근이 필요합니다.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "고양이 영상을 촬영하기 위해 마이크 접근이 필요합니다.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -538,6 +549,11 @@
 		CA6BE53A2FF7A59100458997 /* DomainProfile */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DomainProfile;
+		};
+		CA6BE53C2FF7A59100458997 /* CoreCamera */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CAE6840B2FF3000000F5116A /* XCLocalSwiftPackageReference "Packages/Package" */;
+			productName = CoreCamera;
 		};
 		CAE684092FF3000000F5116A /* FeatureHome */ = {
 			isa = XCSwiftPackageProductDependency;
