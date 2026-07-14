@@ -1,7 +1,15 @@
+//
+//  HomeView.swift
+//  NJPackage
+//
+//  Created by 정지훈 on 7/14/26.
+//
+
 import SwiftUI
 import SpriteKit
 
 import FeatureCaptureInterface
+import SharedDesign
 
 public struct HomeView: View {
     @State private var viewModel: HomeViewModel
@@ -27,18 +35,13 @@ public struct HomeView: View {
         .onAppear {
             viewModel.send(.view(.onAppear))
         }
-        .fullScreenCover(isPresented: $viewModel.state.isCapturePresented) {
-            captureFactory.makeView(
-                CaptureConfiguration(showsModePicker: true),
-                CaptureDelegate { action in
-                    switch action {
-                    case .captured:
-                        break
-                    case .close:
-                        viewModel.send(.view(.captureDismissed))
-                    }
-                }
-            )
+        .sheet(isPresented: $viewModel.state.isMakeCatPresented) {
+            GenerateCatView { name, appearanceKey in
+                viewModel.send(.view(.makeCatSubmitted(
+                    name: name,
+                    appearanceKey: appearanceKey
+                )))
+            }
         }
     }
 }
@@ -85,16 +88,6 @@ private extension HomeView {
             .foregroundStyle(.black)
             .frame(width: Constant.bottomButtonImageSize, height: Constant.bottomButtonImageSize)
     }
-
-//    var capturePresented: Binding<Bool> {
-//        Binding {
-//            viewModel.state.isCapturePresented
-//        } set: { isPresented in
-//            if !isPresented {
-//                viewModel.send(.view(.captureDismissed))
-//            }
-//        }
-//    }
 }
 
 // MARK: - Constants

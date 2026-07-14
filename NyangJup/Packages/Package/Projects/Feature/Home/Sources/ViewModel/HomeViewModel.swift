@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  HomeViewModel.swift
 //  NJPackage
 //
 //  Created by 정지훈 on 7/1/26.
@@ -20,7 +20,7 @@ public final class HomeViewModel: NZViewModel {
         let uuidString: String = UUID().uuidString
         var cats: [Cat] = []
         var individualCode: String = ""
-        var isCapturePresented: Bool = false
+        var isMakeCatPresented: Bool = false
     }
 
     public enum Action {
@@ -31,7 +31,7 @@ public final class HomeViewModel: NZViewModel {
         public enum View {
             case onAppear
             case plusButtonTapped
-            case captureDismissed
+            case makeCatSubmitted(name: String, appearanceKey: String)
         }
 
         public enum Network {
@@ -77,9 +77,23 @@ public final class HomeViewModel: NZViewModel {
                 }
             }
         case .plusButtonTapped:
-            state.isCapturePresented = true
-        case .captureDismissed:
-            state.isCapturePresented = false
+            state.isMakeCatPresented = true
+
+        case let .makeCatSubmitted(name, appearanceKey):
+            Task {
+                do {
+                    let cat = try await catsClient.createCat(
+                        CreateCatRequestDTO(
+                            name: name,
+                            appearanceKey: appearanceKey
+                        )
+                    )
+                    state.cats.append(cat)
+                    state.isMakeCatPresented = false
+                } catch {
+
+                }
+            }
         }
 
     }

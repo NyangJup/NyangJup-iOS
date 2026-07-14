@@ -16,7 +16,11 @@ extension CatsClient {
         networkClient: nil,
         fetchCats: { id in
             return []
-        }, fetchCatFeed: { id in
+        },
+        createCat: { _ in
+            throw CatsClientError.createCatNotImplemented
+        },
+        fetchCatFeed: { id in
             // FIXME: - 임시
             CatFeed(
                 id: "1",

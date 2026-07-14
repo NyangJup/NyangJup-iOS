@@ -48,8 +48,7 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-testing.git", from: "6.2.4"),
-        .package(url: "https://github.com/onevcat/Kingfisher.git", from: "8.0.0")
+        .package(url: "https://github.com/apple/swift-testing.git", from: "6.2.4")
     ],
     targets: [
         .executableTarget(name: "ModuleGeneratorTool"),
@@ -95,9 +94,7 @@ let package = Package(
                 .shared(module: .design, target: .feature),
                 .feature(module: .common, target: .interface),
                 .feature(module: .home, target: .interface),
-                .feature(module: .capture, target: .interface),
-                .feature(module: .capture, target: .feature),
-                .thirdParty(module: .kingfisher)
+                .feature(module: .capture, target: .interface)
             ],
             path: "Projects/Feature/Home/Sources"
         ),
@@ -127,6 +124,7 @@ let package = Package(
         .target(
             name: "FeatureCapture",
             dependencies: [
+                .shared(module: .design, target: .feature),
                 .feature(module: .common, target: .interface),
                 .feature(module: .capture, target: .interface),
                 .core(module: .camera, target: .interface)
@@ -360,10 +358,6 @@ enum Module {
         case placeholder = "__Placeholder"
     }
 
-    enum ThirdParty: String {
-        case kingfisher = "Kingfisher"
-    }
-    
     enum Target: String {
         case interface = "Interface"
         case feature = ""
@@ -388,9 +382,5 @@ extension Target.Dependency {
 
     static func shared(module: Module.Shared, target: Module.Target) -> Self {
         .target(name: "Shared\(module.rawValue)\(target.rawValue)")
-    }
-
-    static func thirdParty(module: Module.ThirdParty) -> Self {
-        .product(name: module.rawValue, package: module.rawValue)
     }
 }

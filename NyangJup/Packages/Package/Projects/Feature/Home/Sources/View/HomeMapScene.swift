@@ -1,5 +1,5 @@
 //
-//  SwiftUIView.swift
+//  HomeMapScene.swift
 //  NJPackage
 //
 //  Created by 정지훈 on 7/1/26.
@@ -10,7 +10,6 @@ import SpriteKit
 
 import DomainCatsInterface
 import SharedDesign
-import Kingfisher
 
 final class HomeMapScene: SKScene {
     var cats: [Cat]
@@ -69,47 +68,78 @@ extension HomeMapScene {
     }
 
     private func addCats() {
-        cats.forEach {
-            guard let url = URL(string: $0.imageURL) else { return }
+        cats.forEach { cat in
+            guard let appearance = CatAppearance(rawValue: cat.appearanceKey) else { return }
 
-            KingfisherManager.shared.retrieveImage(with: url) { [weak self] result in
-                guard let self else { return }
-                guard case let .success(value) = result else { return }
-
-                let texture = SKTexture(image: value.image)
-                texture.filteringMode = .nearest
-
-                self.addCat(texture: texture)
-            }
+            let texture = SKTexture(image: appearance.imageAsset.uiImage)
+            texture.filteringMode = .nearest
+            addCat(texture: texture, name: cat.name)
         }
     }
 
-    private func addCat(texture: SKTexture) {
-        let cat = SKSpriteNode(texture: texture)
+    private func addCat(texture: SKTexture, name: String) {
+        let cat = SKNode()
         cat.name = Constant.catNodeName
-        cat.size = Constant.catSize
         cat.position = CGPoint(
             x: size.width / 2 + CGFloat(Int.random(in: Constant.initialXOffsetRange)),
             y: size.height / 2
         )
         cat.zPosition = Constant.catDefaultZPosition
 
+        let sprite = SKSpriteNode(texture: texture)
+        sprite.size = Constant.catSize
+        cat.addChild(sprite)
+        addNameTag(name, to: cat)
+
         addChild(cat)
-        moveRandomly(cat)
+        moveRandomly(cat, sprite: sprite)
     }
 
-    private func moveRandomly(_ cat: SKSpriteNode) {
+    private func addNameTag(_ name: String, to cat: SKNode) {
+
+        let label = SKLabelNode(fontNamed: Constant.nameTagFontName)
+        label.text = name
+        label.fontSize = Constant.nameTagFontSize
+        label.fontColor = .white
+        label.horizontalAlignmentMode = .center
+        label.verticalAlignmentMode = .center
+
+        let nameTagSize = CGSize(
+            width: max(
+                label.frame.width + Constant.nameTagHorizontalPadding * 2,
+                Constant.nameTagMinimumWidth
+            ),
+            height: Constant.nameTagHeight
+        )
+        let nameTagPosition = CGPoint(
+            x: 0,
+            y: -(Constant.catSize.height / 2 + Constant.nameTagSpacing + Constant.nameTagHeight / 2)
+        )
+
+        let background = SKShapeNode(rectOf: nameTagSize)
+        background.fillColor = .black
+        background.strokeColor = .clear
+        background.position = nameTagPosition
+
+        label.position = nameTagPosition
+        label.zPosition = 1
+
+        cat.addChild(background)
+        cat.addChild(label)
+    }
+
+    private func moveRandomly(_ cat: SKNode, sprite: SKSpriteNode) {
         let wait = SKAction.wait(forDuration: .random(in: Constant.waitDurationRange))
 
-        let chooseMove = SKAction.run { [weak self, weak cat] in
-            guard let self, let cat else { return }
+        let chooseMove = SKAction.run { [weak self, weak cat, weak sprite] in
+            guard let self, let cat, let sprite else { return }
 
             let target = CGPoint(
                 x: CGFloat.random(in: Constant.horizontalMoveInset...(self.size.width - Constant.horizontalMoveInset)),
                 y: CGFloat.random(in: Constant.verticalMoveInset...(self.size.height - Constant.verticalMoveInset))
             )
 
-            cat.xScale = target.x < cat.position.x ? -1 : 1
+            sprite.xScale = target.x < cat.position.x ? -1 : 1
 
             let move = SKAction.move(
                 to: target,
@@ -131,6 +161,13 @@ private extension HomeMapScene {
         static let catSize = CGSize(width: 48, height: 48)
         static let catDefaultZPosition: CGFloat = 10
         static let catZPositionBase: CGFloat = 1000
+
+        static let nameTagFontName: String = "HelveticaNeue-Bold"
+        static let nameTagFontSize: CGFloat = 10
+        static let nameTagHeight: CGFloat = 16
+        static let nameTagMinimumWidth: CGFloat = 24
+        static let nameTagHorizontalPadding: CGFloat = 4
+        static let nameTagSpacing: CGFloat = 2
 
         static let mapAnchorPoint = CGPoint(x: 0.5, y: 0.5)
         static let mapZPosition: CGFloat = 0
