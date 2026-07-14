@@ -23,7 +23,6 @@ public final class CaptureViewModel: NZViewModel {
         public var isRecording: Bool?
         public var capturedMedia: CapturedMedia?
         public var showsModePicker: Bool
-        var pendingCompletionMedia: CapturedMedia?
         
         var videoTrimState: VideoTrimState?
         var isVideoTrimming: Bool {
@@ -68,11 +67,11 @@ public final class CaptureViewModel: NZViewModel {
             case videoTrimLoaded(VideoTrimState)
             case videoTrimChanged(VideoTrimState)
             case videoTrimExported(CapturedMedia)
-            case completionDelivered
         }
     }
 
     public var state: State
+    weak var coordinator: (any Coordinator<CaptureRoute>)?
 
     let cameraClient: any CameraSessionControlling
     let videoTrimClient: VideoTrimClient
@@ -80,10 +79,12 @@ public final class CaptureViewModel: NZViewModel {
     public init(
         cameraClient: CameraClient,
         videoTrimClient: VideoTrimClient,
+        coordinator: any Coordinator<CaptureRoute>,
         configuration: CaptureConfiguration
     ) {
         self.cameraClient = cameraClient.makeController()
         self.videoTrimClient = videoTrimClient
+        self.coordinator = coordinator
         self.state = State(configuration: configuration)
     }
 
@@ -135,7 +136,6 @@ private extension CaptureViewModel {
             state.capturedMedia = nil
             state.videoTrimState = nil
             state.isRecording = nil
-            state.pendingCompletionMedia = nil
             
         case let .photoPickerChanged(item):
             guard let item else { return }
@@ -202,10 +202,8 @@ private extension CaptureViewModel {
             state.videoTrimState = trimState // 2
 
         case let .videoTrimExported(media):
-            state.pendingCompletionMedia = media
-
-        case .completionDelivered:
-            state.pendingCompletionMedia = nil
+            state.capturedMedia = media
+            coordinator?.push(to: .upload)
         }
     }
 
@@ -238,7 +236,7 @@ private extension CaptureViewModel {
         guard media.mode == .video,
               let sourceURL = media.url,
               let trimState = state.videoTrimState else {
-            state.pendingCompletionMedia = media
+            coordinator?.push(to: .upload)
             return
         }
 

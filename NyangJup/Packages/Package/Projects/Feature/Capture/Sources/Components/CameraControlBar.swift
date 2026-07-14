@@ -25,8 +25,10 @@ struct CameraControlBar: View {
             HStack(spacing: 0) {
                 albumButton
                 Spacer()
-                modePickerArea
-                Spacer()
+                if showsModePicker {
+                    modePicker
+                    Spacer()
+                }
                 switchButton
             }
             .frame(maxWidth: .infinity)
@@ -49,22 +51,13 @@ private extension CameraControlBar {
         .animation(.easeInOut, value: isRecording)
     }
 
-    @ViewBuilder
-    var modePickerArea: some View {
-        if showsModePicker {
-            modePicker
-        } else {
-            Color.clear.frame(width: Constant.modePickerWidth)
-        }
-    }
-
     var albumButton: some View {
         PhotosPicker(
             selection: Binding(
                 get: { nil },
                 set: { onPhotoPickerChanged($0) }
             ),
-            matching: .all(of: [.images, .videos])
+            matching: .any(of: [.images, .videos])
         ) {
             Image(systemName: Constant.albumImage)
                 .font(.system(size: Constant.secondaryButtonImageSize, weight: .semibold))
