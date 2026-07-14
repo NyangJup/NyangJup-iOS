@@ -10,7 +10,7 @@ import SwiftUI
 import FeatureCaptureInterface
 
 public struct CaptureView: View {
-    @State private var viewModel: CaptureViewModel
+    private let viewModel: CaptureViewModel
     private let onAction: @MainActor @Sendable (CaptureDelegate.Action) -> Void
 
     
@@ -60,11 +60,6 @@ public struct CaptureView: View {
         .background(.black)
         .overlay(alignment: .topTrailing) {
             dismissButton
-        }
-        .onChange(of: viewModel.state.pendingCompletionMedia) { _, media in
-            guard let media else { return }
-            onAction(.captured(media))
-            viewModel.send(.internal(.completionDelivered))
         }
         .onAppear {
             viewModel.send(.view(.onAppear))

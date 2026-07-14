@@ -12,7 +12,7 @@ import DomainMediaInterface
 public struct CatFeed {
     let id: String
     let name: String
-    let place: String
+    let place: String?
     let thumbnailURL: String
     
     let feed: [Media]
@@ -20,7 +20,7 @@ public struct CatFeed {
     public init(
         id: String,
         name: String,
-        place: String,
+        place: String?,
         thumbnailURL: String,
         feed: [Media]
     ) {

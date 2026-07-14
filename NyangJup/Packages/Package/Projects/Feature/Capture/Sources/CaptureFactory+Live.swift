@@ -21,14 +21,17 @@ public extension CaptureFactory {
                 let onAction: @MainActor @Sendable (CaptureDelegate.Action) -> Void = { action in
                     delegate?.send(action)
                 }
+                let coordinator = CaptureCoordinator()
 
                 return AnyView(
-                    CaptureView(
+                    CaptureRootView(
                         viewModel: CaptureViewModel(
                             cameraClient: cameraClient,
                             videoTrimClient: VideoTrimClient(),
+                            coordinator: coordinator,
                             configuration: configuration ?? .init(showsModePicker: true)
                         ),
+                        coordinator: coordinator,
                         onAction: onAction
                     )
                 )

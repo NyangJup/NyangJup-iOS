@@ -5,8 +5,6 @@
 //  Created by 정지훈 on 7/2/26.
 //
 
-import Foundation
-
 import DomainCatsInterface
 import DomainMediaInterface
 
@@ -19,27 +17,35 @@ extension CatsClient {
                     id: "1",
                     name: "꾸꾸",
                     place: "구로구",
-                    imageURL: "https://picsum.photos/200/300"
+                    appearanceKey: "abyssinian"
                 ),
                 Cat(
                     id: "2",
                     name: "까까",
                     place: "구로구",
-                    imageURL: "https://picsum.photos/200/300"
+                    appearanceKey: "americanShorthair"
                 ),
                 Cat(
                     id: "3",
                     name: "냥냥",
                     place: "구로구",
-                    imageURL: "https://picsum.photos/200/300"
+                    appearanceKey: "bengal"
                 ),
                 Cat(
                     id: "4",
                     name: "야르",
                     place: "구로구",
-                    imageURL: "https://picsum.photos/200/300"
+                    appearanceKey: "britishShorthair"
                 )
             ]
+        },
+        createCat: { request in
+            Cat(
+                id: "created-cat",
+                name: request.name,
+                place: "",
+                appearanceKey: request.appearanceKey
+            )
         },
         fetchCatFeed: { id in
             CatFeed(
