@@ -1,3 +1,10 @@
+//
+//  DomainCatsTests.swift
+//  NJPackage
+//
+//  Created by 정지훈 on 7/14/26.
+//
+
 import Testing
 @testable import DomainCatsInterface
 import DomainCatsTesting
@@ -11,7 +18,27 @@ func testClientFetchCatsReturnsSampleCats() async throws {
     #expect(cats.map(\.id) == ["1", "2", "3", "4"])
     #expect(cats.map(\.name) == ["꾸꾸", "까까", "냥냥", "야르"])
     #expect(cats.allSatisfy { $0.place == "구로구" })
-    #expect(cats.allSatisfy { $0.imageURL == "https://picsum.photos/200/300" })
+    #expect(cats.map(\.appearanceKey) == [
+        "abyssinian",
+        "americanShorthair",
+        "bengal",
+        "britishShorthair"
+    ])
+}
+
+@Test
+func testClientCreateCatUsesRequestValues() async throws {
+    let request = CreateCatRequestDTO(
+        name: "나비",
+        appearanceKey: "abyssinian"
+    )
+
+    let cat = try await CatsClient.test.createCat(request)
+
+    #expect(cat.id == "created-cat")
+    #expect(cat.name == request.name)
+    #expect(cat.place == "")
+    #expect(cat.appearanceKey == request.appearanceKey)
 }
 
 @Test
