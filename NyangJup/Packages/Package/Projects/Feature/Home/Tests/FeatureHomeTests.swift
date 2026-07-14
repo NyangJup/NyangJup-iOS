@@ -1,19 +1,109 @@
+//
+//  FeatureHomeTests.swift
+//  NJPackage
+//
+//  Created by 정지훈 on 7/14/26.
+//
+
 import Testing
-@testable import FeatureHome
+
+import DomainCatsInterface
 import DomainCatsTesting
 import DomainProfileTesting
+@testable import FeatureHome
+
+private actor CreateCatRequestRecorder {
+    private(set) var request: CreateCatRequestDTO?
+
+    func record(_ request: CreateCatRequestDTO) {
+        self.request = request
+    }
+}
+
+private enum TestError: Error {
+    case createCatFailed
+}
 
 @MainActor
 @Test
-func plusButtonPresentsCapture() {
+func plusButtonPresentsMakeCat() {
     let viewModel = HomeViewModel(
         catsClient: .test,
         profileClient: .test
     )
 
-    #expect(viewModel.state.isCapturePresented == false)
+    #expect(viewModel.state.isMakeCatPresented == false)
     viewModel.send(.view(.plusButtonTapped))
-    #expect(viewModel.state.isCapturePresented == true)
-    viewModel.send(.view(.captureDismissed))
-    #expect(viewModel.state.isCapturePresented == false)
+    #expect(viewModel.state.isMakeCatPresented == true)
+}
+
+@MainActor
+@Test
+func makeCatSubmittedAddsCreatedCatAndDismissesSheet() async {
+    let recorder = CreateCatRequestRecorder()
+    var catsClient = CatsClient.test
+    catsClient.createCat = { request in
+        await recorder.record(request)
+        return Cat(
+            id: "created-cat",
+            name: request.name,
+            place: "",
+            appearanceKey: request.appearanceKey
+        )
+    }
+    let viewModel = HomeViewModel(
+        catsClient: catsClient,
+        profileClient: .test
+    )
+    viewModel.send(.view(.plusButtonTapped))
+
+    viewModel.send(.view(.makeCatSubmitted(
+        name: "나비",
+        appearanceKey: "abyssinian"
+    )))
+
+    await waitUntil { viewModel.state.cats.count == 1 }
+    let request = await recorder.request
+    #expect(request?.name == "나비")
+    #expect(request?.appearanceKey == "abyssinian")
+    #expect(viewModel.state.cats.first?.name == "나비")
+    #expect(viewModel.state.cats.first?.appearanceKey == "abyssinian")
+    #expect(viewModel.state.isMakeCatPresented == false)
+}
+
+@MainActor
+@Test
+func makeCatSubmittedFailureKeepsSheetPresented() async {
+    let recorder = CreateCatRequestRecorder()
+    var catsClient = CatsClient.test
+    catsClient.createCat = { request in
+        await recorder.record(request)
+        throw TestError.createCatFailed
+    }
+    let viewModel = HomeViewModel(
+        catsClient: catsClient,
+        profileClient: .test
+    )
+    viewModel.send(.view(.plusButtonTapped))
+
+    viewModel.send(.view(.makeCatSubmitted(
+        name: "나비",
+        appearanceKey: "abyssinian"
+    )))
+
+    for _ in 0..<100 {
+        if await recorder.request != nil { break }
+        await Task.yield()
+    }
+    #expect(await recorder.request != nil)
+    #expect(viewModel.state.cats.isEmpty)
+    #expect(viewModel.state.isMakeCatPresented == true)
+}
+
+@MainActor
+private func waitUntil(_ condition: () -> Bool) async {
+    for _ in 0..<100 {
+        if condition() { return }
+        await Task.yield()
+    }
 }
