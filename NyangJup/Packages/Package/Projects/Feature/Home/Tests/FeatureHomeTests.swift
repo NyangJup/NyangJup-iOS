@@ -10,7 +10,24 @@ import Testing
 import DomainCatsInterface
 import DomainCatsTesting
 import DomainProfileTesting
+import FeatureCommonInterface
+import FeatureHomeInterface
 @testable import FeatureHome
+
+@MainActor
+private final class HomeCoordinatorSpy: Coordinator {
+    typealias Route = HomeRoute
+
+    var routes: [HomeRoute] = []
+
+    func push(to route: HomeRoute) {
+        routes.append(route)
+    }
+
+    func pop() {
+        _ = routes.popLast()
+    }
+}
 
 private actor CreateCatRequestRecorder {
     private(set) var request: CreateCatRequestDTO?
@@ -27,9 +44,11 @@ private enum TestError: Error {
 @MainActor
 @Test
 func plusButtonPresentsMakeCat() {
+    let coordinator = HomeCoordinatorSpy()
     let viewModel = HomeViewModel(
         catsClient: .test,
-        profileClient: .test
+        profileClient: .test,
+        coordinator: coordinator
     )
 
     #expect(viewModel.state.isMakeCatPresented == false)
@@ -39,7 +58,63 @@ func plusButtonPresentsMakeCat() {
 
 @MainActor
 @Test
+func catTappedSelectsCat() {
+    let selectedCat = Cat(
+        id: "selected-cat",
+        name: "나비",
+        place: "집",
+        appearanceKey: "abyssinian"
+    )
+    let coordinator = HomeCoordinatorSpy()
+    let viewModel = HomeViewModel(
+        catsClient: .test,
+        profileClient: .test,
+        coordinator: coordinator
+    )
+    viewModel.state.cats = [selectedCat]
+
+    viewModel.send(.view(.catTapped(id: selectedCat.id)))
+
+    #expect(viewModel.state.selectedCatId == selectedCat.id)
+    #expect(viewModel.state.selectedCat?.id == selectedCat.id)
+}
+
+@MainActor
+@Test
+func selectionClearedClearsSelectedCat() {
+    let coordinator = HomeCoordinatorSpy()
+    let viewModel = HomeViewModel(
+        catsClient: .test,
+        profileClient: .test,
+        coordinator: coordinator
+    )
+    viewModel.state.selectedCatId = "selected-cat"
+
+    viewModel.send(.view(.selectionCleared))
+
+    #expect(viewModel.state.selectedCatId == nil)
+}
+
+@MainActor
+@Test
+func speechBubblePushesSelectedCatFeedRoute() {
+    let coordinator = HomeCoordinatorSpy()
+    let viewModel = HomeViewModel(
+        catsClient: .test,
+        profileClient: .test,
+        coordinator: coordinator
+    )
+    viewModel.state.selectedCatId = "selected-cat"
+
+    viewModel.send(.view(.speechBubbleTapped))
+
+    #expect(coordinator.routes == [.feed(catId: "selected-cat")])
+}
+
+@MainActor
+@Test
 func makeCatSubmittedAddsCreatedCatAndDismissesSheet() async {
+    let coordinator = HomeCoordinatorSpy()
     let recorder = CreateCatRequestRecorder()
     var catsClient = CatsClient.test
     catsClient.createCat = { request in
@@ -53,7 +128,8 @@ func makeCatSubmittedAddsCreatedCatAndDismissesSheet() async {
     }
     let viewModel = HomeViewModel(
         catsClient: catsClient,
-        profileClient: .test
+        profileClient: .test,
+        coordinator: coordinator
     )
     viewModel.send(.view(.plusButtonTapped))
 
@@ -74,6 +150,7 @@ func makeCatSubmittedAddsCreatedCatAndDismissesSheet() async {
 @MainActor
 @Test
 func makeCatSubmittedFailureKeepsSheetPresented() async {
+    let coordinator = HomeCoordinatorSpy()
     let recorder = CreateCatRequestRecorder()
     var catsClient = CatsClient.test
     catsClient.createCat = { request in
@@ -82,7 +159,8 @@ func makeCatSubmittedFailureKeepsSheetPresented() async {
     }
     let viewModel = HomeViewModel(
         catsClient: catsClient,
-        profileClient: .test
+        profileClient: .test,
+        coordinator: coordinator
     )
     viewModel.send(.view(.plusButtonTapped))
 
