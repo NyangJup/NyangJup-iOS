@@ -14,20 +14,25 @@ final class HomeMapScene: SKScene {
     typealias CatID = String
     typealias CatPosition = CGPoint
 
-    var cats: [Cat]
+    private var cats: [Cat]
     private weak var selectedCatNode: SKNode?
 
-    var onCatTapped: (CatID, CatPosition) -> Void
-    var onSelectionCleared: () -> Void
+    private let onCatTapped: (CatID, CatPosition) -> Void
+    private let onSelectionCleared: () -> Void
 
     // MARK: - Init
 
-    init(
+    init?(
         size: CGSize,
         cats: [Cat],
         onCatTapped: @escaping (CatID, CatPosition) -> Void,
         onSelectionCleared: @escaping () -> Void,
     ) {
+        guard size.width >= Constant.horizontalMoveInset * 2,
+              size.height >= Constant.verticalMoveInset * 2 else {
+            return nil
+        }
+
         self.cats = cats
         self.onCatTapped = onCatTapped
         self.onSelectionCleared = onSelectionCleared
@@ -46,8 +51,10 @@ final class HomeMapScene: SKScene {
         backgroundColor = .clear
         scaleMode = .resizeFill
 
-        addMapBackground()
-        addCats()
+        if childNode(withName: Constant.mapNodeName) == nil {
+            addMapBackground()
+        }
+        syncCats(cats)
     }
 
     override func update(_ currentTime: TimeInterval) {
@@ -65,7 +72,7 @@ final class HomeMapScene: SKScene {
         guard let catNode = touchedNodes.compactMap({
             findCatNode(from: $0)
         }).first else {
-            deselectCat()
+            clearSelection()
             return
         }
 
@@ -76,11 +83,63 @@ final class HomeMapScene: SKScene {
 // MARK: - Private Method
 
 extension HomeMapScene {
+    func clearSelection() {
+        guard let selectedCatNode else {
+            return
+        }
+        selectedCatNode.isPaused = false
+        self.selectedCatNode = nil
+        onSelectionCleared()
+    }
+
+    func syncCats(_ cats: [Cat]) {
+        self.cats = cats
+        let catIDs = Set(cats.map(\.id))
+        let catNodes = children.filter { $0.name == Constant.catNodeName }
+
+        catNodes
+            .filter { node in
+                guard let catID = node.userData?[Constant.catIDKey] as? String else {
+                    return true
+                }
+                return !catIDs.contains(catID)
+            }
+            .forEach { node in
+                if selectedCatNode === node {
+                    clearSelection()
+                }
+                node.removeFromParent()
+            }
+
+        let existingCatIDs: Set<String> = Set(children.compactMap { node in
+            guard node.name == Constant.catNodeName else { return nil }
+            return node.userData?[Constant.catIDKey] as? String
+        })
+
+        cats
+            .filter { !existingCatIDs.contains($0.id) }
+            .forEach { cat in
+                guard let appearance = CatAppearance(rawValue: cat.appearanceKey) else {
+                    return
+                }
+
+                let texture = SKTexture(image: appearance.imageAsset.uiImage)
+                texture.filteringMode = .nearest
+                addCat(texture: texture, cat: cat)
+            }
+    }
+
+    private func isValidContentSize(_ size: CGSize) -> Bool {
+        size.width >= Constant.horizontalMoveInset * 2
+            && size.height >= Constant.verticalMoveInset * 2
+    }
+
     private func addMapBackground() {
         let texture = SKTexture(image: NJImage.map.uiImage)
         texture.filteringMode = .nearest
 
         let map = SKSpriteNode(texture: texture)
+        map.name = Constant.mapNodeName
         map.anchorPoint = Constant.mapAnchorPoint
         map.position = CGPoint(x: size.width / 2, y: size.height / 2)
         map.zPosition = Constant.mapZPosition
@@ -92,16 +151,6 @@ extension HomeMapScene {
         map.setScale(scale)
 
         addChild(map)
-    }
-
-    private func addCats() {
-        cats.forEach { cat in
-            guard let appearance = CatAppearance(rawValue: cat.appearanceKey) else { return }
-
-            let texture = SKTexture(image: appearance.imageAsset.uiImage)
-            texture.filteringMode = .nearest
-            addCat(texture: texture, cat: cat)
-        }
     }
 
     private func addCat(texture: SKTexture, cat: Cat) {
@@ -162,6 +211,7 @@ extension HomeMapScene {
 
         let chooseMove = SKAction.run { [weak self, weak cat, weak sprite] in
             guard let self, let cat, let sprite else { return }
+            guard self.isValidContentSize(self.size) else { return }
 
             let target = CGPoint(
                 x: CGFloat.random(in: Constant.horizontalMoveInset...(self.size.width - Constant.horizontalMoveInset)),
@@ -200,10 +250,12 @@ extension HomeMapScene {
             return
         }
 
-        deselectCat()
-        onSelectionCleared()
+        if selectedCatNode === catNode {
+            clearSelection()
+            return
+        }
 
-        if selectedCatNode === catNode { return }
+        clearSelection()
 
         selectedCatNode = catNode
         catNode.isPaused = true
@@ -253,20 +305,13 @@ extension HomeMapScene {
         )
     }
 
-    private func deselectCat() {
-        guard let selectedCatNode else {
-            return
-        }
-        selectedCatNode.isPaused = false
-        self.selectedCatNode = nil
-        onSelectionCleared()
-    }
 }
 
 // MARK: - Constant
 
 private extension HomeMapScene {
     enum Constant {
+        static let mapNodeName = "map"
         static let catNodeName = "cat"
         static let catSize = CGSize(width: 48, height: 48)
         static let catDefaultZPosition: CGFloat = 10

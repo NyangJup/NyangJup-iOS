@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import SpriteKit
 
 import FeatureCaptureInterface
 
@@ -53,24 +52,18 @@ public struct HomeView: View {
 
 private extension HomeView {
     var mapView: some View {
-        GeometryReader { proxy in
-            SpriteView(
-                scene: HomeMapScene(
-                    size: proxy.size,
-                    cats: viewModel.state.cats,
-                    onCatTapped: { id, position in
-                        selectedCatPosition = position
-                        viewModel.send(.view(.catTapped(id: id)))
-                    },
-                    onSelectionCleared: {
-                        selectedCatPosition = nil
-                        viewModel.send(.view(.selectionCleared))
-                    }
-                ),
-                options: [.allowsTransparency]
-            )
-            .id(viewModel.state.cats.map(\.id).joined())
-        }
+        HomeMapView(
+            cats: viewModel.state.cats,
+            selectedCatID: viewModel.state.selectedCatId,
+            onCatTapped: { id, position in
+                selectedCatPosition = position
+                viewModel.send(.view(.catTapped(id: id)))
+            },
+            onSelectionCleared: {
+                selectedCatPosition = nil
+                viewModel.send(.view(.selectionCleared))
+            }
+        )
     }
 
     @ViewBuilder

@@ -85,12 +85,17 @@ public final class HomeViewModel: NZViewModel {
             Task {
                 do {
                     let cats = try await catsClient.fetchCats(state.individualCode)
-                    state.cats = cats
+                    let fetchedCatIDs = Set(cats.map(\.id))
+                    let locallyAddedCats = state.cats.filter {
+                        !fetchedCatIDs.contains($0.id)
+                    }
+                    state.cats = cats + locallyAddedCats
                 } catch {
 
                 }
             }
         case .plusButtonTapped:
+            state.selectedCatId = nil
             state.isMakeCatPresented = true
 
         case let .makeCatSubmitted(name, appearanceKey):
