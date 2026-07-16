@@ -8,17 +8,20 @@
 import SwiftUI
 
 import DomainCatsInterface
+import DomainMediaInterface
 import DomainProfileInterface
 import FeatureHomeInterface
 
 public struct HomeRootView: View {
     @State private var homeViewModel: HomeViewModel
     @State private var coordinator: HomeCoordinator
+    private let mediaClient: MediaClient
     @Namespace private var catProfileNamespace
 
     public init(
         catsClient: CatsClient,
-        profileClient: ProfileClient
+        profileClient: ProfileClient,
+        mediaClient: MediaClient
     ) {
         let coordinator = HomeCoordinator()
         self._homeViewModel = State(initialValue: HomeViewModel(
@@ -27,6 +30,7 @@ public struct HomeRootView: View {
             coordinator: coordinator
         ))
         self._coordinator = State(initialValue: coordinator)
+        self.mediaClient = mediaClient
     }
 
     public var body: some View {
@@ -40,7 +44,10 @@ public struct HomeRootView: View {
                 case let .feed(catId):
                     if let cat = homeViewModel.state.cats.first(where: { $0.id == catId }) {
                         FeedView(
-                            cat: cat,
+                            viewModel: FeedViewModel(
+                                cat: cat,
+                                mediaClient: mediaClient
+                            ),
                             namespace: catProfileNamespace
                         )
                     }

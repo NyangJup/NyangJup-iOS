@@ -10,6 +10,8 @@ import SpriteKit
 
 import DomainCatsInterface
 import DomainCatsTesting
+import DomainMediaInterface
+import DomainMediaTesting
 import DomainProfileTesting
 import FeatureCommonInterface
 import FeatureHomeInterface
@@ -57,8 +59,17 @@ private actor FetchCatsGate {
     }
 }
 
+private actor FeedRequestRecorder {
+    private(set) var cursors: [String?] = []
+
+    func record(cursor: String?) {
+        cursors.append(cursor)
+    }
+}
+
 private enum TestError: Error {
     case createCatFailed
+    case fetchFeedsFailed
 }
 
 @MainActor
@@ -372,6 +383,86 @@ func makeCatSubmittedFailureKeepsSheetPresented() async {
     #expect(await recorder.request != nil)
     #expect(viewModel.state.cats.isEmpty)
     #expect(viewModel.state.isMakeCatPresented == true)
+}
+
+@MainActor
+@Test
+func feedOnAppearLoadsFirstPage() async {
+    let cat = Cat(
+        id: "feed-cat",
+        name: "나비",
+        place: "집",
+        appearanceKey: "abyssinian"
+    )
+    let viewModel = FeedViewModel(cat: cat, mediaClient: .test)
+
+    viewModel.send(.view(.onAppear))
+    await waitUntil { !viewModel.state.isLoading }
+
+    #expect(viewModel.state.items.count == 10)
+    #expect(viewModel.state.nextCursor == "feed-page-2")
+}
+
+@MainActor
+@Test
+func feedLoadNextPageAppendsItemsAndStopsAtLastPage() async {
+    let recorder = FeedRequestRecorder()
+    var mediaClient = MediaClient.test
+    mediaClient.fetchFeeds = { catID, cursor in
+        await recorder.record(cursor: cursor)
+        return try await MediaClient.test.fetchFeeds(catID, cursor)
+    }
+    let viewModel = FeedViewModel(
+        cat: Cat(
+            id: "feed-cat",
+            name: "나비",
+            place: "집",
+            appearanceKey: "abyssinian"
+        ),
+        mediaClient: mediaClient
+    )
+
+    viewModel.send(.view(.onAppear))
+    await waitUntil { !viewModel.state.isLoading }
+    viewModel.send(.view(.loadNextPage))
+    await waitUntil { !viewModel.state.isLoading }
+
+    #expect(viewModel.state.items.count == 20)
+    #expect(viewModel.state.nextCursor == nil)
+
+    viewModel.send(.view(.loadNextPage))
+    await Task.yield()
+    #expect(await recorder.cursors.count == 2)
+}
+
+@MainActor
+@Test
+func feedFetchFailureKeepsItemsAndEndsLoading() async {
+    let existingItem = Media(
+        id: "existing-media",
+        thumbnailURL: "https://example.com/existing.jpg",
+        mediaType: .photo
+    )
+    var mediaClient = MediaClient.test
+    mediaClient.fetchFeeds = { _, _ in
+        throw TestError.fetchFeedsFailed
+    }
+    let viewModel = FeedViewModel(
+        cat: Cat(
+            id: "feed-cat",
+            name: "나비",
+            place: "집",
+            appearanceKey: "abyssinian"
+        ),
+        mediaClient: mediaClient
+    )
+    viewModel.state.items = [existingItem]
+
+    viewModel.send(.view(.onAppear))
+    await waitUntil { !viewModel.state.isLoading }
+
+    #expect(viewModel.state.items.map(\.id) == [existingItem.id])
+    #expect(viewModel.state.isLoading == false)
 }
 
 @MainActor

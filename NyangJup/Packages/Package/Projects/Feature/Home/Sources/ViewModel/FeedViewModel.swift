@@ -1,0 +1,119 @@
+//
+//  FeedViewModel.swift
+//  NJPackage
+//
+//  Created by 정지훈 on 7/16/26.
+//
+
+import Foundation
+
+import DomainMediaInterface
+import DomainCatsInterface
+import FeatureCommonInterface
+
+@MainActor
+@Observable
+public final class FeedViewModel: NZViewModel {
+
+    public struct State {
+        var cat: Cat
+        var items: [Media] = []
+        var nextCursor: String?
+        var isLoading: Bool = false
+
+        public init(
+            cat: Cat
+        ) {
+            self.cat = cat
+        }
+    }
+
+    public enum Action {
+        case view(View)
+        case network(Network)
+        case `internal`(Internal)
+
+        public enum View {
+            case onAppear
+            case loadNextPage
+        }
+
+        public enum Network {
+            case fetchFeed(cursor: String?)
+        }
+
+        public enum Internal {
+
+        }
+    }
+
+    public var state: State
+    let mediaClient: MediaClient
+
+    public init(
+        cat: Cat,
+        mediaClient: MediaClient
+    ) {
+        self.state = State(cat: cat)
+        self.mediaClient = mediaClient
+    }
+
+    public func send(_ action: Action) {
+        switch action {
+        case let .view(viewAction):
+            handleViewAction(viewAction)
+
+        case let .internal(internalAction):
+            handleInternalAction(internalAction)
+
+        case let .network(networkAction):
+            handleNetworkAction(networkAction)
+        }
+    }
+
+    private func handleViewAction(_ action: Action.View) {
+        switch action {
+        case .onAppear:
+            send(.network(.fetchFeed(cursor: nil)))
+
+        case .loadNextPage:
+            guard let nextCursor = state.nextCursor else { return }
+            send(.network(.fetchFeed(cursor: nextCursor)))
+        }
+    }
+
+    private func handleInternalAction(_ action: Action.Internal) {
+        switch action {
+
+        }
+    }
+
+    private func handleNetworkAction(_ action: Action.Network) {
+        switch action {
+        case let .fetchFeed(cursor):
+            guard !state.isLoading else { return }
+            state.isLoading = true
+
+            Task {
+                defer { state.isLoading = false }
+
+                do {
+                    let page = try await mediaClient.fetchFeeds(
+                        state.cat.id,
+                        cursor
+                    )
+
+                    if cursor == nil {
+                        state.items = page.items
+                    } else {
+                        state.items.append(contentsOf: page.items)
+                    }
+                    state.nextCursor = page.nextCursor
+                } catch {
+
+                }
+            }
+        }
+    }
+
+}

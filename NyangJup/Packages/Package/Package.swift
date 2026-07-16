@@ -90,6 +90,7 @@ let package = Package(
             name: "FeatureHome",
             dependencies: [
                 .domain(module: .cats, target: .interface),
+                .domain(module: .media, target: .interface),
                 .domain(module: .profile, target: .interface),
                 .shared(module: .design, target: .feature),
                 .feature(module: .common, target: .interface),
@@ -108,6 +109,7 @@ let package = Package(
             dependencies: [
                 .feature(module: .home, target: .feature),
                 .domain(module: .cats, target: .testing),
+                .domain(module: .media, target: .testing),
                 .domain(module: .profile, target: .testing),
                 .product(name: "Testing", package: "swift-testing")
             ],
