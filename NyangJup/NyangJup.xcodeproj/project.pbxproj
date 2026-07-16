@@ -10,6 +10,7 @@
 		CA6BE5392FF7A59100458997 /* DomainCats in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE5382FF7A59100458997 /* DomainCats */; };
 		CA6BE53B2FF7A59100458997 /* DomainProfile in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE53A2FF7A59100458997 /* DomainProfile */; };
 		CA6BE53D2FF7A59100458997 /* CoreCamera in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE53C2FF7A59100458997 /* CoreCamera */; };
+		CA6BE53F2FF7A59100458997 /* DomainMedia in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE53E2FF7A59100458997 /* DomainMedia */; };
 		CAE6840A2FF3000000F5116A /* FeatureHome in Frameworks */ = {isa = PBXBuildFile; productRef = CAE684092FF3000000F5116A /* FeatureHome */; };
 		CAE6840E2FF3000000F5116A /* SharedDesign in Frameworks */ = {isa = PBXBuildFile; productRef = CAE6840F2FF3000000F5116A /* SharedDesign */; };
 /* End PBXBuildFile section */
@@ -63,6 +64,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				CA6BE5392FF7A59100458997 /* DomainCats in Frameworks */,
+				CA6BE53F2FF7A59100458997 /* DomainMedia in Frameworks */,
 				CAE6840A2FF3000000F5116A /* FeatureHome in Frameworks */,
 				CA6BE53B2FF7A59100458997 /* DomainProfile in Frameworks */,
 				CA6BE53D2FF7A59100458997 /* CoreCamera in Frameworks */,
@@ -164,6 +166,7 @@
 				CA6BE5382FF7A59100458997 /* DomainCats */,
 				CA6BE53A2FF7A59100458997 /* DomainProfile */,
 				CA6BE53C2FF7A59100458997 /* CoreCamera */,
+				CA6BE53E2FF7A59100458997 /* DomainMedia */,
 			);
 			productName = HomeExample;
 			productReference = CAE684002FF3000000F5116A /* HomeExample.app */;
@@ -554,6 +557,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = CAE6840B2FF3000000F5116A /* XCLocalSwiftPackageReference "Packages/Package" */;
 			productName = CoreCamera;
+		};
+		CA6BE53E2FF7A59100458997 /* DomainMedia */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CAE6840B2FF3000000F5116A /* XCLocalSwiftPackageReference "Packages/Package" */;
+			productName = DomainMedia;
 		};
 		CAE684092FF3000000F5116A /* FeatureHome */ = {
 			isa = XCSwiftPackageProductDependency;
