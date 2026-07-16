@@ -6,24 +6,26 @@
 //
 
 import SwiftUI
-import SpriteKit
 
 import FeatureCaptureInterface
-import SharedDesign
 
 public struct HomeView: View {
     @State private var viewModel: HomeViewModel
-    @Environment(\.captureFactory) private var captureFactory
+    @State private var selectedCatPosition: CGPoint?
+    private let namespace: Namespace.ID
 
-    public init(
-        viewModel: HomeViewModel
+    init(
+        viewModel: HomeViewModel,
+        namespace: Namespace.ID
     ) {
         self.viewModel = viewModel
+        self.namespace = namespace
     }
 
     public var body: some View {
         ZStack {
             mapView
+            catSpeechBubble
         }
         .overlay(alignment: .topLeading) {
             titleView
@@ -50,15 +52,32 @@ public struct HomeView: View {
 
 private extension HomeView {
     var mapView: some View {
-        GeometryReader { proxy in
-            SpriteView(
-                scene: HomeMapScene(
-                    size: proxy.size,
-                    cats: viewModel.state.cats
-                ),
-                options: [.allowsTransparency]
+        HomeMapView(
+            cats: viewModel.state.cats,
+            selectedCatID: viewModel.state.selectedCatId,
+            onCatTapped: { id, position in
+                selectedCatPosition = position
+                viewModel.send(.view(.catTapped(id: id)))
+            },
+            onSelectionCleared: {
+                selectedCatPosition = nil
+                viewModel.send(.view(.selectionCleared))
+            }
+        )
+    }
+
+    @ViewBuilder
+    var catSpeechBubble: some View {
+        if let cat = viewModel.state.selectedCat,
+           let position = selectedCatPosition {
+            CatSpeechBubble(
+                cat: cat,
+                namespace: namespace,
+                onTap: {
+                    viewModel.send(.view(.speechBubbleTapped))
+                }
             )
-            .id(viewModel.state.cats.map(\.id).joined())
+            .position(position)
         }
     }
 
@@ -104,5 +123,6 @@ private extension HomeView {
         static let bottomButtonSize: CGFloat = 60
         static let bottomButtonTrailingPadding: CGFloat = 20
         static let bottomButtonBottomPadding: CGFloat = 48
+
     }
 }

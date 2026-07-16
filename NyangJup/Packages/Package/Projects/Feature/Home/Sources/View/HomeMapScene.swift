@@ -5,22 +5,38 @@
 //  Created by 정지훈 on 7/1/26.
 //
 
-import SwiftUI
 import SpriteKit
 
 import DomainCatsInterface
 import SharedDesign
 
 final class HomeMapScene: SKScene {
-    var cats: [Cat]
+    typealias CatID = String
+    typealias CatPosition = CGPoint
+
+    private var cats: [Cat]
+    private weak var selectedCatNode: SKNode?
+
+    private let onCatTapped: (CatID, CatPosition) -> Void
+    private let onSelectionCleared: () -> Void
 
     // MARK: - Init
 
-    init(
+    init?(
         size: CGSize,
-        cats: [Cat]
+        cats: [Cat],
+        onCatTapped: @escaping (CatID, CatPosition) -> Void,
+        onSelectionCleared: @escaping () -> Void,
     ) {
+        guard size.width >= Constant.horizontalMoveInset * 2,
+              size.height >= Constant.verticalMoveInset * 2 else {
+            return nil
+        }
+
         self.cats = cats
+        self.onCatTapped = onCatTapped
+        self.onSelectionCleared = onSelectionCleared
+
         super.init(size: size)
     }
 
@@ -35,8 +51,10 @@ final class HomeMapScene: SKScene {
         backgroundColor = .clear
         scaleMode = .resizeFill
 
-        addMapBackground()
-        addCats()
+        if childNode(withName: Constant.mapNodeName) == nil {
+            addMapBackground()
+        }
+        syncCats(cats)
     }
 
     override func update(_ currentTime: TimeInterval) {
@@ -44,16 +62,84 @@ final class HomeMapScene: SKScene {
             node.zPosition = Constant.catZPositionBase - node.position.y
         }
     }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard let touch = touches.first else { return }
+
+        let location = touch.location(in: self)
+        let touchedNodes = nodes(at: location)
+
+        guard let catNode = touchedNodes.compactMap({
+            findCatNode(from: $0)
+        }).first else {
+            clearSelection()
+            return
+        }
+
+        selectCat(catNode)
+    }
 }
 
 // MARK: - Private Method
 
 extension HomeMapScene {
+    func clearSelection() {
+        guard let selectedCatNode else {
+            return
+        }
+        selectedCatNode.isPaused = false
+        self.selectedCatNode = nil
+        onSelectionCleared()
+    }
+
+    func syncCats(_ cats: [Cat]) {
+        self.cats = cats
+        let catIDs = Set(cats.map(\.id))
+        let catNodes = children.filter { $0.name == Constant.catNodeName }
+
+        catNodes
+            .filter { node in
+                guard let catID = node.userData?[Constant.catIDKey] as? String else {
+                    return true
+                }
+                return !catIDs.contains(catID)
+            }
+            .forEach { node in
+                if selectedCatNode === node {
+                    clearSelection()
+                }
+                node.removeFromParent()
+            }
+
+        let existingCatIDs: Set<String> = Set(children.compactMap { node in
+            guard node.name == Constant.catNodeName else { return nil }
+            return node.userData?[Constant.catIDKey] as? String
+        })
+
+        cats
+            .filter { !existingCatIDs.contains($0.id) }
+            .forEach { cat in
+                guard let appearance = CatAppearance(rawValue: cat.appearanceKey) else {
+                    return
+                }
+
+                let texture = SKTexture(image: appearance.imageAsset.uiImage)
+                texture.filteringMode = .nearest
+                addCat(texture: texture, cat: cat)
+            }
+    }
+
+    private func isValidContentSize(_ size: CGSize) -> Bool {
+        size.width >= Constant.horizontalMoveInset * 2
+            && size.height >= Constant.verticalMoveInset * 2
+    }
+
     private func addMapBackground() {
         let texture = SKTexture(image: NJImage.map.uiImage)
         texture.filteringMode = .nearest
 
         let map = SKSpriteNode(texture: texture)
+        map.name = Constant.mapNodeName
         map.anchorPoint = Constant.mapAnchorPoint
         map.position = CGPoint(x: size.width / 2, y: size.height / 2)
         map.zPosition = Constant.mapZPosition
@@ -67,32 +153,24 @@ extension HomeMapScene {
         addChild(map)
     }
 
-    private func addCats() {
-        cats.forEach { cat in
-            guard let appearance = CatAppearance(rawValue: cat.appearanceKey) else { return }
-
-            let texture = SKTexture(image: appearance.imageAsset.uiImage)
-            texture.filteringMode = .nearest
-            addCat(texture: texture, name: cat.name)
-        }
-    }
-
-    private func addCat(texture: SKTexture, name: String) {
-        let cat = SKNode()
-        cat.name = Constant.catNodeName
-        cat.position = CGPoint(
+    private func addCat(texture: SKTexture, cat: Cat) {
+        let node = SKNode()
+        node.name = Constant.catNodeName
+        node.userData = [Constant.catIDKey: cat.id]
+        node.position = CGPoint(
             x: size.width / 2 + CGFloat(Int.random(in: Constant.initialXOffsetRange)),
             y: size.height / 2
         )
-        cat.zPosition = Constant.catDefaultZPosition
+        node.zPosition = Constant.catDefaultZPosition
 
         let sprite = SKSpriteNode(texture: texture)
         sprite.size = Constant.catSize
-        cat.addChild(sprite)
-        addNameTag(name, to: cat)
+        node.addChild(sprite)
 
-        addChild(cat)
-        moveRandomly(cat, sprite: sprite)
+        addNameTag(cat.name, to: node)
+
+        addChild(node)
+        moveRandomly(node, sprite: sprite)
     }
 
     private func addNameTag(_ name: String, to cat: SKNode) {
@@ -133,6 +211,7 @@ extension HomeMapScene {
 
         let chooseMove = SKAction.run { [weak self, weak cat, weak sprite] in
             guard let self, let cat, let sprite else { return }
+            guard self.isValidContentSize(self.size) else { return }
 
             let target = CGPoint(
                 x: CGFloat.random(in: Constant.horizontalMoveInset...(self.size.width - Constant.horizontalMoveInset)),
@@ -151,16 +230,94 @@ extension HomeMapScene {
 
         cat.run(.repeatForever(.sequence([wait, chooseMove])))
     }
+
+    private func findCatNode(from node: SKNode) -> SKNode? {
+        var currentNode: SKNode? = node
+
+        while let node = currentNode {
+            if node.name == Constant.catNodeName {
+                return node
+            }
+
+            currentNode = node.parent
+        }
+
+        return nil
+    }
+
+    private func selectCat(_ catNode: SKNode) {
+        guard let catID = catNode.userData?[Constant.catIDKey] as? String else {
+            return
+        }
+
+        if selectedCatNode === catNode {
+            clearSelection()
+            return
+        }
+
+        clearSelection()
+
+        selectedCatNode = catNode
+        catNode.isPaused = true
+
+        let position = speechBubblePosition(for: catNode)
+        onCatTapped(catID, position)
+    }
+
+    private func speechBubblePosition(for catNode: SKNode) -> CGPoint {
+        let bubbleHalfWidth = Constant.speechBubbleSize.width / 2
+        let minimumBubbleCenterX = bubbleHalfWidth
+            + Constant.speechBubbleEdgeInset
+        let maximumBubbleCenterX = size.width
+            - bubbleHalfWidth
+            - Constant.speechBubbleEdgeInset
+        let bubblePositionX = min(
+            max(catNode.position.x, minimumBubbleCenterX),
+            maximumBubbleCenterX
+        )
+
+        let catPositionY = size.height - catNode.position.y
+        let bubbleOffset = Constant.catSize.height / 2
+            + Constant.speechBubbleSpacing
+            + Constant.speechBubbleSize.height / 2
+        let positionAboveCat = catPositionY - bubbleOffset
+        let minimumBubbleCenterY = Constant.speechBubbleSize.height / 2
+            + Constant.speechBubbleEdgeInset
+
+        if positionAboveCat >= minimumBubbleCenterY {
+            return CGPoint(
+                x: bubblePositionX,
+                y: positionAboveCat
+            )
+        }
+
+        let positionBelowCat = catPositionY
+            + Constant.catSize.height / 2
+            + Constant.nameTagSpacing
+            + Constant.nameTagHeight
+            + Constant.speechBubbleSpacing
+            + Constant.speechBubbleSize.height / 2
+            + 20
+
+        return CGPoint(
+            x: bubblePositionX,
+            y: positionBelowCat
+        )
+    }
+
 }
 
 // MARK: - Constant
 
 private extension HomeMapScene {
     enum Constant {
-        static let catNodeName: String = "cat"
+        static let mapNodeName = "map"
+        static let catNodeName = "cat"
         static let catSize = CGSize(width: 48, height: 48)
         static let catDefaultZPosition: CGFloat = 10
         static let catZPositionBase: CGFloat = 1000
+
+        static let catIDKey: String = "catID"
 
         static let nameTagFontName: String = "HelveticaNeue-Bold"
         static let nameTagFontSize: CGFloat = 10
@@ -168,6 +325,10 @@ private extension HomeMapScene {
         static let nameTagMinimumWidth: CGFloat = 24
         static let nameTagHorizontalPadding: CGFloat = 4
         static let nameTagSpacing: CGFloat = 2
+
+        static let speechBubbleSize = CGSize(width: 250, height: 112)
+        static let speechBubbleSpacing: CGFloat = 8
+        static let speechBubbleEdgeInset: CGFloat = 16
 
         static let mapAnchorPoint = CGPoint(x: 0.5, y: 0.5)
         static let mapZPosition: CGFloat = 0

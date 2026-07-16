@@ -10,6 +10,7 @@ import Foundation
 import DomainCatsInterface
 import DomainProfileInterface
 import FeatureCommonInterface
+import FeatureHomeInterface
 
 @MainActor
 @Observable
@@ -21,6 +22,13 @@ public final class HomeViewModel: NZViewModel {
         var cats: [Cat] = []
         var individualCode: String = ""
         var isMakeCatPresented: Bool = false
+        var selectedCatId: String?
+
+        var selectedCat: Cat? {
+            guard let selectedCatId else { return nil }
+
+            return cats.first { $0.id == selectedCatId }
+        }
     }
 
     public enum Action {
@@ -32,6 +40,9 @@ public final class HomeViewModel: NZViewModel {
             case onAppear
             case plusButtonTapped
             case makeCatSubmitted(name: String, appearanceKey: String)
+            case catTapped(id: String)
+            case selectionCleared
+            case speechBubbleTapped
         }
 
         public enum Network {
@@ -44,16 +55,19 @@ public final class HomeViewModel: NZViewModel {
     }
 
     public var state: State = State()
+    weak var coordinator: (any Coordinator<HomeRoute>)?
 
     let catsClient: CatsClient
     let profileClient: ProfileClient
 
     public init(
         catsClient: CatsClient,
-        profileClient: ProfileClient
+        profileClient: ProfileClient,
+        coordinator: any Coordinator<HomeRoute>
     ) {
         self.catsClient = catsClient
         self.profileClient = profileClient
+        self.coordinator = coordinator
     }
 
     public func send(_ action: Action) {
@@ -71,12 +85,17 @@ public final class HomeViewModel: NZViewModel {
             Task {
                 do {
                     let cats = try await catsClient.fetchCats(state.individualCode)
-                    state.cats = cats
+                    let fetchedCatIDs = Set(cats.map(\.id))
+                    let locallyAddedCats = state.cats.filter {
+                        !fetchedCatIDs.contains($0.id)
+                    }
+                    state.cats = cats + locallyAddedCats
                 } catch {
 
                 }
             }
         case .plusButtonTapped:
+            state.selectedCatId = nil
             state.isMakeCatPresented = true
 
         case let .makeCatSubmitted(name, appearanceKey):
@@ -94,6 +113,15 @@ public final class HomeViewModel: NZViewModel {
 
                 }
             }
+        case let .catTapped(id):
+            state.selectedCatId = id
+
+        case .selectionCleared:
+            state.selectedCatId = nil
+
+        case .speechBubbleTapped:
+            guard let selectedCatId = state.selectedCatId else { return }
+            coordinator?.push(to: .feed(catId: selectedCatId))
         }
 
     }

@@ -53,4 +53,5 @@ public enum NJImage {
     public static let woodenBench = NJImageAsset(resource: .Images.woodenBench)
     public static let woodenSign = NJImageAsset(resource: .Images.woodenSign)
     public static let generateBackground = NJImageAsset(resource: .Images.generateBackground)
+    public static let catFoot = NJImageAsset(resource: .Images.catFoot)
 }
