@@ -8,6 +8,7 @@
 import Foundation
 
 public enum NZImageLoaderError: Error, Sendable {
+    case clientNotConfigured
     case cacheMiss
     case invalidResponse
     case emptyData
