@@ -34,6 +34,10 @@ let package = Package(
         ),
         // MARK: - Core Products
         .library(
+            name: "CoreImageLoader",
+            targets: ["CoreImageLoader", "CoreImageLoaderInterface", "CoreImageLoaderTesting"]
+        ),
+        .library(
             name: "CoreNetwork",
             targets: ["CoreNetwork", "CoreNetworkInterface", "CoreNetworkTesting"]
         ),
@@ -90,7 +94,9 @@ let package = Package(
             name: "FeatureHome",
             dependencies: [
                 .domain(module: .cats, target: .interface),
+                .domain(module: .media, target: .interface),
                 .domain(module: .profile, target: .interface),
+                .core(module: .imageLoader, target: .interface),
                 .shared(module: .design, target: .feature),
                 .feature(module: .common, target: .interface),
                 .feature(module: .home, target: .interface),
@@ -108,6 +114,7 @@ let package = Package(
             dependencies: [
                 .feature(module: .home, target: .feature),
                 .domain(module: .cats, target: .testing),
+                .domain(module: .media, target: .testing),
                 .domain(module: .profile, target: .testing),
                 .product(name: "Testing", package: "swift-testing")
             ],
@@ -246,6 +253,35 @@ let package = Package(
         ),
         // MARK: - Core Targets
         .target(
+            name: "CoreImageLoaderInterface",
+            dependencies: [],
+            path: "Projects/Core/ImageLoader/Interface/Sources"
+        ),
+        .target(
+            name: "CoreImageLoader",
+            dependencies: [
+                .core(module: .imageLoader, target: .interface)
+            ],
+            path: "Projects/Core/ImageLoader/Sources"
+        ),
+        .target(
+            name: "CoreImageLoaderTesting",
+            dependencies: [
+                .core(module: .imageLoader, target: .interface)
+            ],
+            path: "Projects/Core/ImageLoader/Testing/Sources"
+        ),
+        .testTarget(
+            name: "CoreImageLoaderTests",
+            dependencies: [
+                .core(module: .imageLoader, target: .feature),
+                .core(module: .imageLoader, target: .interface),
+                .core(module: .imageLoader, target: .testing),
+                .product(name: "Testing", package: "swift-testing")
+            ],
+            path: "Projects/Core/ImageLoader/Tests"
+        ),
+        .target(
             name: "CoreNetworkInterface",
             dependencies: [],
             path: "Projects/Core/Network/Interface/Sources"
@@ -346,6 +382,7 @@ enum Module {
     }
 
     enum Core: String {
+        case imageLoader = "ImageLoader"
         case camera = "Camera"
         case network = "Network"
         @available(*, unavailable)

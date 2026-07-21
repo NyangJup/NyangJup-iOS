@@ -11,6 +11,7 @@ import CoreNetworkInterface
 
 public struct MediaClient: Sendable {
     public typealias ID = String
+    public typealias Cursor = String
     
     public let networkClient: NetworkClient?
     
@@ -19,6 +20,7 @@ public struct MediaClient: Sendable {
     public var updateMedia: @Sendable (UploadMediaRequestDTO) async throws -> Void
     public var fetchMedia: @Sendable (ID) async throws -> Media
     public var deleteMedia: @Sendable (ID) async throws -> Media
+    public var fetchFeeds: @Sendable (ID, Cursor?) async throws -> (FeedPage)
     
     public init(
         networkClient: NetworkClient?,
@@ -26,7 +28,8 @@ public struct MediaClient: Sendable {
         uploadMedia: @escaping @Sendable (UploadMediaRequestDTO) async throws -> Void,
         updateMedia: @escaping @Sendable (UploadMediaRequestDTO) async throws -> Void,
         fetchMedia: @escaping @Sendable (ID) async throws -> Media,
-        deleteMedia: @escaping @Sendable (ID) async throws -> Media
+        deleteMedia: @escaping @Sendable (ID) async throws -> Media,
+        fetchFeeds: @escaping @Sendable (ID, Cursor?) async throws -> FeedPage
     ) {
         self.networkClient = networkClient
         self.fetchUploadURL = fetchUploadURL
@@ -34,6 +37,7 @@ public struct MediaClient: Sendable {
         self.updateMedia = updateMedia
         self.fetchMedia = fetchMedia
         self.deleteMedia = deleteMedia
+        self.fetchFeeds = fetchFeeds
     }
     
 }

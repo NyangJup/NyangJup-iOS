@@ -1,6 +1,7 @@
 import SwiftUI
 
 import FeatureHome
+import DomainMediaTesting
 import DomainProfileTesting
 import DomainCatsTesting
 
@@ -10,7 +11,8 @@ struct HomeExampleApp: App {
         WindowGroup {
             HomeRootView(
                 catsClient: .test,
-                profileClient: .test
+                profileClient: .test,
+                mediaClient: .test
             )
         }
     }

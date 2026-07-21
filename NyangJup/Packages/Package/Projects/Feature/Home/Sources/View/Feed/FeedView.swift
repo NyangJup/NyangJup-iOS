@@ -10,17 +10,15 @@ import SwiftUI
 import DomainCatsInterface
 
 struct FeedView: View {
-    let cat: Cat
+    @State var viewModel: FeedViewModel
     let namespace: Namespace.ID
 
     var body: some View {
-        ZStack(alignment: .top) {
-            Color.white
-                .ignoresSafeArea()
-
+        ScrollView {
             VStack(spacing: Constant.sectionSpacing) {
                 profileHeader
                 feedHeader
+                FeedList(items: viewModel.state.items)
                 Spacer()
             }
             .padding(.horizontal, Constant.horizontalPadding)
@@ -30,10 +28,13 @@ struct FeedView: View {
         .ignoresSafeArea()
         .navigationTransition(
             .zoom(
-                sourceID: CatProfileHeroID.feed(cat.id),
+                sourceID: CatProfileHeroID.feed(viewModel.state.cat.id),
                 in: namespace
             )
         )
+        .onAppear {
+            viewModel.send(.view(.onAppear))
+        }
     }
 }
 
@@ -42,7 +43,7 @@ struct FeedView: View {
 private extension FeedView {
     var profileHeader: some View {
         CatProfileInfoView(
-            cat: cat,
+            cat: viewModel.state.cat,
             imageBackgroundSize: Constant.avatarBackgroundSize,
             catImageSize: Constant.catImageSize,
             contentSpacing: Constant.profileSpacing,
@@ -67,7 +68,6 @@ private extension FeedView {
             Spacer()
         }
     }
-
 }
 
 // MARK: - Constant

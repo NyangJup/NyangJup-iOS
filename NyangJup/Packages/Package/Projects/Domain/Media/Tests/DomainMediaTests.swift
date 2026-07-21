@@ -39,3 +39,31 @@ func testClientDeleteMediaReturnsRequestedID() async throws {
     #expect(media.thumbnailURL == "https://picsum.photos/200/300")
     #expect(media.mediaType == .photo)
 }
+
+@Test
+func testClientFetchFeedsReturnsMixedFirstPage() async throws {
+    let page = try await MediaClient.test.fetchFeeds("cat-1", nil)
+
+    #expect(page.items.count == 10)
+    #expect(page.items.contains { $0.mediaType == .photo })
+    #expect(page.items.contains { $0.mediaType == .video })
+    #expect(page.nextCursor == "feed-page-2")
+}
+
+@Test
+func testClientFetchFeedsReturnsLastPageForKnownCursor() async throws {
+    let page = try await MediaClient.test.fetchFeeds("cat-1", "feed-page-2")
+
+    #expect(page.items.count == 10)
+    #expect(page.items.contains { $0.mediaType == .photo })
+    #expect(page.items.contains { $0.mediaType == .video })
+    #expect(page.nextCursor == nil)
+}
+
+@Test
+func testClientFetchFeedsReturnsEmptyPageForUnknownCursor() async throws {
+    let page = try await MediaClient.test.fetchFeeds("cat-1", "unknown")
+
+    #expect(page.items.isEmpty)
+    #expect(page.nextCursor == nil)
+}
