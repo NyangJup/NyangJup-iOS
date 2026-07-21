@@ -271,6 +271,16 @@ let package = Package(
             ],
             path: "Projects/Core/ImageLoader/Testing/Sources"
         ),
+        .testTarget(
+            name: "CoreImageLoaderTests",
+            dependencies: [
+                .core(module: .imageLoader, target: .feature),
+                .core(module: .imageLoader, target: .interface),
+                .core(module: .imageLoader, target: .testing),
+                .product(name: "Testing", package: "swift-testing")
+            ],
+            path: "Projects/Core/ImageLoader/Tests"
+        ),
         .target(
             name: "CoreNetworkInterface",
             dependencies: [],
