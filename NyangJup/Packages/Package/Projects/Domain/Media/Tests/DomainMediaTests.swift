@@ -3,6 +3,46 @@ import Testing
 import DomainMediaTesting
 
 @Test
+func relayCatStoresDetailFields() {
+    let relayCat = RelayCat(
+        id: "relay-cat",
+        memo: "낮잠 중",
+        thumbnailURL: "https://example.com/thumbnail.jpg",
+        name: "나비",
+        mediaType: .video,
+        mediaURL: "https://example.com/video.mp4",
+        isLiked: true
+    )
+
+    #expect(relayCat.id == "relay-cat")
+    #expect(relayCat.memo == "낮잠 중")
+    #expect(relayCat.thumbnailURL == "https://example.com/thumbnail.jpg")
+    #expect(relayCat.name == "나비")
+    #expect(relayCat.mediaType == .video)
+    #expect(relayCat.mediaURL == "https://example.com/video.mp4")
+    #expect(relayCat.isLiked)
+}
+
+@Test
+func testClientFetchRelayCatsReturnsAroundPage() async throws {
+    let request = FetchRelayCatsRequestDTO(
+        anchorId: "feed-photo-3",
+        catId: "cat-1",
+        beforeCount: 5,
+        afterCount: 5
+    )
+
+    let response = try await MediaClient.test.fetchRelayCats(request)
+
+    #expect(response.items.contains { $0.mediaType == .photo })
+    #expect(response.items.contains { $0.mediaType == .video })
+    #expect(response.items[response.anchorIndex].id == request.anchorId)
+    #expect(response.items.filter { $0.id == request.anchorId }.count == 1)
+    #expect(response.previousCursor == nil)
+    #expect(response.nextCursor == "10")
+}
+
+@Test
 func testClientFetchUploadURLUsesRequestedID() async throws {
     let response = try await MediaClient.test.fetchUploadURL("42")
 
@@ -22,14 +62,6 @@ func testClientUploadAndUpdateComplete() async throws {
     try await MediaClient.test.updateMedia(request)
 }
 
-@Test
-func testClientFetchMediaReturnsRequestedID() async throws {
-    let media = try await MediaClient.test.fetchMedia("7")
-
-    #expect(media.id == "7")
-    #expect(media.thumbnailURL == "https://picsum.photos/200/300")
-    #expect(media.mediaType == .photo)
-}
 
 @Test
 func testClientDeleteMediaReturnsRequestedID() async throws {
@@ -38,6 +70,7 @@ func testClientDeleteMediaReturnsRequestedID() async throws {
     #expect(media.id == "8")
     #expect(media.thumbnailURL == "https://picsum.photos/200/300")
     #expect(media.mediaType == .photo)
+    #expect(media.mediaURL == "https://picsum.photos/200/300")
 }
 
 @Test

@@ -57,47 +57,56 @@ extension CatsClient {
                     Media(
                         id: "1",
                         thumbnailURL: "https://picsum.photos/200/300",
-                        mediaType: .photo
+                        mediaType: .photo,
+                        mediaURL: "https://picsum.photos/200/300"
                     ),
                     Media(
                         id: "2",
                         thumbnailURL: "https://picsum.photos/200/300",
-                        mediaType: .photo
+                        mediaType: .photo,
+                        mediaURL: "https://picsum.photos/200/300"
                     ),
                     Media(
                         id: "3",
                         thumbnailURL: "https://picsum.photos/200/300",
-                        mediaType: .photo
+                        mediaType: .photo,
+                        mediaURL: "https://picsum.photos/200/300"
                     ),
                     Media(
                         id: "4",
                         thumbnailURL: "https://picsum.photos/200/300",
-                        mediaType: .photo
+                        mediaType: .photo,
+                        mediaURL: "https://picsum.photos/200/300"
                     ),
                     Media(
                         id: "5",
                         thumbnailURL: "https://picsum.photos/200/300",
-                        mediaType: .video
+                        mediaType: .video,
+                        mediaURL: "https://media.w3.org/2010/05/sintel/trailer.mp4"
                     ),
                     Media(
                         id: "6",
                         thumbnailURL: "https://picsum.photos/200/300",
-                        mediaType: .video
+                        mediaType: .video,
+                        mediaURL: "https://media.w3.org/2010/05/bunny/trailer.mp4"
                     ),
                     Media(
                         id: "7",
                         thumbnailURL: "https://picsum.photos/200/300",
-                        mediaType: .video
+                        mediaType: .video,
+                        mediaURL: "https://media.w3.org/2010/05/video/movie_300.mp4"
                     ),
                     Media(
                         id: "8",
                         thumbnailURL: "https://picsum.photos/200/300",
-                        mediaType: .video
+                        mediaType: .video,
+                        mediaURL: "https://media.w3.org/2010/05/sintel/trailer.mp4"
                     ),
                     Media(
                         id: "9",
                         thumbnailURL: "https://picsum.photos/200/300",
-                        mediaType: .video
+                        mediaType: .video,
+                        mediaURL: "https://media.w3.org/2010/05/bunny/trailer.mp4"
                     )
                 ]
             )
