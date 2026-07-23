@@ -441,7 +441,8 @@ func feedFetchFailureKeepsItemsAndEndsLoading() async {
     let existingItem = Media(
         id: "existing-media",
         thumbnailURL: "https://example.com/existing.jpg",
-        mediaType: .photo
+        mediaType: .photo,
+        mediaURL: "https://example.com/existing.jpg"
     )
     var mediaClient = MediaClient.test
     mediaClient.fetchFeeds = { _, _ in
@@ -463,6 +464,75 @@ func feedFetchFailureKeepsItemsAndEndsLoading() async {
 
     #expect(viewModel.state.items.map(\.id) == [existingItem.id])
     #expect(viewModel.state.isLoading == false)
+}
+
+@MainActor
+@Test
+func feedPhotoTappedPushesRelayCatRoute() {
+    let coordinator = HomeCoordinatorSpy()
+    let media = Media(
+        id: "photo-media",
+        thumbnailURL: "https://example.com/photo.jpg",
+        mediaType: .photo,
+        mediaURL: "https://example.com/original-photo.jpg"
+    )
+    let viewModel = FeedViewModel(
+        cat: Cat(
+            id: "feed-cat",
+            name: "나비",
+            place: "집",
+            appearanceKey: "abyssinian"
+        ),
+        mediaClient: .test,
+        coordinator: coordinator
+    )
+
+    viewModel.send(.view(.feedContentTapped(media)))
+
+    guard case let .relayCat(relayCat, catId) = coordinator.routes.first else {
+        Issue.record("RelayCat route was not pushed")
+        return
+    }
+    #expect(relayCat.id == media.id)
+    #expect(relayCat.memo.isEmpty)
+    #expect(relayCat.thumbnailURL == media.thumbnailURL)
+    #expect(relayCat.name == "나비")
+    #expect(relayCat.mediaType == .photo)
+    #expect(relayCat.mediaURL == media.mediaURL)
+    #expect(relayCat.isLiked == false)
+    #expect(catId == "feed-cat")
+}
+
+@MainActor
+@Test
+func feedVideoTappedUsesMediaURL() {
+    let coordinator = HomeCoordinatorSpy()
+    let media = Media(
+        id: "video-media",
+        thumbnailURL: "https://example.com/video-thumbnail.jpg",
+        mediaType: .video,
+        mediaURL: "https://example.com/video.mp4"
+    )
+    let viewModel = FeedViewModel(
+        cat: Cat(
+            id: "feed-cat",
+            name: "나비",
+            place: "집",
+            appearanceKey: "abyssinian"
+        ),
+        mediaClient: .test,
+        coordinator: coordinator
+    )
+
+    viewModel.send(.view(.feedContentTapped(media)))
+
+    guard case let .relayCat(relayCat, catId) = coordinator.routes.first else {
+        Issue.record("RelayCat route was not pushed")
+        return
+    }
+    #expect(relayCat.mediaType == .video)
+    #expect(relayCat.mediaURL == media.mediaURL)
+    #expect(catId == "feed-cat")
 }
 
 @MainActor

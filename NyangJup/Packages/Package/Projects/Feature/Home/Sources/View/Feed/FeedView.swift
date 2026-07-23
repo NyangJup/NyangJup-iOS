@@ -14,15 +14,27 @@ struct FeedView: View {
     let namespace: Namespace.ID
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: Constant.sectionSpacing) {
-                profileHeader
-                feedHeader
-                FeedList(items: viewModel.state.items)
-                Spacer()
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(spacing: Constant.sectionSpacing) {
+                    profileHeader
+                    Divider()
+                    feedHeader
+                    FeedList(
+                        items: viewModel.state.items,
+                        availableWidth: proxy.size.width - Constant.horizontalPadding * 2,
+                        onTap: { media in
+                            viewModel.send(.view(.feedContentTapped(media)))
+                        },
+                        onLoadNextPage: {
+                            viewModel.send(.view(.loadNextPage))
+                        }
+                    )
+                    Spacer()
+                }
+                .padding(.horizontal, Constant.horizontalPadding)
+                .padding(.top, Constant.topPadding)
             }
-            .padding(.horizontal, Constant.horizontalPadding)
-            .padding(.top, Constant.topPadding)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea()

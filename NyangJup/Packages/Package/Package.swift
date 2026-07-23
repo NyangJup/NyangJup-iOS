@@ -94,6 +94,7 @@ let package = Package(
         .target(
             name: "FeatureHomeInterface",
             dependencies: [
+                .domain(module: .media, target: .interface),
                 .feature(module: .common, target: .interface)
             ],
             path: "Projects/Feature/Home/Interface/Sources"
@@ -108,7 +109,8 @@ let package = Package(
                 .shared(module: .design, target: .feature),
                 .feature(module: .common, target: .interface),
                 .feature(module: .home, target: .interface),
-                .feature(module: .capture, target: .interface)
+                .feature(module: .capture, target: .interface),
+                .feature(module: .relayCat, target: .interface)
             ],
             path: "Projects/Feature/Home/Sources"
         ),

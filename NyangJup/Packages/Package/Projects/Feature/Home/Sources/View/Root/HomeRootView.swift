@@ -11,8 +11,10 @@ import DomainCatsInterface
 import DomainMediaInterface
 import DomainProfileInterface
 import FeatureHomeInterface
+import FeatureRelayCatInterface
 
 public struct HomeRootView: View {
+    @Environment(\.relayCatFactory) private var relayCatFactory
     @State private var homeViewModel: HomeViewModel
     @State private var coordinator: HomeCoordinator
     private let mediaClient: MediaClient
@@ -46,11 +48,21 @@ public struct HomeRootView: View {
                         FeedView(
                             viewModel: FeedViewModel(
                                 cat: cat,
-                                mediaClient: mediaClient
+                                mediaClient: mediaClient,
+                                coordinator: coordinator
                             ),
                             namespace: catProfileNamespace
                         )
                     }
+
+                case let .relayCat(relayCat, catId):
+                    relayCatFactory.makeView(
+                        RelayCatConfiguration(
+                            relayCat: relayCat,
+                            catId: catId
+                        ),
+                        nil
+                    )
                 }
             }
         }

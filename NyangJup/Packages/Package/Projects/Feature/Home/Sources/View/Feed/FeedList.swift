@@ -11,30 +11,55 @@ import DomainMediaInterface
 
 struct FeedList: View {
     private let columns: [GridItem] = [
-        GridItem(.flexible()),
-        GridItem(.flexible()),
-        GridItem(.flexible())
+        GridItem(.flexible(), spacing: Constant.columnSpacing),
+        GridItem(.flexible(), spacing: Constant.columnSpacing),
+        GridItem(.flexible(), spacing: Constant.columnSpacing)
     ]
 
     let items: [Media]
+    let availableWidth: CGFloat
+    let onTap: (Media) -> Void
+    let onLoadNextPage: () -> Void
 
     var body: some View {
         VStack {
-            LazyVGrid(columns: columns, spacing: 16) {
-                ForEach(items, id: \.self.id) { item in
-                    FeedCell(media: item)
+            LazyVGrid(columns: columns, spacing: Constant.rowSpacing) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { (index, item) in
+                    FeedCell(
+                        media: item,
+                        targetSize: cellSize,
+                        onTap: onTap
+                    )
+                    .onAppear {
+                        if index == loadNextPageIndex {
+                            onLoadNextPage()
+                        }
+                    }
                 }
             }
         }
     }
 }
 
-struct FeedCell: View {
-    let media: Media
+private extension FeedList {
+    enum Constant {
+        static let columnSpacing: CGFloat = 8
+        static let rowSpacing: CGFloat = 16
+        static let aspectRatio: CGFloat = 3 / 4
+        static let prefetchItemCount: Int = 6
+    }
 
-    var body: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(.orange)
-            .aspectRatio(3/4, contentMode: .fit)
+    var cellSize: CGSize {
+        let totalSpacing = Constant.columnSpacing * CGFloat(columns.count - 1)
+        let width = (availableWidth - totalSpacing) / CGFloat(columns.count)
+
+        return CGSize(
+            width: width,
+            height: width / Constant.aspectRatio
+        )
+    }
+    
+    var loadNextPageIndex: Int {
+        max(items.count - Constant.prefetchItemCount, 0)
     }
 }
