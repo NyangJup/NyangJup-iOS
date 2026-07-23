@@ -45,6 +45,10 @@ let package = Package(
             name: "CoreCamera",
             targets: ["CoreCamera", "CoreCameraInterface", "CoreCameraTesting"]
         ),
+        .library(
+            name: "CoreVideo",
+            targets: ["CoreVideoInterface"]
+        ),
         // MARK: - Shared Products
         .library(
             name: "SharedDesign",
@@ -134,7 +138,8 @@ let package = Package(
                 .shared(module: .design, target: .feature),
                 .feature(module: .common, target: .interface),
                 .feature(module: .capture, target: .interface),
-                .core(module: .camera, target: .interface)
+                .core(module: .camera, target: .interface),
+                .core(module: .video, target: .interface)
             ],
             path: "Projects/Feature/Capture/Sources"
         ),
@@ -335,6 +340,11 @@ let package = Package(
             ],
             path: "Projects/Core/Camera/Tests"
         ),
+        .target(
+            name: "CoreVideoInterface",
+            dependencies: [],
+            path: "Projects/Core/Video/Interface/Sources"
+        ),
         // MARK: - Shared Targets
         .target(
             name: "SharedDesign",
@@ -385,6 +395,7 @@ enum Module {
         case imageLoader = "ImageLoader"
         case camera = "Camera"
         case network = "Network"
+        case video = "Video"
         @available(*, unavailable)
         case placeholder = "__Placeholder"
     }
