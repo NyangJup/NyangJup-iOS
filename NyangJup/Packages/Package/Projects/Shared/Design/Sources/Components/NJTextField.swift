@@ -1,5 +1,5 @@
 //
-//  CatNameTextField.swift
+//  NJTextField.swift
 //  NJPackage
 //
 //  Created by 정지훈 on 7/14/26.
@@ -7,11 +7,24 @@
 
 import SwiftUI
 
-struct CatNameTextField: View {
-    @Binding var name: String
+public struct NJTextField: View {
+    @Binding private var text: String
 
-    var body: some View {
-        TextField(Constant.placeholder, text: $name)
+    private let placeholder: String
+    private let maxLength: Int
+
+    public init(
+        text: Binding<String>,
+        placeholder: String,
+        maxLength: Int
+    ) {
+        self._text = text
+        self.placeholder = placeholder
+        self.maxLength = maxLength
+    }
+
+    public var body: some View {
+        TextField(placeholder, text: $text)
             .font(.system(size: Constant.fontSize, weight: .semibold))
             .padding(.horizontal, Constant.horizontalPadding)
             .frame(height: Constant.height)
@@ -19,13 +32,13 @@ struct CatNameTextField: View {
                 .gray.opacity(Constant.backgroundOpacity),
                 in: RoundedRectangle(cornerRadius: Constant.cornerRadius)
             )
-            .onChange(of: name) { _, newValue in
-                if newValue.count > Constant.maxCount {
-                    name = String(newValue.prefix(Constant.maxCount))
+            .onChange(of: text) { _, newValue in
+                if newValue.count > maxLength {
+                    text = String(newValue.prefix(maxLength))
                 }
             }
             .overlay(alignment: .trailing) {
-                Text("\(name.count)/\(Constant.maxCount)")
+                Text("\(text.count)/\(maxLength)")
                     .font(.caption)
                     .padding(.trailing, Constant.countTrailingPadding)
             }
@@ -34,10 +47,8 @@ struct CatNameTextField: View {
 
 // MARK: - Constant
 
-private extension CatNameTextField {
+private extension NJTextField {
     enum Constant {
-        static let placeholder = "이름"
-        static let maxCount = 5
         static let fontSize: CGFloat = 17
         static let horizontalPadding: CGFloat = 16
         static let height: CGFloat = 52
