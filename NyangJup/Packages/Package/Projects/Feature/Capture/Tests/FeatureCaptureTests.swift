@@ -11,21 +11,11 @@ import Testing
 import CoreCameraInterface
 import CoreCameraTesting
 import FeatureCaptureInterface
-import FeatureCommonInterface
 
 @MainActor
-private final class CaptureCoordinatorSpy: Coordinator {
-    typealias Route = CaptureRoute
-
-    var routes: [CaptureRoute] = []
-
-    func push(to route: CaptureRoute) {
-        routes.append(route)
-    }
-
-    func pop() {
-        _ = routes.popLast()
-    }
+private final class CaptureOutputSpy {
+    var completedMedia: CapturedMedia?
+    var didClose = false
 }
 
 @MainActor
@@ -39,12 +29,13 @@ func clampsZoomFactor() {
 @MainActor
 @Test
 func captureViewModelUpdatesCaptureState() {
-    let coordinator = CaptureCoordinatorSpy()
+    let outputSpy = CaptureOutputSpy()
     let viewModel = CaptureViewModel(
         cameraClient: .test,
         videoTrimClient: VideoTrimClient(),
-        coordinator: coordinator,
-        configuration: .init(showsModePicker: false)
+        configuration: .init(showsModePicker: false),
+        onComplete: { outputSpy.completedMedia = $0 },
+        onClose: { outputSpy.didClose = true }
     )
 
     #expect(viewModel.state.mode == .photo)
@@ -59,34 +50,45 @@ func captureViewModelUpdatesCaptureState() {
     viewModel.send(.view(.retakeButtonTapped))
     #expect(viewModel.state.hasResultMedia == false)
     #expect(viewModel.state.isRecording == nil)
+
+    viewModel.send(.view(.closeButtonTapped))
+    #expect(outputSpy.didClose)
 }
 
 @MainActor
 @Test
-func usingPhotoPushesGenerateRoute() {
-    let coordinator = CaptureCoordinatorSpy()
+func completingPhotoSendsCapturedMedia() {
+    let outputSpy = CaptureOutputSpy()
     let viewModel = CaptureViewModel(
         cameraClient: .test,
         videoTrimClient: VideoTrimClient(),
-        coordinator: coordinator,
-        configuration: .init()
+        configuration: .init(showsModePicker: true),
+        onComplete: { outputSpy.completedMedia = $0 },
+        onClose: {}
+    )
+    let media = CapturedMedia(
+        data: Data([0, 1, 2]),
+        mode: .photo
     )
 
-    viewModel.send(.internal(.captureCompleted(CapturedMedia(data: Data([0, 1, 2]), mode: .photo))))
+    viewModel.send(.internal(.captureCompleted(media)))
     viewModel.send(.view(.useButtonTapped))
+    viewModel.send(.view(.completeButtonTapped))
 
-    #expect(coordinator.routes == [.upload])
+    #expect(viewModel.state.showsConfirmSheet)
+    #expect(outputSpy.completedMedia == media)
 }
 
 @MainActor
 @Test
-func exportedVideoReplacesCapturedMediaAndPushesGenerateRoute() {
-    let coordinator = CaptureCoordinatorSpy()
+func exportedVideoReplacesCapturedMediaAndCompletes() {
+    let outputSpy = CaptureOutputSpy()
     let viewModel = CaptureViewModel(
         cameraClient: .test,
         videoTrimClient: VideoTrimClient(),
-        coordinator: coordinator,
-        configuration: .init()
+        configuration: .init(showsModePicker: true),
+        onComplete: { outputSpy.completedMedia = $0 },
+        onClose: {}
     )
     let exportedMedia = CapturedMedia(
         url: URL(fileURLWithPath: "/tmp/exported.mov"),
@@ -96,5 +98,5 @@ func exportedVideoReplacesCapturedMediaAndPushesGenerateRoute() {
     viewModel.send(.internal(.videoTrimExported(exportedMedia)))
 
     #expect(viewModel.state.capturedMedia == exportedMedia)
-    #expect(coordinator.routes == [.upload])
+    #expect(outputSpy.completedMedia == exportedMedia)
 }

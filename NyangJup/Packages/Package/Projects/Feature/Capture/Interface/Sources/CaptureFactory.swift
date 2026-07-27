@@ -16,7 +16,7 @@ public struct CaptureConfiguration: FeatureConfiguration {
     public let showsModePicker: Bool
     
     public init(
-        showsModePicker: Bool = true
+        showsModePicker: Bool
     ) {
         self.showsModePicker = showsModePicker
     }
