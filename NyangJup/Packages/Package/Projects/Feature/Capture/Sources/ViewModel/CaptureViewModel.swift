@@ -23,14 +23,13 @@ public final class CaptureViewModel: NZViewModel {
         public var isRecording: Bool?
         public var capturedMedia: CapturedMedia?
         public var showsModePicker: Bool
+        public var showsConfirmSheet: Bool = false
+        
+        public var commentText: String = ""
         
         var videoTrimState: VideoTrimState?
         var isVideoTrimming: Bool {
             videoTrimState != nil
-        }
-        
-        public var previewImageData: Data? {
-            capturedMedia?.data
         }
         
         public var hasResultMedia: Bool {
@@ -59,6 +58,8 @@ public final class CaptureViewModel: NZViewModel {
             case durationStartTimeChanged(Double)
             case durationEndTimeChanged(Double)
             case currentTimeChanged(Double)
+            case completeButtonTapped
+            case closeButtonTapped
         }
 
         public enum Internal {
@@ -71,21 +72,24 @@ public final class CaptureViewModel: NZViewModel {
     }
 
     public var state: State
-    weak var coordinator: (any Coordinator<CaptureRoute>)?
 
     let cameraClient: any CameraSessionControlling
     let videoTrimClient: VideoTrimClient
+    private let onComplete: @MainActor @Sendable (CapturedMedia) -> Void
+    private let onClose: @MainActor @Sendable () -> Void
     
     public init(
         cameraClient: CameraClient,
         videoTrimClient: VideoTrimClient,
-        coordinator: any Coordinator<CaptureRoute>,
-        configuration: CaptureConfiguration
+        configuration: CaptureConfiguration,
+        onComplete: @escaping @MainActor @Sendable (CapturedMedia) -> Void,
+        onClose: @escaping @MainActor @Sendable () -> Void
     ) {
         self.cameraClient = cameraClient.makeController()
         self.videoTrimClient = videoTrimClient
-        self.coordinator = coordinator
         self.state = State(configuration: configuration)
+        self.onComplete = onComplete
+        self.onClose = onClose
     }
 
     public func send(_ action: Action) {
@@ -158,7 +162,13 @@ private extension CaptureViewModel {
             }
 
         case .useButtonTapped:
+            state.showsConfirmSheet = true
+            
+        case .completeButtonTapped:
             completeCapture()
+
+        case .closeButtonTapped:
+            onClose()
             
         case let .durationStartTimeChanged(time):
             state.videoTrimState?.startTime = time
@@ -203,7 +213,7 @@ private extension CaptureViewModel {
 
         case let .videoTrimExported(media):
             state.capturedMedia = media
-            coordinator?.push(to: .upload)
+            onComplete(media)
         }
     }
 
@@ -233,10 +243,14 @@ private extension CaptureViewModel {
 
     func completeCapture() {
         guard let media = state.capturedMedia else { return }
-        guard media.mode == .video,
-              let sourceURL = media.url,
+
+        guard media.mode == .video else {
+            onComplete(media)
+            return
+        }
+
+        guard let sourceURL = media.url,
               let trimState = state.videoTrimState else {
-            coordinator?.push(to: .upload)
             return
         }
 

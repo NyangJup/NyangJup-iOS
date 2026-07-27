@@ -15,24 +15,28 @@ public extension CaptureFactory {
         cameraClient: CameraClient
     ) -> Self {
         Self(
-            makeView: { configuration, delegate in
+            makeView: {
+                configuration,
+                delegate in
                 let configuration = configuration as? CaptureConfiguration
                 let delegate = delegate as? CaptureDelegate
                 let onAction: @MainActor @Sendable (CaptureDelegate.Action) -> Void = { action in
                     delegate?.send(action)
                 }
-                let coordinator = CaptureCoordinator()
-
+                
                 return AnyView(
-                    CaptureRootView(
+                    CaptureView(
                         viewModel: CaptureViewModel(
                             cameraClient: cameraClient,
                             videoTrimClient: VideoTrimClient(),
-                            coordinator: coordinator,
-                            configuration: configuration ?? .init(showsModePicker: true)
-                        ),
-                        coordinator: coordinator,
-                        onAction: onAction
+                            configuration: configuration ?? .init(showsModePicker: true),
+                            onComplete: { media in
+                                onAction(.complete(media))
+                            },
+                            onClose: {
+                                onAction(.close)
+                            }
+                        )
                     )
                 )
             }

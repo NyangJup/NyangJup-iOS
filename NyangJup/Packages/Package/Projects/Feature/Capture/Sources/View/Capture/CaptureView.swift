@@ -7,29 +7,96 @@
 
 import SwiftUI
 
-import FeatureCaptureInterface
-
 public struct CaptureView: View {
-    private let viewModel: CaptureViewModel
-    private let onAction: @MainActor @Sendable (CaptureDelegate.Action) -> Void
+    @State private var viewModel: CaptureViewModel
 
     
-    public init(
-        viewModel: CaptureViewModel,
-        onAction: @escaping @MainActor @Sendable (CaptureDelegate.Action) -> Void
-    ) {
+    public init(viewModel: CaptureViewModel) {
         self.viewModel = viewModel
-        self.onAction = onAction
     }
 
     public var body: some View {
+        GeometryReader { geometry in
+            Group {
+                if viewModel.state.hasResultMedia {
+                    resultLayout
+                } else {
+                    previewLayout(width: geometry.size.width)
+                }
+            }
+            .frame(
+                width: geometry.size.width,
+                height: geometry.size.height
+            )
+            .clipped()
+            .overlay(alignment: .topTrailing) {
+                dismissButton
+            }
+            .overlay(alignment: .bottom) {
+                if !viewModel.state.hasResultMedia, viewModel.state.mode == .video {
+                    cameraControllBar
+                }
+            }
+        }
+        .background(.black)
+        .onAppear {
+            viewModel.send(.view(.onAppear))
+        }
+        .sheet(isPresented: $viewModel.state.showsConfirmSheet) {
+            CaptureConfirmView(
+                comment: $viewModel.state.commentText,
+                onComplete: {
+                    viewModel.send(.view(.completeButtonTapped))
+                }
+            )
+        }
+        .onDisappear {
+            viewModel.send(.view(.onDisappear))
+        }
+    }
+}
+
+// MARK: - View
+private extension CaptureView {
+    
+    var resultLayout: some View {
         VStack(spacing: 0) {
-            CapturePreviewView(
-                previewImageData: viewModel.state.previewImageData,
-                capturedMediaURL: viewModel.state.capturedMedia?.url,
-                hasResultMedia: viewModel.state.hasResultMedia,
-                isRecording: viewModel.state.isRecording,
-                zoomFactor: viewModel.state.zoomFactor,
+            captureResultContent
+                .aspectRatio(captureAspectRatio, contentMode: .fit)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            captureResultBar
+                .padding(.top, Constant.resultControlSpacing)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    func previewLayout(width: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            if viewModel.state.mode == .photo {
+                Spacer()
+            }
+
+            capturePreivewView
+                .aspectRatio(captureAspectRatio, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+                .layoutPriority(1)
+
+            if viewModel.state.mode == .photo {
+                cameraControllBar
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, Constant.previewControlSpacing)
+            }
+        }
+        .frame(width: width)
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+
+    @ViewBuilder
+    var captureResultContent: some View {
+        if let media = viewModel.state.capturedMedia {
+            CaptureResultView(
+                media: media,
                 trimStartTime: Binding(
                     get: { viewModel.state.videoTrimState?.startTime },
                     set: {
@@ -50,94 +117,81 @@ public struct CaptureView: View {
                         guard let time = $0 else { return }
                         viewModel.send(.view(.currentTimeChanged(time)))
                     }
-                ),
-                cameraController: viewModel.cameraClient,
-                onZoomChanged: { viewModel.send(.view(.zoomChanged($0))) }
+                )
             )
-
-            bottomArea
-        }
-        .background(.black)
-        .overlay(alignment: .topTrailing) {
-            dismissButton
-        }
-        .onAppear {
-            viewModel.send(.view(.onAppear))
-        }
-        .onDisappear {
-            viewModel.send(.view(.onDisappear))
         }
     }
-}
-
-
-// MARK: - View
-private extension CaptureView {
+    
+    var capturePreivewView: some View {
+        CapturePreviewView(
+            zoomFactor: viewModel.state.zoomFactor,
+            cameraController: viewModel.cameraClient,
+            onZoomChanged: { viewModel.send(.view(.zoomChanged($0))) }
+        )
+    }
+    
     @ViewBuilder
-    var bottomArea: some View {
-        let viewModel = viewModel
+    var captureResultBar: some View {
         let videoTrimState = viewModel.state.videoTrimState
         let showsVideoTrimBar = viewModel.state.isRecording == false
-
-        if viewModel.state.hasResultMedia {
-            CaptureResultBottomBar(
-                mode: viewModel.state.mode,
-                capturedMedia: viewModel.state.capturedMedia,
-                trimThumbnails: showsVideoTrimBar ? videoTrimState?.thumbnails : nil,
-                trimDuration: showsVideoTrimBar ? videoTrimState?.duration : nil,
-                trimStartTime: Binding(
-                    get: { [weak viewModel] in
-                        guard let viewModel else { return 0 }
-                        return viewModel.state.videoTrimState?.startTime ?? 0
-                    },
-                    set: { [weak viewModel] in
-                        guard let viewModel else { return }
-                        viewModel.send(.view(.durationStartTimeChanged($0)))
-                    }
-                ),
-                trimEndTime: Binding(
-                    get: { [weak viewModel] in
-                        guard let viewModel else { return 0 }
-                        return viewModel.state.videoTrimState?.endTime ?? 0
-                    },
-                    set: { [weak viewModel] in
-                        guard let viewModel else { return }
-                        viewModel.send(.view(.durationEndTimeChanged($0)))
-                    }
-                ),
-                trimCurrentTime: Binding(
-                    get: { [weak viewModel] in
-                        guard let viewModel else { return 0 }
-                        return viewModel.state.videoTrimState?.currentTime ?? 0
-                    },
-                    set: { [weak viewModel] in
-                        guard let viewModel else { return }
-                        viewModel.send(.view(.currentTimeChanged($0)))
-                    }
-                ),
-                onRetake: { viewModel.send(.view(.retakeButtonTapped)) },
-                onComplete: { viewModel.send(.view(.useButtonTapped)) }
-            )
-        } else {
-            CameraControlBar(
-                mode: Binding(
-                    get: { viewModel.state.mode },
-                    set: { viewModel.send(.view(.modeChanged($0))) }
-                ),
-                isRecording: viewModel.state.isRecording,
-                showsModePicker: viewModel.state.showsModePicker,
-                onPhotoPickerChanged: { viewModel.send(.view(.photoPickerChanged($0))) },
-                onCapture: { viewModel.send(.view(.captureButtonTapped)) },
-                onSwitchCamera: { viewModel.send(.view(.switchCameraButtonTapped)) }
-            )
-            .padding(.top, Constant.cameraControlTopPadding)
-            .padding(.bottom, Constant.cameraControlBottomPadding)
-        }
+        
+        CaptureResultBottomBar(
+            mode: viewModel.state.mode,
+            capturedMedia: viewModel.state.capturedMedia,
+            trimThumbnails: showsVideoTrimBar ? videoTrimState?.thumbnails : nil,
+            trimDuration: showsVideoTrimBar ? videoTrimState?.duration : nil,
+            trimStartTime: Binding(
+                get: { [weak viewModel] in
+                    guard let viewModel else { return 0 }
+                    return viewModel.state.videoTrimState?.startTime ?? 0
+                },
+                set: { [weak viewModel] in
+                    guard let viewModel else { return }
+                    viewModel.send(.view(.durationStartTimeChanged($0)))
+                }
+            ),
+            trimEndTime: Binding(
+                get: { [weak viewModel] in
+                    guard let viewModel else { return 0 }
+                    return viewModel.state.videoTrimState?.endTime ?? 0
+                },
+                set: { [weak viewModel] in
+                    guard let viewModel else { return }
+                    viewModel.send(.view(.durationEndTimeChanged($0)))
+                }
+            ),
+            trimCurrentTime: Binding(
+                get: { [weak viewModel] in
+                    guard let viewModel else { return 0 }
+                    return viewModel.state.videoTrimState?.currentTime ?? 0
+                },
+                set: { [weak viewModel] in
+                    guard let viewModel else { return }
+                    viewModel.send(.view(.currentTimeChanged($0)))
+                }
+            ),
+            onRetake: { viewModel.send(.view(.retakeButtonTapped)) },
+            onComplete: { viewModel.send(.view(.useButtonTapped)) }
+        )
+    }
+    
+    var cameraControllBar: some View {
+        CameraControlBar(
+            mode: Binding(
+                get: { viewModel.state.mode },
+                set: { viewModel.send(.view(.modeChanged($0))) }
+            ),
+            isRecording: viewModel.state.isRecording,
+            showsModePicker: viewModel.state.showsModePicker,
+            onPhotoPickerChanged: { viewModel.send(.view(.photoPickerChanged($0))) },
+            onCapture: { viewModel.send(.view(.captureButtonTapped)) },
+            onSwitchCamera: { viewModel.send(.view(.switchCameraButtonTapped)) }
+        )
     }
 
     var dismissButton: some View {
         Button {
-            onAction(.close)
+            viewModel.send(.view(.closeButtonTapped))
         } label: {
             Image(systemName: Constant.dismissImage)
                 .font(.system(size: Constant.dismissImageSize, weight: .semibold))
@@ -146,6 +200,18 @@ private extension CaptureView {
         }
         .padding(.top, Constant.dismissButtonTopPadding)
     }
+    
+    var captureAspectRatio: CGFloat {
+        let mode = viewModel.state.capturedMedia?.mode ?? viewModel.state.mode
+
+        switch mode {
+        case .photo:
+            return 3 / 4
+        case .video:
+            return 9 / 16
+        }
+    }
+
 }
 
 // MARK: - Constant
@@ -154,8 +220,8 @@ private extension CaptureView {
         static let dismissImage = "xmark"
         static let dismissImageSize: CGFloat = 18
         static let dismissButtonSize: CGFloat = 52
-        static let dismissButtonTopPadding: CGFloat = 16
-        static let cameraControlTopPadding: CGFloat = 20
-        static let cameraControlBottomPadding: CGFloat = 10
+        static let dismissButtonTopPadding: CGFloat = 0
+        static let previewControlSpacing: CGFloat = 16
+        static let resultControlSpacing: CGFloat = 16
     }
 }
