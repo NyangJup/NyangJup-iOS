@@ -405,6 +405,26 @@ func feedOnAppearLoadsFirstPage() async {
 
 @MainActor
 @Test
+func feedPlusButtonPresentsAndDismissesCamera() {
+    let viewModel = FeedViewModel(
+        cat: Cat(
+            id: "feed-cat",
+            name: "나비",
+            place: "집",
+            appearanceKey: "abyssinian"
+        ),
+        mediaClient: .test
+    )
+
+    viewModel.send(.view(.plusButtonTapped))
+    #expect(viewModel.state.isCameraPresented)
+
+    viewModel.send(.view(.cameraDismissed))
+    #expect(viewModel.state.isCameraPresented == false)
+}
+
+@MainActor
+@Test
 func feedLoadNextPageAppendsItemsAndStopsAtLastPage() async {
     let recorder = FeedRequestRecorder()
     var mediaClient = MediaClient.test

@@ -15,6 +15,7 @@
 		CAE6840E2FF3000000F5116A /* SharedDesign in Frameworks */ = {isa = PBXBuildFile; productRef = CAE6840F2FF3000000F5116A /* SharedDesign */; };
 		CAE684112FF3000000F5116A /* CoreImageLoader in Frameworks */ = {isa = PBXBuildFile; productRef = CAE684102FF3000000F5116A /* CoreImageLoader */; };
 		CAE700012FF8000000F5116A /* FeatureRelayCat in Frameworks */ = {isa = PBXBuildFile; productRef = CAE700002FF8000000F5116A /* FeatureRelayCat */; };
+		CAE700032FF8000000F5116A /* FeatureCapture in Frameworks */ = {isa = PBXBuildFile; productRef = CAE700022FF8000000F5116A /* FeatureCapture */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -66,6 +67,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				CAE684112FF3000000F5116A /* CoreImageLoader in Frameworks */,
+				CAE700032FF8000000F5116A /* FeatureCapture in Frameworks */,
 				CAE700012FF8000000F5116A /* FeatureRelayCat in Frameworks */,
 				CA6BE5392FF7A59100458997 /* DomainCats in Frameworks */,
 				CA6BE53F2FF7A59100458997 /* DomainMedia in Frameworks */,
@@ -167,6 +169,7 @@
 			packageProductDependencies = (
 				CAE684102FF3000000F5116A /* CoreImageLoader */,
 				CAE684092FF3000000F5116A /* FeatureHome */,
+				CAE700022FF8000000F5116A /* FeatureCapture */,
 				CAE700002FF8000000F5116A /* FeatureRelayCat */,
 				CAE6840F2FF3000000F5116A /* SharedDesign */,
 				CA6BE5382FF7A59100458997 /* DomainCats */,
@@ -588,6 +591,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = CAE6840B2FF3000000F5116A /* XCLocalSwiftPackageReference "Packages/Package" */;
 			productName = FeatureRelayCat;
+		};
+		CAE700022FF8000000F5116A /* FeatureCapture */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CAE6840B2FF3000000F5116A /* XCLocalSwiftPackageReference "Packages/Package" */;
+			productName = FeatureCapture;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

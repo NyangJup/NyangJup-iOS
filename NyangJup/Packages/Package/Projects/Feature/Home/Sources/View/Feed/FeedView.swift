@@ -8,8 +8,12 @@
 import SwiftUI
 
 import DomainCatsInterface
+import FeatureCaptureInterface
+import SharedDesign
 
 struct FeedView: View {
+    @Environment(\.captureFactory) private var captureFactory
+
     @State var viewModel: FeedViewModel
     let namespace: Namespace.ID
 
@@ -37,6 +41,9 @@ struct FeedView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .bottomTrailing) {
+            plusButton
+        }
         .ignoresSafeArea()
         .navigationTransition(
             .zoom(
@@ -44,6 +51,19 @@ struct FeedView: View {
                 in: namespace
             )
         )
+        .fullScreenCover(isPresented: $viewModel.state.isCameraPresented) {
+            captureFactory.makeView(
+                CaptureConfiguration(showsModePicker: true),
+                CaptureDelegate(send: { action in
+                    switch action {
+                    case .complete:
+                        viewModel.send(.view(.cameraDismissed))
+                    case .close:
+                        viewModel.send(.view(.cameraDismissed))
+                    }
+                })
+            )
+        }
         .onAppear {
             viewModel.send(.view(.onAppear))
         }
@@ -80,12 +100,32 @@ private extension FeedView {
             Spacer()
         }
     }
+    
+    var plusButton: some View {
+        CircleButton(
+            onTap: { viewModel.send(.view(.plusButtonTapped)) },
+            image: Image(systemName: Constant.bottomButtonImage),
+            glassEffect: .regular.interactive(),
+            buttonSize: CGSize(
+                width: Constant.bottomButtonSize,
+                height: Constant.bottomButtonSize
+            ),
+            imageSize: CGSize(
+                width: Constant.bottomButtonImageSize,
+                height: Constant.bottomButtonImageSize
+            ),
+            foregroundColor: .black
+        )
+        .padding(.trailing, Constant.bottomButtonTrailingPadding)
+        .padding(.bottom, Constant.bottomButtonBottomPadding)
+    }
 }
 
 // MARK: - Constant
 
 private extension FeedView {
     enum Constant {
+        static let bottomButtonImage: String = "plus"
         static let closeImageName: String = "xmark"
         static let feedTitle: String = "피드"
 
@@ -102,5 +142,10 @@ private extension FeedView {
         static let nameFontSize: CGFloat = 30
         static let placeFontSize: CGFloat = 15
         static let feedTitleFontSize: CGFloat = 24
+        
+        static let bottomButtonImageSize: CGFloat = 24
+        static let bottomButtonSize: CGFloat = 60
+        static let bottomButtonTrailingPadding: CGFloat = 20
+        static let bottomButtonBottomPadding: CGFloat = 48
     }
 }

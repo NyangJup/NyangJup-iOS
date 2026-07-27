@@ -21,6 +21,7 @@ public final class FeedViewModel: NZViewModel {
         var items: [Media] = []
         var nextCursor: String?
         var isLoading: Bool = false
+        var isCameraPresented: Bool = false
 
         public init(
             cat: Cat
@@ -38,6 +39,8 @@ public final class FeedViewModel: NZViewModel {
             case onAppear
             case loadNextPage
             case feedContentTapped(Media)
+            case plusButtonTapped
+            case cameraDismissed
         }
 
         public enum Network {
@@ -98,6 +101,12 @@ public final class FeedViewModel: NZViewModel {
                 ),
                 catId: state.cat.id
             ))
+            
+        case .plusButtonTapped:
+            state.isCameraPresented = true
+
+        case .cameraDismissed:
+            state.isCameraPresented = false
         }
     }
 
