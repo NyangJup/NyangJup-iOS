@@ -23,7 +23,11 @@ struct CatProfileInfoView: View {
 
     var body: some View {
         HStack(spacing: contentSpacing) {
-            catAvatar
+            CatAvatarView(
+                image: catImage,
+                backgroundSize: imageBackgroundSize,
+                imageSize: catImageSize
+            )
             catInformation
             Spacer()
         }
@@ -33,26 +37,6 @@ struct CatProfileInfoView: View {
 // MARK: - View
 
 private extension CatProfileInfoView {
-    var catAvatar: some View {
-        ZStack {
-            NJImage.generateBackground.image
-                .resizable()
-                .frame(
-                    width: imageBackgroundSize,
-                    height: imageBackgroundSize
-                )
-                .clipShape(.circle)
-
-            catImage
-                .resizable()
-                .scaledToFit()
-                .frame(
-                    width: catImageSize,
-                    height: catImageSize
-                )
-        }
-    }
-
     var catInformation: some View {
         VStack(alignment: .leading, spacing: informationSpacing) {
             Text(cat.name)

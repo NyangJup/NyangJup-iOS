@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum MediaType: String {
+public enum MediaType: String, Hashable, Sendable {
     case photo = "PHOTO"
     case video = "VIDEO"
 }

@@ -19,6 +19,10 @@ let package = Package(
             name: "FeatureCapture",
             targets: ["FeatureCapture", "FeatureCaptureInterface", "FeatureCaptureTesting"]
         ),
+        .library(
+            name: "FeatureRelayCat",
+            targets: ["FeatureRelayCat", "FeatureRelayCatInterface", "FeatureRelayCatTesting"]
+        ),
         // MARK: - Domain Products
         .library(
             name: "DomainProfile",
@@ -44,6 +48,10 @@ let package = Package(
         .library(
             name: "CoreCamera",
             targets: ["CoreCamera", "CoreCameraInterface", "CoreCameraTesting"]
+        ),
+        .library(
+            name: "CoreVideo",
+            targets: ["CoreVideoInterface"]
         ),
         // MARK: - Shared Products
         .library(
@@ -86,6 +94,7 @@ let package = Package(
         .target(
             name: "FeatureHomeInterface",
             dependencies: [
+                .domain(module: .media, target: .interface),
                 .feature(module: .common, target: .interface)
             ],
             path: "Projects/Feature/Home/Interface/Sources"
@@ -100,7 +109,8 @@ let package = Package(
                 .shared(module: .design, target: .feature),
                 .feature(module: .common, target: .interface),
                 .feature(module: .home, target: .interface),
-                .feature(module: .capture, target: .interface)
+                .feature(module: .capture, target: .interface),
+                .feature(module: .relayCat, target: .interface)
             ],
             path: "Projects/Feature/Home/Sources"
         ),
@@ -134,7 +144,8 @@ let package = Package(
                 .shared(module: .design, target: .feature),
                 .feature(module: .common, target: .interface),
                 .feature(module: .capture, target: .interface),
-                .core(module: .camera, target: .interface)
+                .core(module: .camera, target: .interface),
+                .core(module: .video, target: .interface)
             ],
             path: "Projects/Feature/Capture/Sources"
         ),
@@ -153,6 +164,42 @@ let package = Package(
                 .product(name: "Testing", package: "swift-testing")
             ],
             path: "Projects/Feature/Capture/Tests"
+        ),
+        .target(
+            name: "FeatureRelayCatInterface",
+            dependencies: [
+                .domain(module: .media, target: .interface),
+                .feature(module: .common, target: .interface)
+            ],
+            path: "Projects/Feature/RelayCat/Interface/Sources"
+        ),
+        .target(
+            name: "FeatureRelayCat",
+            dependencies: [
+                .domain(module: .media, target: .interface),
+                .core(module: .imageLoader, target: .interface),
+                .core(module: .video, target: .interface),
+                .shared(module: .design, target: .feature),
+                .feature(module: .common, target: .interface),
+                .feature(module: .relayCat, target: .interface)
+            ],
+            path: "Projects/Feature/RelayCat/Sources"
+        ),
+        .target(
+            name: "FeatureRelayCatTesting",
+            dependencies: [
+                .feature(module: .relayCat, target: .interface)
+            ],
+            path: "Projects/Feature/RelayCat/Testing/Sources"
+        ),
+        .testTarget(
+            name: "FeatureRelayCatTests",
+            dependencies: [
+                .feature(module: .relayCat, target: .feature),
+                .domain(module: .media, target: .testing),
+                .product(name: "Testing", package: "swift-testing")
+            ],
+            path: "Projects/Feature/RelayCat/Tests"
         ),
         // MARK: - Domain Targets
         .target(
@@ -335,6 +382,11 @@ let package = Package(
             ],
             path: "Projects/Core/Camera/Tests"
         ),
+        .target(
+            name: "CoreVideoInterface",
+            dependencies: [],
+            path: "Projects/Core/Video/Interface/Sources"
+        ),
         // MARK: - Shared Targets
         .target(
             name: "SharedDesign",
@@ -369,6 +421,7 @@ enum Module {
         case common = "Common"
         case capture = "Capture"
         case home = "Home"
+        case relayCat = "RelayCat"
         @available(*, unavailable)
         case placeholder = "__Placeholder"
     }
@@ -385,6 +438,7 @@ enum Module {
         case imageLoader = "ImageLoader"
         case camera = "Camera"
         case network = "Network"
+        case video = "Video"
         @available(*, unavailable)
         case placeholder = "__Placeholder"
     }

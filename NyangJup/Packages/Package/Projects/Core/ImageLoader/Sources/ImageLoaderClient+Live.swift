@@ -10,14 +10,16 @@ import CoreImageLoaderInterface
 public extension ImageLoaderClient {
     static func live(
         maxDiskCacheSize: Int = 300 * 1024 * 1024
-    ) throws -> Self {
-        let loader = try ImageLoader(
-            maxDiskCacheSize: maxDiskCacheSize
-        )
+    ) -> Self {
+        let loaderResult = Result<ImageLoader, Error> {
+            try ImageLoader(maxDiskCacheSize: maxDiskCacheSize)
+        }
 
         return Self(
             loadImage: { url, targetSize, scale, allowedSources in
-                try await loader.image(
+                let loader = try loaderResult.get()
+
+                return try await loader.image(
                     for: url,
                     targetSize: targetSize,
                     scale: scale,

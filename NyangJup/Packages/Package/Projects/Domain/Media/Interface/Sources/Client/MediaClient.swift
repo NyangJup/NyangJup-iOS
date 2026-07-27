@@ -19,6 +19,8 @@ public struct MediaClient: Sendable {
     public var uploadMedia: @Sendable (UploadMediaRequestDTO) async throws -> Void
     public var updateMedia: @Sendable (UploadMediaRequestDTO) async throws -> Void
     public var fetchMedia: @Sendable (ID) async throws -> Media
+    public var updateIsLiked: @Sendable (ID, Bool) async throws -> Void
+    public var fetchRelayCats: @Sendable (FetchRelayCatsRequestDTO) async throws -> FetchRelayCatsResponseDTO
     public var deleteMedia: @Sendable (ID) async throws -> Media
     public var fetchFeeds: @Sendable (ID, Cursor?) async throws -> (FeedPage)
     
@@ -28,6 +30,8 @@ public struct MediaClient: Sendable {
         uploadMedia: @escaping @Sendable (UploadMediaRequestDTO) async throws -> Void,
         updateMedia: @escaping @Sendable (UploadMediaRequestDTO) async throws -> Void,
         fetchMedia: @escaping @Sendable (ID) async throws -> Media,
+        updateIsLiked: @escaping @Sendable (ID, Bool) async throws -> Void,
+        fetchRelayCats: @escaping @Sendable (FetchRelayCatsRequestDTO) async throws -> FetchRelayCatsResponseDTO,
         deleteMedia: @escaping @Sendable (ID) async throws -> Media,
         fetchFeeds: @escaping @Sendable (ID, Cursor?) async throws -> FeedPage
     ) {
@@ -36,6 +40,8 @@ public struct MediaClient: Sendable {
         self.uploadMedia = uploadMedia
         self.updateMedia = updateMedia
         self.fetchMedia = fetchMedia
+        self.updateIsLiked = updateIsLiked
+        self.fetchRelayCats = fetchRelayCats
         self.deleteMedia = deleteMedia
         self.fetchFeeds = fetchFeeds
     }

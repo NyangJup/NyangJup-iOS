@@ -1,3 +1,10 @@
+//
+//  CoreImageLoaderTests.swift
+//  NJPackage
+//
+//  Created by 정지훈 on 7/22/26.
+//
+
 import Foundation
 import SwiftUI
 import Testing
@@ -189,15 +196,36 @@ struct CoreImageLoaderTests {
     }
 
     @Test @MainActor
-    func asyncImagePlaceholderCanBeOmitted() {
+    func asyncImagePlaceholderCanBeOmitted() async throws {
+        let recorder = ImageLoadRecorder()
+        let url = uniqueURL()
+        let client = ImageLoaderClient { loadedURL, size, scale, options in
+            recorder.record(
+                url: loadedURL,
+                targetSize: size,
+                scale: scale,
+                options: options
+            )
+            return UIImage(data: imageData)!
+        }
         let view = NZAsyncImage(
-            url: uniqueURL(),
+            url: url,
             targetSize: targetSize
         ) { image in
             image
         }
+        .environment(\.imageLoaderClient, client)
+        let host = UIHostingController(rootView: view)
+        let window = UIWindow(frame: UIScreen.main.bounds)
 
-        _ = view
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        host.view.layoutIfNeeded()
+
+        try await waitUntil { recorder.arguments != nil }
+
+        #expect(recorder.arguments?.url == url)
+        window.isHidden = true
     }
 
     @Test @MainActor

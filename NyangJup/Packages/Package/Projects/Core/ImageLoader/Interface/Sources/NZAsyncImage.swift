@@ -66,7 +66,7 @@ public struct NZAsyncImage<Content: View, Placeholder: View>: View {
     }
 
     public var body: some View {
-        Group {
+        ZStack {
             if let image {
                 content(Image(uiImage: image))
             } else {

@@ -10,6 +10,7 @@ import Foundation
 import DomainMediaInterface
 import DomainCatsInterface
 import FeatureCommonInterface
+import FeatureHomeInterface
 
 @MainActor
 @Observable
@@ -36,6 +37,7 @@ public final class FeedViewModel: NZViewModel {
         public enum View {
             case onAppear
             case loadNextPage
+            case feedContentTapped(Media)
         }
 
         public enum Network {
@@ -48,14 +50,17 @@ public final class FeedViewModel: NZViewModel {
     }
 
     public var state: State
+    weak var coordinator: (any Coordinator<HomeRoute>)?
     let mediaClient: MediaClient
 
     public init(
         cat: Cat,
-        mediaClient: MediaClient
+        mediaClient: MediaClient,
+        coordinator: (any Coordinator<HomeRoute>)? = nil
     ) {
         self.state = State(cat: cat)
         self.mediaClient = mediaClient
+        self.coordinator = coordinator
     }
 
     public func send(_ action: Action) {
@@ -79,6 +84,20 @@ public final class FeedViewModel: NZViewModel {
         case .loadNextPage:
             guard let nextCursor = state.nextCursor else { return }
             send(.network(.fetchFeed(cursor: nextCursor)))
+
+        case let .feedContentTapped(media):
+            coordinator?.push(to: .relayCat(
+                RelayCat(
+                    id: media.id,
+                    memo: "",
+                    thumbnailURL: media.thumbnailURL,
+                    name: state.cat.name,
+                    mediaType: media.mediaType,
+                    mediaURL: media.mediaURL,
+                    isLiked: false
+                ),
+                catId: state.cat.id
+            ))
         }
     }
 

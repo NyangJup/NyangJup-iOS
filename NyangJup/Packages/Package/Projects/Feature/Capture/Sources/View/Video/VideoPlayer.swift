@@ -8,6 +8,8 @@
 import AVKit
 import SwiftUI
 
+import CoreVideoInterface
+
 public struct VideoPlayer: View {
     private let player: AVPlayer
 
@@ -30,7 +32,10 @@ public struct VideoPlayer: View {
     }
     
     public var body: some View {
-        PlayerLayerView(player: player)
+        PlayerLayerView(
+            player: player,
+            videoGravity: .resizeAspectFill
+        )
             .onTapGesture {
                 toggleVideoPlayback()
             }
