@@ -186,6 +186,7 @@ let package = Package(
                 .core(module: .video, target: .interface),
                 .shared(module: .design, target: .feature),
                 .feature(module: .common, target: .interface),
+                .feature(module: .capture, target: .interface),
                 .feature(module: .relayCat, target: .interface)
             ],
             path: "Projects/Feature/RelayCat/Sources"

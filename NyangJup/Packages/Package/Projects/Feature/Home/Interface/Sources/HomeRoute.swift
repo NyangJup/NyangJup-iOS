@@ -9,5 +9,5 @@ import DomainMediaInterface
 
 public enum HomeRoute: Hashable, Sendable {
     case feed(catId: String)
-    case relayCat(RelayCat, catId: String)
+    case relayCat(RelayCat)
 }

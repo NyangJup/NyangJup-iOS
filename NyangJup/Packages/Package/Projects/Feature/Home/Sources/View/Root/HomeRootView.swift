@@ -58,11 +58,10 @@ public struct HomeRootView: View {
                         )
                     }
                     
-                case let .relayCat(relayCat, catId):
+                case let .relayCat(relayCat):
                     relayCatFactory.makeView(
                         RelayCatConfiguration(
-                            relayCat: relayCat,
-                            catId: catId
+                            relayCat: relayCat
                         ),
                         nil
                     )

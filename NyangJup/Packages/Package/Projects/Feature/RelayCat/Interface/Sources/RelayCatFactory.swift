@@ -22,13 +22,10 @@ public struct RelayCatFactory: Factorable, Sendable {
 
 public struct RelayCatConfiguration: FeatureConfiguration {
     public let relayCat: RelayCat
-    public let catId: String
 
     public init(
-        relayCat: RelayCat,
-        catId: String
+        relayCat: RelayCat
     ) {
         self.relayCat = relayCat
-        self.catId = catId
     }
 }

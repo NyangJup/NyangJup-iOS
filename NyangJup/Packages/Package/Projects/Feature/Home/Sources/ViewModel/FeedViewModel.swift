@@ -93,15 +93,16 @@ public final class FeedViewModel: NZViewModel {
         case let .feedContentTapped(media):
             coordinator?.push(to: .relayCat(
                 RelayCat(
-                    id: media.id,
-                    memo: "",
+                    mediaId: media.id,
+                    catId: media.catId,
+                    userId: media.userId,
+                    comment: media.comment,
                     thumbnailURL: media.thumbnailURL,
                     name: state.cat.name,
                     mediaType: media.mediaType,
                     mediaURL: media.mediaURL,
                     isLiked: false
-                ),
-                catId: state.cat.id
+                )
             ))
             
         case .plusButtonTapped:

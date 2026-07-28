@@ -25,17 +25,26 @@ final class RelayCatViewModel: NZViewModel {
         var isLoading = false
         var isLoadingPrevious = false
         var isLoadingNext = false
+        var isDeleting = false
+        var isCameraPresented: Bool = false
+        var editingMediaId: String?
+        var isDeleteAlertPresented: Bool = false
         
         var imageId: String = ""
         var imageSize: CGSize = .zero
         var scale: CGFloat = .zero
 
         init(configuration: RelayCatConfiguration) {
-            self.anchorId = configuration.relayCat.id
-            self.catId = configuration.catId
+            self.anchorId = configuration.relayCat.mediaId
+            self.catId = configuration.relayCat.catId
             self.items = [configuration.relayCat]
-            self.currentItemId = configuration.relayCat.id
+            self.currentItemId = configuration.relayCat.mediaId
         }
+
+        var currentItem: RelayCat? {
+            items.first { $0.mediaId == currentItemId }
+        }
+
     }
 
     enum Action {
@@ -45,6 +54,11 @@ final class RelayCatViewModel: NZViewModel {
         enum View {
             case onAppear(CGFloat)
             case itemAppeared(id: String, size: CGSize)
+            case editButtonTapped
+            case deleteMenuButtonTapped
+            case deleteButtonTapped
+            case cameraCompleted(Media)
+            case cameraDismissed
         }
         
         enum Network {  
@@ -52,6 +66,7 @@ final class RelayCatViewModel: NZViewModel {
             case fetchPreviousRelayCats
             case fetchNextRelayCats
             case updateIsLiked(id: String, isLiked: Bool)
+            case deleteMedia(id: String)
         }
     }
 
@@ -91,14 +106,36 @@ final class RelayCatViewModel: NZViewModel {
             state.imageSize = size
             preloadAdjacentImages()
 
-            if id == state.items.first?.id {
+            if id == state.items.first?.mediaId {
                 send(.network(.fetchPreviousRelayCats))
             }
 
-            if id == state.items.last?.id {
+            if id == state.items.last?.mediaId {
                 send(.network(.fetchNextRelayCats))
             }
 
+        case .editButtonTapped:
+            guard let currentItemId = state.currentItemId else {
+                return
+            }
+            state.editingMediaId = currentItemId
+            state.isCameraPresented = true
+            
+        case .deleteMenuButtonTapped:
+            state.isDeleteAlertPresented = true
+
+        case .deleteButtonTapped:
+            guard let currentItemId = state.currentItemId else {
+                return
+            }
+            send(.network(.deleteMedia(id: currentItemId)))
+
+        case let .cameraCompleted(media):
+            replaceEditedItem(with: media)
+
+        case .cameraDismissed:
+            state.isCameraPresented = false
+            state.editingMediaId = nil
         }
     }
     
@@ -115,6 +152,9 @@ final class RelayCatViewModel: NZViewModel {
 
         case let .updateIsLiked(id, isLiked):
             updateIsLiked(id: id, isLiked: isLiked)
+
+        case let .deleteMedia(id):
+            deleteMedia(id: id)
         }
     }
 
@@ -141,7 +181,7 @@ final class RelayCatViewModel: NZViewModel {
                 state.nextCursor = response.nextCursor
 
                 if response.items.indices.contains(response.anchorIndex) {
-                    state.currentItemId = response.items[response.anchorIndex].id
+                    state.currentItemId = response.items[response.anchorIndex].mediaId
                 }
 
                 preloadAdjacentImages()
@@ -155,7 +195,7 @@ final class RelayCatViewModel: NZViewModel {
         guard
             state.previousCursor != nil,
             !state.isLoadingPrevious,
-            let anchorId = state.items.first?.id
+            let anchorId = state.items.first?.mediaId
         else { return }
 
         state.isLoadingPrevious = true
@@ -172,9 +212,9 @@ final class RelayCatViewModel: NZViewModel {
 
             do {
                 let response = try await mediaClient.fetchRelayCats(dto)
-                let existingIds = Set(state.items.map(\.id))
+                let existingIds = Set(state.items.map(\.mediaId))
                 let previousItems = response.items.filter {
-                    !existingIds.contains($0.id)
+                    !existingIds.contains($0.mediaId)
                 }
 
                 state.items.insert(contentsOf: previousItems, at: 0)
@@ -190,7 +230,7 @@ final class RelayCatViewModel: NZViewModel {
         guard
             state.nextCursor != nil,
             !state.isLoadingNext,
-            let anchorId = state.items.last?.id
+            let anchorId = state.items.last?.mediaId
         else { return }
 
         state.isLoadingNext = true
@@ -207,9 +247,9 @@ final class RelayCatViewModel: NZViewModel {
 
             do {
                 let response = try await mediaClient.fetchRelayCats(dto)
-                let existingIds = Set(state.items.map(\.id))
+                let existingIds = Set(state.items.map(\.mediaId))
                 let nextItems = response.items.filter {
-                    !existingIds.contains($0.id)
+                    !existingIds.contains($0.mediaId)
                 }
 
                 state.items.append(contentsOf: nextItems)
@@ -222,7 +262,7 @@ final class RelayCatViewModel: NZViewModel {
     }
 
     private func updateIsLiked(id: String, isLiked: Bool) {
-        guard let index = state.items.firstIndex(where: { $0.id == id }) else {
+        guard let index = state.items.firstIndex(where: { $0.mediaId == id }) else {
             return
         }
 
@@ -234,13 +274,72 @@ final class RelayCatViewModel: NZViewModel {
             do {
                 try await mediaClient.updateIsLiked(id, isLiked)
             } catch {
-                guard let index = state.items.firstIndex(where: { $0.id == id }),
+                guard let index = state.items.firstIndex(where: { $0.mediaId == id }),
                       state.items[index].isLiked == isLiked else {
                     return
                 }
                 state.items[index].isLiked = previousIsLiked
             }
         }
+    }
+
+    private func deleteMedia(id: String) {
+        guard !state.isDeleting else { return }
+        state.isDeleting = true
+
+        Task {
+            defer { state.isDeleting = false }
+
+            do {
+                _ = try await mediaClient.deleteMedia(id)
+                guard let index = state.items.firstIndex(where: { $0.mediaId == id }) else {
+                    return
+                }
+
+                let nextItemId: String? = if state.items.indices.contains(index + 1) {
+                    state.items[index + 1].mediaId
+                } else if index > 0 {
+                    state.items[index - 1].mediaId
+                } else {
+                    nil
+                }
+
+                state.items.remove(at: index)
+                if state.currentItemId == id {
+                    state.currentItemId = nextItemId
+                }
+                preloadAdjacentImages()
+            } catch {
+
+            }
+        }
+    }
+
+    private func replaceEditedItem(with media: Media) {
+        guard let editingMediaId = state.editingMediaId,
+              let index = state.items.firstIndex(where: {
+                  $0.mediaId == editingMediaId
+              }) else {
+            return
+        }
+
+        let previousItem = state.items[index]
+        let updatedItem = RelayCat(
+            mediaId: media.id,
+            catId: media.catId,
+            userId: media.userId,
+            comment: media.comment,
+            thumbnailURL: media.thumbnailURL,
+            name: previousItem.name,
+            mediaType: media.mediaType,
+            mediaURL: media.mediaURL,
+            isLiked: previousItem.isLiked
+        )
+
+        state.items[index] = updatedItem
+        state.isCameraPresented = false
+        state.editingMediaId = nil
+        preloadAdjacentImages()
     }
 
     private func preloadAdjacentImages() {
@@ -250,7 +349,7 @@ final class RelayCatViewModel: NZViewModel {
             state.imageSize.height > 0,
             state.scale > 0,
             let currentIndex = state.items.firstIndex(where: {
-                $0.id == state.imageId
+                $0.mediaId == state.imageId
             })
         else { return }
 
