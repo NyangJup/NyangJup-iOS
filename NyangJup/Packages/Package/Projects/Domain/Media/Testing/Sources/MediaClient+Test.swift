@@ -154,14 +154,29 @@ private func testFeedPage(cursor: String?) -> FeedPage {
 extension MediaClient {
     public static let test = Self(
         networkClient: nil,
-        fetchUploadURL: { id in
-            UploadURLResponseDTO(
-                uploadURL: "https://example.com/uploads/\(id)",
-                fileName: "nyangjup-media-\(id).jpg"
+        fetchUploadURL: { request in
+            let fileExtension = switch request.mediaType {
+            case "PHOTO": "jpg"
+            case "VIDEO": "mov"
+            default: "bin"
+            }
+            let fileName = "nyangjup-media-\(request.catId ?? "common").\(fileExtension)"
+
+            return UploadURLResponseDTO(
+                uploadURL: "https://example.com/uploads/\(fileName)",
+                fileName: fileName
             )
         },
-        uploadMedia: { _ in },
-        updateMedia: { _ in },
+        uploadMedia: { request in
+            UploadMediaResponseDTO(
+                catId: request.catId,
+                mediaId: "test-media-id",
+                mediaType: request.mediaType,
+                mediaURL: "https://example.com/media/\(request.fileName)",
+                thumbnailURL: "https://example.com/thumbnails/\(request.fileName).jpg",
+                comment: request.comment
+            )
+        },
         fetchMedia: { id in
             testFeedItems.first(where: { $0.id == id }) ?? testFeedItems[0]
         },
