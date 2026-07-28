@@ -5,8 +5,10 @@ import DomainMediaTesting
 @Test
 func relayCatStoresDetailFields() {
     let relayCat = RelayCat(
-        id: "relay-cat",
-        memo: "낮잠 중",
+        mediaId: "relay-cat",
+        catId: "cat-1",
+        userId: "user-1",
+        comment: "낮잠 중",
         thumbnailURL: "https://example.com/thumbnail.jpg",
         name: "나비",
         mediaType: .video,
@@ -14,8 +16,10 @@ func relayCatStoresDetailFields() {
         isLiked: true
     )
 
-    #expect(relayCat.id == "relay-cat")
-    #expect(relayCat.memo == "낮잠 중")
+    #expect(relayCat.mediaId == "relay-cat")
+    #expect(relayCat.catId == "cat-1")
+    #expect(relayCat.userId == "user-1")
+    #expect(relayCat.comment == "낮잠 중")
     #expect(relayCat.thumbnailURL == "https://example.com/thumbnail.jpg")
     #expect(relayCat.name == "나비")
     #expect(relayCat.mediaType == .video)
@@ -36,8 +40,8 @@ func testClientFetchRelayCatsReturnsAroundPage() async throws {
 
     #expect(response.items.contains { $0.mediaType == .photo })
     #expect(response.items.contains { $0.mediaType == .video })
-    #expect(response.items[response.anchorIndex].id == request.anchorId)
-    #expect(response.items.filter { $0.id == request.anchorId }.count == 1)
+    #expect(response.items[response.anchorIndex].mediaId == request.anchorId)
+    #expect(response.items.filter { $0.mediaId == request.anchorId }.count == 1)
     #expect(response.previousCursor == nil)
     #expect(response.nextCursor == "10")
 }
