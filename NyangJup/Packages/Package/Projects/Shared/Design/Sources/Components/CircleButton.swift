@@ -40,8 +40,9 @@ public struct CircleButton: View {
                 .renderingMode(.template)
                 .foregroundStyle(foregroundColor)
                 .frame(width: imageSize.width, height: imageSize.height)
+                .frame(width: buttonSize.width, height: buttonSize.height)
+                .contentShape(Circle())
         }
-        .frame(width: buttonSize.width, height: buttonSize.height)
         .glassEffect(glassEffect, in: .circle)
     }
     

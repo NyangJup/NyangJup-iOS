@@ -425,6 +425,88 @@ func feedPlusButtonPresentsAndDismissesCamera() {
 
 @MainActor
 @Test
+func feedCameraCompletionPrependsItemAndKeepsExistingPagination() {
+    let addedItem = Media(
+        id: "added-media",
+        thumbnailURL: "https://example.com/added-thumbnail.jpg",
+        mediaType: .video,
+        mediaURL: "https://example.com/added-video.mp4"
+    )
+    let existingItems = [
+        Media(
+            id: "existing-media-1",
+            thumbnailURL: "https://example.com/existing-1.jpg",
+            mediaType: .photo,
+            mediaURL: "https://example.com/existing-1.jpg"
+        ),
+        Media(
+            id: "existing-media-2",
+            thumbnailURL: "https://example.com/existing-2.jpg",
+            mediaType: .photo,
+            mediaURL: "https://example.com/existing-2.jpg"
+        )
+    ]
+    let viewModel = FeedViewModel(
+        cat: Cat(
+            id: "feed-cat",
+            name: "나비",
+            place: "집",
+            appearanceKey: "abyssinian"
+        ),
+        mediaClient: .test
+    )
+    viewModel.state.items = existingItems
+    viewModel.state.nextCursor = "existing-cursor"
+    viewModel.state.isCameraPresented = true
+
+    viewModel.send(.view(.cameraCompleted(addedItem)))
+
+    #expect(viewModel.state.items.map(\.id) == [
+        addedItem.id,
+        existingItems[0].id,
+        existingItems[1].id
+    ])
+    #expect(viewModel.state.nextCursor == "existing-cursor")
+    #expect(viewModel.state.isCameraPresented == false)
+}
+
+@MainActor
+@Test
+func feedOnAppearDoesNotReloadExistingItems() async {
+    let recorder = FeedRequestRecorder()
+    var mediaClient = MediaClient.test
+    mediaClient.fetchFeeds = { _, cursor in
+        await recorder.record(cursor: cursor)
+        return try await MediaClient.test.fetchFeeds("feed-cat", cursor)
+    }
+    let existingItem = Media(
+        id: "existing-media",
+        thumbnailURL: "https://example.com/existing.jpg",
+        mediaType: .photo,
+        mediaURL: "https://example.com/existing.jpg"
+    )
+    let viewModel = FeedViewModel(
+        cat: Cat(
+            id: "feed-cat",
+            name: "나비",
+            place: "집",
+            appearanceKey: "abyssinian"
+        ),
+        mediaClient: mediaClient
+    )
+    viewModel.state.items = [existingItem]
+    viewModel.state.nextCursor = "preserved-cursor"
+
+    viewModel.send(.view(.onAppear))
+    await Task.yield()
+
+    #expect(await recorder.cursors.isEmpty)
+    #expect(viewModel.state.items.map(\.id) == [existingItem.id])
+    #expect(viewModel.state.nextCursor == "preserved-cursor")
+}
+
+@MainActor
+@Test
 func feedLoadNextPageAppendsItemsAndStopsAtLastPage() async {
     let recorder = FeedRequestRecorder()
     var mediaClient = MediaClient.test

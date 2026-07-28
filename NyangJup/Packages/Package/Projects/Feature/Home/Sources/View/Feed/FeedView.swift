@@ -18,54 +18,61 @@ struct FeedView: View {
     let namespace: Namespace.ID
 
     var body: some View {
-        GeometryReader { proxy in
-            ScrollView {
-                VStack(spacing: Constant.sectionSpacing) {
-                    profileHeader
-                    Divider()
-                    feedHeader
-                    FeedList(
-                        items: viewModel.state.items,
-                        availableWidth: proxy.size.width - Constant.horizontalPadding * 2,
-                        onTap: { media in
-                            viewModel.send(.view(.feedContentTapped(media)))
-                        },
-                        onLoadNextPage: {
-                            viewModel.send(.view(.loadNextPage))
-                        }
-                    )
-                    Spacer()
-                }
-                .padding(.horizontal, Constant.horizontalPadding)
-                .padding(.top, Constant.topPadding)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .overlay(alignment: .bottomTrailing) {
-            plusButton
-        }
-        .ignoresSafeArea()
-        .navigationTransition(
-            .zoom(
-                sourceID: CatProfileHeroID.feed(viewModel.state.cat.id),
-                in: namespace
-            )
-        )
-        .fullScreenCover(isPresented: $viewModel.state.isCameraPresented) {
-            captureFactory.makeView(
-                CaptureConfiguration(showsModePicker: true),
-                CaptureDelegate(send: { action in
-                    switch action {
-                    case .complete:
-                        viewModel.send(.view(.cameraDismissed))
-                    case .close:
-                        viewModel.send(.view(.cameraDismissed))
+        ScrollViewReader { scrollProxy in
+            GeometryReader { proxy in
+                ScrollView {
+                    VStack(spacing: Constant.sectionSpacing) {
+                        profileHeader
+                        Divider()
+                        feedHeader
+                        FeedList(
+                            items: viewModel.state.items,
+                            availableWidth: proxy.size.width - Constant.horizontalPadding * 2,
+                            onTap: { media in
+                                viewModel.send(.view(.feedContentTapped(media)))
+                            },
+                            onLoadNextPage: {
+                                viewModel.send(.view(.loadNextPage))
+                            }
+                        )
+                        Spacer()
                     }
-                })
+                    .padding(.horizontal, Constant.horizontalPadding)
+                    .padding(.top, Constant.topPadding)
+                    .id(Constant.scrollTopID)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .bottomTrailing) {
+                plusButton
+            }
+            .ignoresSafeArea()
+            .navigationTransition(
+                .zoom(
+                    sourceID: CatProfileHeroID.feed(viewModel.state.cat.id),
+                    in: namespace
+                )
             )
-        }
-        .onAppear {
-            viewModel.send(.view(.onAppear))
+            .fullScreenCover(isPresented: $viewModel.state.isCameraPresented) {
+                captureFactory.makeView(
+                    CaptureConfiguration(
+                        showsModePicker: true,
+                        cat: viewModel.state.cat
+                    ),
+                    CaptureDelegate(send: { action in
+                        switch action {
+                        case let .complete(media):
+                            viewModel.send(.view(.cameraCompleted(media)))
+                            scrollProxy.scrollTo(Constant.scrollTopID, anchor: .top)
+                        case .close:
+                            viewModel.send(.view(.cameraDismissed))
+                        }
+                    })
+                )
+            }
+            .onAppear {
+                viewModel.send(.view(.onAppear))
+            }
         }
     }
 }
@@ -128,6 +135,7 @@ private extension FeedView {
         static let bottomButtonImage: String = "plus"
         static let closeImageName: String = "xmark"
         static let feedTitle: String = "피드"
+        static let scrollTopID: String = "feed-scroll-top"
 
         static let horizontalPadding: CGFloat = 24
         static let topPadding: CGFloat = 60

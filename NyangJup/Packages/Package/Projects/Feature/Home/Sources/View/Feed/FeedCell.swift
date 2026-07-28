@@ -51,7 +51,7 @@ struct FeedCell: View {
 
     private var placeholder: some View {
         Rectangle()
-            .fill(.orange)
+            .fill(.gray.opacity(0.8))
     }
 }
 

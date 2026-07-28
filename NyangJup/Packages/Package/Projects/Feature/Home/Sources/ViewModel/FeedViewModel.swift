@@ -40,6 +40,7 @@ public final class FeedViewModel: NZViewModel {
             case loadNextPage
             case feedContentTapped(Media)
             case plusButtonTapped
+            case cameraCompleted(Media)
             case cameraDismissed
         }
 
@@ -82,6 +83,7 @@ public final class FeedViewModel: NZViewModel {
     private func handleViewAction(_ action: Action.View) {
         switch action {
         case .onAppear:
+            guard state.items.isEmpty else { return }
             send(.network(.fetchFeed(cursor: nil)))
 
         case .loadNextPage:
@@ -104,6 +106,10 @@ public final class FeedViewModel: NZViewModel {
             
         case .plusButtonTapped:
             state.isCameraPresented = true
+
+        case let .cameraCompleted(media):
+            state.isCameraPresented = false
+            state.items.insert(media, at: 0)
 
         case .cameraDismissed:
             state.isCameraPresented = false
