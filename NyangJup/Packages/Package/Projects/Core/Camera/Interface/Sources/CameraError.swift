@@ -12,4 +12,5 @@ public enum CameraError: Error {
     case inputUnavailable
     case notRecording
     case photoDataUnavailable
+    case alreadyRecording
 }
