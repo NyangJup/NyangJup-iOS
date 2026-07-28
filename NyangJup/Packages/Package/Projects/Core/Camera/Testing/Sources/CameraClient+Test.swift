@@ -22,6 +22,8 @@ final class TestCameraController: CameraSessionControlling {
     var position: CameraPosition = .back
     var zoomFactor: CGFloat = 1
     var isRecording: Bool = false
+    var recordedDuration: TimeInterval = 0
+    private var movieContinuation: CheckedContinuation<CapturedMedia, Error>?
 
     func start() {}
     func stop() {}
@@ -38,13 +40,28 @@ final class TestCameraController: CameraSessionControlling {
         CapturedMedia(data: Data([0, 1, 2]), mode: .photo)
     }
 
-    func startRecording() async throws {
+    func startRecording(maxDuration: TimeInterval) async throws -> CapturedMedia {
+        guard !isRecording else {
+            throw CameraError.alreadyRecording
+        }
+
         isRecording = true
+        return try await withCheckedThrowingContinuation {
+            movieContinuation = $0
+        }
     }
 
-    func stopRecording() async throws -> CapturedMedia {
+    func stopRecording() {
+        guard isRecording else { return }
+
         isRecording = false
-        return CapturedMedia(url: URL(fileURLWithPath: "/tmp/test.mov"), mode: .video)
+        movieContinuation?.resume(
+            returning: CapturedMedia(
+                url: URL(fileURLWithPath: "/tmp/test.mov"),
+                mode: .video
+            )
+        )
+        movieContinuation = nil
     }
 }
 #endif

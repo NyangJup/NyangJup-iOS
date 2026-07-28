@@ -5,6 +5,7 @@
 //  Created by 정지훈 on 7/14/26.
 //
 
+import AVFoundation
 import Foundation
 import Testing
 @testable import FeatureCapture
@@ -61,6 +62,70 @@ private actor UploadFlowStub {
     func resumeUpload(with response: UploadMediaResponseDTO) {
         uploadContinuation?.resume(returning: response)
         uploadContinuation = nil
+    }
+}
+
+private actor UpdateMediaRecorder {
+    private(set) var mediaId: String?
+    private(set) var request: UploadMediaRequestDTO?
+
+    func record(
+        mediaId: String,
+        request: UploadMediaRequestDTO
+    ) {
+        self.mediaId = mediaId
+        self.request = request
+    }
+}
+
+@MainActor
+private final class RecordingCameraController: CameraSessionControlling {
+    let session = AVCaptureSession()
+    var position: CameraPosition = .back
+    var zoomFactor: CGFloat = 1
+    private(set) var isRecording = false
+    var recordedDuration: TimeInterval = 0
+    private(set) var requestedMaxDurations: [TimeInterval] = []
+    private(set) var stopRecordingCallCount = 0
+    private var continuation: CheckedContinuation<CapturedMedia, Error>?
+
+    func start() {}
+    func stop() {}
+    func switchCamera() async throws {}
+    func setZoomFactor(_ zoomFactor: CGFloat) async throws {}
+
+    func capturePhoto() async throws -> CapturedMedia {
+        CapturedMedia(data: Data(), mode: .photo)
+    }
+
+    func startRecording(maxDuration: TimeInterval) async throws -> CapturedMedia {
+        requestedMaxDurations.append(maxDuration)
+        isRecording = true
+
+        return try await withCheckedThrowingContinuation {
+            continuation = $0
+        }
+    }
+
+    func stopRecording() {
+        guard isRecording else { return }
+
+        stopRecordingCallCount += 1
+        finishRecording()
+    }
+
+    func finishRecording() {
+        guard isRecording else { return }
+
+        isRecording = false
+        continuation?.resume(
+            returning: CapturedMedia(
+                url: FileManager.default.temporaryDirectory
+                    .appendingPathComponent("recorded-video.mov"),
+                mode: .video
+            )
+        )
+        continuation = nil
     }
 }
 
@@ -139,6 +204,7 @@ func completingPhotoWaitsForBothUploadRequests() async {
         mode: .photo
     )
     viewModel.state.commentText = "귀여워"
+    #expect(viewModel.state.catId == cat.id)
 
     viewModel.send(.internal(.captureCompleted(media)))
     viewModel.send(.view(.useButtonTapped))
@@ -179,6 +245,7 @@ func completingPhotoWaitsForBothUploadRequests() async {
         with: UploadMediaResponseDTO(
             catId: cat.id,
             mediaId: "uploaded-media",
+            userId: "test-user-id",
             mediaType: "PHOTO",
             mediaURL: "https://example.com/media/photo.jpg",
             thumbnailURL: "https://example.com/thumbnail/photo.jpg",
@@ -192,6 +259,62 @@ func completingPhotoWaitsForBothUploadRequests() async {
     #expect(outputSpy.uploadedMedia?.mediaType == .photo)
     #expect(viewModel.state.isUploading == false)
     #expect(viewModel.state.showsLoadingOverlay == false)
+}
+
+@MainActor
+@Test
+func editingCaptureUsesUpdateMediaAndKeepsMediaId() async {
+    let outputSpy = CaptureOutputSpy()
+    let recorder = UpdateMediaRecorder()
+    var mediaClient = MediaClient.test
+    mediaClient.fetchUploadURL = { _ in
+        UploadURLResponseDTO(
+            uploadURL: "https://example.com/upload",
+            fileName: "updated-photo.jpg"
+        )
+    }
+    mediaClient.updateMedia = { mediaId, request in
+        await recorder.record(mediaId: mediaId, request: request)
+        return UploadMediaResponseDTO(
+            catId: request.catId,
+            mediaId: mediaId,
+            userId: "current-user",
+            mediaType: request.mediaType,
+            mediaURL: "https://example.com/media/updated-photo.jpg",
+            thumbnailURL: "https://example.com/thumbnail/updated-photo.jpg",
+            comment: request.comment
+        )
+    }
+    let viewModel = CaptureViewModel(
+        cameraClient: .test,
+        mediaClient: mediaClient,
+        videoTrimClient: VideoTrimClient(),
+        configuration: .init(
+            showsModePicker: true,
+            catId: "cat-id",
+            editingMediaId: "media-id",
+            mediaComment: "기존 메모"
+        ),
+        onComplete: { outputSpy.complete(capturedMedia: $0, uploadedMedia: $1) },
+        onClose: {}
+    )
+    let media = CapturedMedia(
+        data: Data([0, 1, 2]),
+        mode: .photo
+    )
+
+    #expect(viewModel.state.commentText == "기존 메모")
+
+    viewModel.send(.internal(.captureCompleted(media)))
+    viewModel.send(.view(.completeButtonTapped))
+    await waitUntil { outputSpy.completionCount == 1 }
+
+    let updatedMediaId = await recorder.mediaId
+    let updateRequest = await recorder.request
+    #expect(updatedMediaId == "media-id")
+    #expect(updateRequest?.catId == "cat-id")
+    #expect(updateRequest?.comment == "기존 메모")
+    #expect(outputSpy.uploadedMedia?.id == "media-id")
 }
 
 @MainActor
@@ -229,6 +352,63 @@ func capturedVideoSynchronizesModeAndPreparingState() async {
 }
 
 @MainActor
+@Test
+func videoCaptureRequestsSixtySecondLimitAndCompletesAutomatically() async {
+    let controller = RecordingCameraController()
+    let viewModel = CaptureViewModel(
+        cameraClient: CameraClient { controller },
+        mediaClient: .test,
+        videoTrimClient: VideoTrimClient(),
+        configuration: .init(showsModePicker: true),
+        onComplete: { _, _ in },
+        onClose: {}
+    )
+    viewModel.send(.view(.modeChanged(.video)))
+
+    viewModel.send(.view(.captureButtonTapped))
+    await waitUntil { controller.isRecording }
+
+    #expect(viewModel.state.isRecording == true)
+    #expect(controller.requestedMaxDurations == [60])
+    #expect(controller.stopRecordingCallCount == 0)
+
+    controller.finishRecording()
+    await waitUntil { viewModel.state.capturedMedia != nil }
+
+    #expect(viewModel.state.isRecording == false)
+    #expect(viewModel.state.capturedMedia?.mode == .video)
+    #expect(controller.stopRecordingCallCount == 0)
+}
+
+@MainActor
+@Test
+func videoCaptureCanStopManuallyBeforeSixtySeconds() async {
+    let controller = RecordingCameraController()
+    let viewModel = CaptureViewModel(
+        cameraClient: CameraClient { controller },
+        mediaClient: .test,
+        videoTrimClient: VideoTrimClient(),
+        configuration: .init(showsModePicker: true),
+        onComplete: { _, _ in },
+        onClose: {}
+    )
+    viewModel.send(.view(.modeChanged(.video)))
+
+    viewModel.send(.view(.captureButtonTapped))
+    await waitUntil { controller.isRecording }
+    controller.recordedDuration = 12.5
+
+    viewModel.send(.view(.captureButtonTapped))
+    await waitUntil { viewModel.state.capturedMedia != nil }
+
+    #expect(controller.requestedMaxDurations == [60])
+    #expect(controller.stopRecordingCallCount == 1)
+    #expect(controller.recordedDuration == 12.5)
+    #expect(viewModel.state.isRecording == false)
+    #expect(viewModel.state.capturedMedia?.mode == .video)
+}
+
+@MainActor
 private func waitUntil(_ condition: () -> Bool) async {
     for _ in 0..<100 {
         if condition() { return }
@@ -241,6 +421,6 @@ private func waitUntilAsync(
 ) async {
     for _ in 0..<100 {
         if await condition() { return }
-        await Task.yield()
+        try? await Task.sleep(for: .milliseconds(10))
     }
 }

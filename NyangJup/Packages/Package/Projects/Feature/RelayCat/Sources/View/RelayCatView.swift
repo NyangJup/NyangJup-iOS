@@ -7,10 +7,14 @@
 
 import SwiftUI
 
+import FeatureCaptureInterface
+
 struct RelayCatView: View {
+    @Environment(\.captureFactory) private var captureFactory
     @Environment(\.displayScale) private var displayScale
 
     @State private var viewModel: RelayCatViewModel
+    @State private var isDeleteAlertPresented = false
 
     init(viewModel: RelayCatViewModel) {
         self._viewModel = State(initialValue: viewModel)
@@ -20,22 +24,22 @@ struct RelayCatView: View {
         GeometryReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 0) {
-                    ForEach(viewModel.state.items, id: \.id) { item in
+                    ForEach(viewModel.state.items, id: \.mediaId) { item in
                         RelayCatCell(
                             relayCat: item,
                             size: proxy.size,
-                            isActive: viewModel.state.currentItemId == item.id,
+                            isActive: viewModel.state.currentItemId == item.mediaId,
                             onHeartTapped: { isLiked in
                                 viewModel.send(.network(.updateIsLiked(
-                                    id: item.id,
+                                    id: item.mediaId,
                                     isLiked: isLiked
                                 )))
                             }
                         )
-                        .id(item.id)
+                        .id(item.mediaId)
                         .onAppear {
                             viewModel.send(.view(.itemAppeared(
-                                id: item.id,
+                                id: item.mediaId,
                                 size: proxy.size
                             )))
                         }
@@ -45,6 +49,49 @@ struct RelayCatView: View {
             }
             .scrollTargetBehavior(.paging)
             .scrollPosition(id: $viewModel.state.currentItemId)
+        }
+        .fullScreenCover(isPresented: $viewModel.state.isCameraPresented) {
+            if let editingItem = viewModel.state.currentItem {
+                captureFactory.makeView(
+                    CaptureConfiguration(
+                        showsModePicker: true,
+                        catId: editingItem.catId,
+                        editingMediaId: editingItem.mediaId,
+                        mediaComment: editingItem.comment
+                    ),
+                    CaptureDelegate(send: { action in
+                        switch action {
+                        case let .complete(media):
+                            viewModel.send(.view(.cameraCompleted(media)))
+                        case .close:
+                            viewModel.send(.view(.cameraDismissed))
+                        }
+                    })
+                )
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button("수정") {
+                        viewModel.send(.view(.editButtonTapped))
+                    }
+                    Button("삭제", role: .destructive) {
+                        viewModel.send(.view(.deleteMenuButtonTapped))
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .rotationEffect(.degrees(90))
+                }
+                .tint(.white)
+            }
+        }
+        .alert("해당 콘텐츠를 삭제하시겠어요?", isPresented: $viewModel.state.isDeleteAlertPresented) {
+            Button("네", role: .destructive) {
+                viewModel.send(.view(.deleteButtonTapped))
+            }
+            
+            Button("아니요", role: .cancel) {}
         }
         .background(.black)
         .onAppear { viewModel.send(.view(.onAppear(displayScale))) }

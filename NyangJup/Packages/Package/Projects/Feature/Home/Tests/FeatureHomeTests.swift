@@ -428,6 +428,9 @@ func feedPlusButtonPresentsAndDismissesCamera() {
 func feedCameraCompletionPrependsItemAndKeepsExistingPagination() {
     let addedItem = Media(
         id: "added-media",
+        catId: "feed-cat",
+        userId: "test-user-id",
+        comment: "추가된 콘텐츠",
         thumbnailURL: "https://example.com/added-thumbnail.jpg",
         mediaType: .video,
         mediaURL: "https://example.com/added-video.mp4"
@@ -435,12 +438,18 @@ func feedCameraCompletionPrependsItemAndKeepsExistingPagination() {
     let existingItems = [
         Media(
             id: "existing-media-1",
+            catId: "feed-cat",
+            userId: "test-user-id",
+            comment: "",
             thumbnailURL: "https://example.com/existing-1.jpg",
             mediaType: .photo,
             mediaURL: "https://example.com/existing-1.jpg"
         ),
         Media(
             id: "existing-media-2",
+            catId: "feed-cat",
+            userId: "test-user-id",
+            comment: "",
             thumbnailURL: "https://example.com/existing-2.jpg",
             mediaType: .photo,
             mediaURL: "https://example.com/existing-2.jpg"
@@ -481,6 +490,9 @@ func feedOnAppearDoesNotReloadExistingItems() async {
     }
     let existingItem = Media(
         id: "existing-media",
+        catId: "feed-cat",
+        userId: "test-user-id",
+        comment: "",
         thumbnailURL: "https://example.com/existing.jpg",
         mediaType: .photo,
         mediaURL: "https://example.com/existing.jpg"
@@ -542,6 +554,9 @@ func feedLoadNextPageAppendsItemsAndStopsAtLastPage() async {
 func feedFetchFailureKeepsItemsAndEndsLoading() async {
     let existingItem = Media(
         id: "existing-media",
+        catId: "feed-cat",
+        userId: "test-user-id",
+        comment: "",
         thumbnailURL: "https://example.com/existing.jpg",
         mediaType: .photo,
         mediaURL: "https://example.com/existing.jpg"
@@ -574,6 +589,9 @@ func feedPhotoTappedPushesRelayCatRoute() {
     let coordinator = HomeCoordinatorSpy()
     let media = Media(
         id: "photo-media",
+        catId: "feed-cat",
+        userId: "test-user-id",
+        comment: "사진 코멘트",
         thumbnailURL: "https://example.com/photo.jpg",
         mediaType: .photo,
         mediaURL: "https://example.com/original-photo.jpg"
@@ -591,18 +609,18 @@ func feedPhotoTappedPushesRelayCatRoute() {
 
     viewModel.send(.view(.feedContentTapped(media)))
 
-    guard case let .relayCat(relayCat, catId) = coordinator.routes.first else {
+    guard case let .relayCat(relayCat) = coordinator.routes.first else {
         Issue.record("RelayCat route was not pushed")
         return
     }
-    #expect(relayCat.id == media.id)
-    #expect(relayCat.memo.isEmpty)
+    #expect(relayCat.mediaId == media.id)
+    #expect(relayCat.comment == media.comment)
     #expect(relayCat.thumbnailURL == media.thumbnailURL)
     #expect(relayCat.name == "나비")
     #expect(relayCat.mediaType == .photo)
     #expect(relayCat.mediaURL == media.mediaURL)
     #expect(relayCat.isLiked == false)
-    #expect(catId == "feed-cat")
+    #expect(relayCat.catId == "feed-cat")
 }
 
 @MainActor
@@ -611,6 +629,9 @@ func feedVideoTappedUsesMediaURL() {
     let coordinator = HomeCoordinatorSpy()
     let media = Media(
         id: "video-media",
+        catId: "feed-cat",
+        userId: "test-user-id",
+        comment: "영상 코멘트",
         thumbnailURL: "https://example.com/video-thumbnail.jpg",
         mediaType: .video,
         mediaURL: "https://example.com/video.mp4"
@@ -628,13 +649,13 @@ func feedVideoTappedUsesMediaURL() {
 
     viewModel.send(.view(.feedContentTapped(media)))
 
-    guard case let .relayCat(relayCat, catId) = coordinator.routes.first else {
+    guard case let .relayCat(relayCat) = coordinator.routes.first else {
         Issue.record("RelayCat route was not pushed")
         return
     }
     #expect(relayCat.mediaType == .video)
     #expect(relayCat.mediaURL == media.mediaURL)
-    #expect(catId == "feed-cat")
+    #expect(relayCat.catId == "feed-cat")
 }
 
 @MainActor

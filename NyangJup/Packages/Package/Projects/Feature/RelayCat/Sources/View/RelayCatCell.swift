@@ -92,7 +92,7 @@ struct RelayCatCell: View {
                 Spacer()
             }
 
-            Text(relayCat.memo)
+            Text(relayCat.comment)
                 .font(
                     .system(
                         size: Constant.memoFontSize,
@@ -145,6 +145,7 @@ struct RelayCatCell: View {
         .padding(.trailing, Constant.horizontalPadding)
         .padding(.bottom, Constant.heartBottomPadding)
     }
+
 }
 
 private extension RelayCatCell {
@@ -154,7 +155,6 @@ private extension RelayCatCell {
         static let horizontalPadding: CGFloat = 16
         static let infoBottomPadding: CGFloat = 80
         static let heartBottomPadding: CGFloat = 200
-
         static let avatarBackgroundSize: CGFloat = 38
         static let avatarImageSize: CGFloat = 26
         static let nameFontSize: CGFloat = 15

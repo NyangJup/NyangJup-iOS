@@ -56,54 +56,81 @@ extension CatsClient {
                 feed: [
                     Media(
                         id: "1",
+                        catId: id,
+                        userId: "test-user-id",
+                        comment: "",
                         thumbnailURL: "https://picsum.photos/200/300",
                         mediaType: .photo,
                         mediaURL: "https://picsum.photos/200/300"
                     ),
                     Media(
                         id: "2",
+                        catId: id,
+                        userId: "test-user-id",
+                        comment: "",
                         thumbnailURL: "https://picsum.photos/200/300",
                         mediaType: .photo,
                         mediaURL: "https://picsum.photos/200/300"
                     ),
                     Media(
                         id: "3",
+                        catId: id,
+                        userId: "test-user-id",
+                        comment: "",
                         thumbnailURL: "https://picsum.photos/200/300",
                         mediaType: .photo,
                         mediaURL: "https://picsum.photos/200/300"
                     ),
                     Media(
                         id: "4",
+                        catId: id,
+                        userId: "test-user-id",
+                        comment: "",
                         thumbnailURL: "https://picsum.photos/200/300",
                         mediaType: .photo,
                         mediaURL: "https://picsum.photos/200/300"
                     ),
                     Media(
                         id: "5",
+                        catId: id,
+                        userId: "test-user-id",
+                        comment: "",
                         thumbnailURL: "https://picsum.photos/200/300",
                         mediaType: .video,
                         mediaURL: "https://media.w3.org/2010/05/sintel/trailer.mp4"
                     ),
                     Media(
                         id: "6",
+                        catId: id,
+                        userId: "test-user-id",
+                        comment: "",
                         thumbnailURL: "https://picsum.photos/200/300",
                         mediaType: .video,
                         mediaURL: "https://media.w3.org/2010/05/bunny/trailer.mp4"
                     ),
                     Media(
                         id: "7",
+                        catId: id,
+                        userId: "test-user-id",
+                        comment: "",
                         thumbnailURL: "https://picsum.photos/200/300",
                         mediaType: .video,
                         mediaURL: "https://media.w3.org/2010/05/video/movie_300.mp4"
                     ),
                     Media(
                         id: "8",
+                        catId: id,
+                        userId: "test-user-id",
+                        comment: "",
                         thumbnailURL: "https://picsum.photos/200/300",
                         mediaType: .video,
                         mediaURL: "https://media.w3.org/2010/05/sintel/trailer.mp4"
                     ),
                     Media(
                         id: "9",
+                        catId: id,
+                        userId: "test-user-id",
+                        comment: "",
                         thumbnailURL: "https://picsum.photos/200/300",
                         mediaType: .video,
                         mediaURL: "https://media.w3.org/2010/05/bunny/trailer.mp4"

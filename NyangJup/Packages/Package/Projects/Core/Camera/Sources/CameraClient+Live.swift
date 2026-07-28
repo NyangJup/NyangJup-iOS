@@ -27,6 +27,10 @@ final class LiveCameraController: NSObject, CameraSessionControlling {
     var isRecording: Bool {
         movieOutput.isRecording
     }
+    
+    var recordedDuration: TimeInterval {
+        movieOutput.recordedDuration.seconds
+    }
 
     override init() {
         super.init()
@@ -86,25 +90,27 @@ final class LiveCameraController: NSObject, CameraSessionControlling {
             photoOutput.capturePhoto(with: settings, delegate: self)
         }
     }
-
-    func startRecording() async throws {
-        guard !movieOutput.isRecording else { return }
+    
+    func startRecording(maxDuration: TimeInterval) async throws -> CapturedMedia {
+        guard !movieOutput.isRecording else { throw CameraError.alreadyRecording }
         
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("mov")
-        movieOutput.startRecording(to: url, recordingDelegate: self)
-    }
-
-    func stopRecording() async throws -> CapturedMedia {
-        guard movieOutput.isRecording else {
-            throw CameraError.notRecording
-        }
-
+        
         return try await withCheckedThrowingContinuation { continuation in
             movieContinuation = continuation
-            movieOutput.stopRecording()
+            movieOutput.maxRecordedDuration = CMTime(
+                seconds: maxDuration,
+                preferredTimescale: 600
+            )
+            movieOutput.startRecording(to: url, recordingDelegate: self)
         }
+    }
+    
+    func stopRecording() {
+        guard movieOutput.isRecording else { return }
+        movieOutput.stopRecording()
     }
 }
 
@@ -184,11 +190,22 @@ extension LiveCameraController: AVCaptureFileOutputRecordingDelegate {
         error: Error?
     ) {
         Task { @MainActor in
+            let didFinishSuccessfully: Bool
+
             if let error {
-                movieContinuation?.resume(throwing: error)
+                didFinishSuccessfully = (error as NSError).userInfo[AVErrorRecordingSuccessfullyFinishedKey] as? Bool == true
             } else {
-                movieContinuation?.resume(returning: CapturedMedia(url: outputFileURL, mode: .video))
+                didFinishSuccessfully = true
             }
+
+            if didFinishSuccessfully {
+                movieContinuation?.resume(
+                    returning: CapturedMedia(url: outputFileURL, mode: .video)
+                )
+            } else if let error {
+                movieContinuation?.resume(throwing: error)
+            }
+            
             movieContinuation = nil
         }
     }

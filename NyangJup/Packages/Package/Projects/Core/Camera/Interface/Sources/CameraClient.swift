@@ -7,14 +7,15 @@ public protocol CameraSessionControlling: AnyObject {
     var position: CameraPosition { get }
     var zoomFactor: CGFloat { get }
     var isRecording: Bool { get }
+    var recordedDuration: TimeInterval { get }
 
     func start()
     func stop()
     func switchCamera() async throws
     func setZoomFactor(_ zoomFactor: CGFloat) async throws
     func capturePhoto() async throws -> CapturedMedia
-    func startRecording() async throws
-    func stopRecording() async throws -> CapturedMedia
+    func startRecording(maxDuration: TimeInterval) async throws -> CapturedMedia
+    func stopRecording()
 }
 
 public struct CameraClient: Sendable {
