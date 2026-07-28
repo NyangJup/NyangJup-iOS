@@ -29,8 +29,10 @@ public final class CaptureViewModel: NZViewModel {
         public var isUploading: Bool = false
         public var isPreparingMedia: Bool = false
         public let cat: Cat?
+        public let catId: String?
+        public let editingMediaId: String?
         
-        public var commentText: String = ""
+        public var commentText: String
         
         var videoTrimState: VideoTrimState?
         var isVideoTrimming: Bool {
@@ -48,6 +50,9 @@ public final class CaptureViewModel: NZViewModel {
         public init(configuration: CaptureConfiguration) {
             self.showsModePicker = configuration.showsModePicker
             self.cat = configuration.cat
+            self.catId = configuration.cat?.id ?? configuration.catId
+            self.editingMediaId = configuration.editingMediaId
+            self.commentText = configuration.mediaComment ?? ""
         }
     }
 
@@ -258,12 +263,17 @@ private extension CaptureViewModel {
                     
                 case .video:
                     if cameraClient.isRecording {
-                        let media = try await cameraClient.stopRecording()
-                        state.isRecording = false
-                        send(.internal(.captureCompleted(media)))
+                        cameraClient.stopRecording()
                     } else {
-                        try await cameraClient.startRecording()
                         state.isRecording = true
+                        do {
+                            let media = try await cameraClient.startRecording(maxDuration: 60)
+                            
+                            state.isRecording = false
+                            send(.internal(.captureCompleted(media)))
+                        } catch {
+                            state.isRecording = nil
+                        }
                     }
                 }
             } catch {
@@ -314,6 +324,8 @@ private extension CaptureViewModel {
         }
         let mediaClient = mediaClient
         let cat = state.cat
+        let catId = state.catId
+        let editingMediaId = state.editingMediaId
         let comment = state.commentText
 
         Task {
@@ -322,23 +334,32 @@ private extension CaptureViewModel {
             do {
                 let uploadURLResponse = try await mediaClient.fetchUploadURL(
                     FetchUploadURLRequestDTO(
-                        catId: cat?.id,
+                        catId: catId,
                         mediaType: mediaType
                     )
                 )
-                let response = try await mediaClient.uploadMedia(
-                    UploadMediaRequestDTO(
-                        catId: cat?.id,
-                        fileName: uploadURLResponse.fileName,
-                        mediaType: mediaType,
-                        place: cat?.place,
-                        comment: comment
-                    )
+                let request = UploadMediaRequestDTO(
+                    catId: catId,
+                    fileName: uploadURLResponse.fileName,
+                    mediaType: mediaType,
+                    place: cat?.place,
+                    comment: comment
                 )
+                let response = if let editingMediaId {
+                    try await mediaClient.updateMedia(editingMediaId, request)
+                } else {
+                    try await mediaClient.uploadMedia(request)
+                }
+                guard let responseCatId = response.catId ?? catId else {
+                    return
+                }
                 onComplete(
                     media,
                     Media(
                         id: response.mediaId,
+                        catId: responseCatId,
+                        userId: response.userId,
+                        comment: response.comment,
                         thumbnailURL: response.thumbnailURL,
                         mediaType: media.mode == .photo ? .photo : .video,
                         mediaURL: response.mediaURL

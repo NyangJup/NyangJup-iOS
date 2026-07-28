@@ -129,7 +129,8 @@ private extension CaptureView {
         CapturePreviewView(
             zoomFactor: viewModel.state.zoomFactor,
             cameraController: viewModel.cameraClient,
-            onZoomChanged: { viewModel.send(.view(.zoomChanged($0))) }
+            onZoomChanged: { viewModel.send(.view(.zoomChanged($0))) },
+            isRecording: viewModel.state.isRecording ?? false
         )
     }
     
