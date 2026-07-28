@@ -10,6 +10,7 @@ import Foundation
 public struct UploadMediaResponseDTO: Decodable, Sendable {
     public let catId: String?
     public let mediaId: String
+    public let userId: String
     public let mediaType: String
     public let mediaURL: String
     public let thumbnailURL: String
@@ -18,6 +19,7 @@ public struct UploadMediaResponseDTO: Decodable, Sendable {
     public init(
         catId: String?,
         mediaId: String,
+        userId: String,
         mediaType: String,
         mediaURL: String,
         thumbnailURL: String,
@@ -25,6 +27,7 @@ public struct UploadMediaResponseDTO: Decodable, Sendable {
     ) {
         self.catId = catId
         self.mediaId = mediaId
+        self.userId = userId
         self.mediaType = mediaType
         self.mediaURL = mediaURL
         self.thumbnailURL = thumbnailURL
