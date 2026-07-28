@@ -20,7 +20,10 @@ struct HomeExampleApp: App {
 
     init() {
         let imageLoaderClient = ImageLoaderClient.live()
-        self.captureFactory = CaptureFactory.live(cameraClient: .live)
+        self.captureFactory = CaptureFactory.live(
+            cameraClient: .live,
+            mediaClient: .test
+        )
         self.imageLoaderClient = imageLoaderClient
         self.relayCatFactory = RelayCatFactory.live(
             mediaClient: .test,

@@ -134,7 +134,9 @@ let package = Package(
             name: "FeatureCaptureInterface",
             dependencies: [
                 .feature(module: .common, target: .interface),
-                .core(module: .camera, target: .interface)
+                .core(module: .camera, target: .interface),
+                .domain(module: .cats, target: .interface),
+                .domain(module: .media, target: .interface)
             ],
             path: "Projects/Feature/Capture/Interface/Sources"
         ),
@@ -145,7 +147,9 @@ let package = Package(
                 .feature(module: .common, target: .interface),
                 .feature(module: .capture, target: .interface),
                 .core(module: .camera, target: .interface),
-                .core(module: .video, target: .interface)
+                .core(module: .video, target: .interface),
+                .domain(module: .cats, target: .interface),
+                .domain(module: .media, target: .interface)
             ],
             path: "Projects/Feature/Capture/Sources"
         ),
@@ -161,6 +165,7 @@ let package = Package(
             dependencies: [
                 .feature(module: .capture, target: .feature),
                 .core(module: .camera, target: .testing),
+                .domain(module: .media, target: .testing),
                 .product(name: "Testing", package: "swift-testing")
             ],
             path: "Projects/Feature/Capture/Tests"

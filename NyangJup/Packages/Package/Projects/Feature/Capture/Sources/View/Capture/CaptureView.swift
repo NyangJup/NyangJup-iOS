@@ -7,6 +7,8 @@
 
 import SwiftUI
 
+import SharedDesign
+
 public struct CaptureView: View {
     @State private var viewModel: CaptureViewModel
 
@@ -53,6 +55,7 @@ public struct CaptureView: View {
         .onDisappear {
             viewModel.send(.view(.onDisappear))
         }
+        .loadingOverlay(isPresented: viewModel.state.showsLoadingOverlay)
     }
 }
 
@@ -133,10 +136,11 @@ private extension CaptureView {
     @ViewBuilder
     var captureResultBar: some View {
         let videoTrimState = viewModel.state.videoTrimState
-        let showsVideoTrimBar = viewModel.state.isRecording == false
+        let capturedMode = viewModel.state.capturedMedia?.mode ?? viewModel.state.mode
+        let showsVideoTrimBar = capturedMode == .video
         
         CaptureResultBottomBar(
-            mode: viewModel.state.mode,
+            mode: capturedMode,
             capturedMedia: viewModel.state.capturedMedia,
             trimThumbnails: showsVideoTrimBar ? videoTrimState?.thumbnails : nil,
             trimDuration: showsVideoTrimBar ? videoTrimState?.duration : nil,

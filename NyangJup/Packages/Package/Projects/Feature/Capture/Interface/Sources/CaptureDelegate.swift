@@ -1,11 +1,12 @@
 import Foundation
 
 import CoreCameraInterface
+import DomainMediaInterface
 import FeatureCommonInterface
 
 public struct CaptureDelegate: FeatureDelegate, Sendable {
     public enum Action: Sendable {
-        case complete(CapturedMedia)
+        case complete(Media)
         case close
     }
 
