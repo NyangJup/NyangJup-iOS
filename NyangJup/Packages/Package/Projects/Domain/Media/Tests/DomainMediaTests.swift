@@ -44,22 +44,47 @@ func testClientFetchRelayCatsReturnsAroundPage() async throws {
 
 @Test
 func testClientFetchUploadURLUsesRequestedID() async throws {
-    let response = try await MediaClient.test.fetchUploadURL("42")
+    let request = FetchUploadURLRequestDTO(
+        catId: "42",
+        mediaType: "PHOTO"
+    )
+    let response = try await MediaClient.test.fetchUploadURL(request)
 
-    #expect(response.uploadURL == "https://example.com/uploads/42")
+    #expect(response.uploadURL == "https://example.com/uploads/nyangjup-media-42.jpg")
     #expect(response.fileName == "nyangjup-media-42.jpg")
 }
 
 @Test
-func testClientUploadAndUpdateComplete() async throws {
-    let request = UploadMediaRequestDTO(
-        catId: "1",
-        mediaType: MediaType.photo.rawValue,
-        place: "구로구"
+func testClientFetchUploadURLSupportsVideoWithoutCat() async throws {
+    let response = try await MediaClient.test.fetchUploadURL(
+        FetchUploadURLRequestDTO(
+            catId: nil,
+            mediaType: "VIDEO"
+        )
     )
 
-    try await MediaClient.test.uploadMedia(request)
-    try await MediaClient.test.updateMedia(request)
+    #expect(response.uploadURL == "https://example.com/uploads/nyangjup-media-common.mov")
+    #expect(response.fileName == "nyangjup-media-common.mov")
+}
+
+@Test
+func testClientUploadCompletes() async throws {
+    let request = UploadMediaRequestDTO(
+        catId: "1",
+        fileName: "nyangjup-media-1.jpg",
+        mediaType: "PHOTO",
+        place: "구로구",
+        comment: "귀여워"
+    )
+
+    let response = try await MediaClient.test.uploadMedia(request)
+
+    #expect(response.catId == request.catId)
+    #expect(response.mediaId == "test-media-id")
+    #expect(response.mediaType == request.mediaType)
+    #expect(response.mediaURL == "https://example.com/media/\(request.fileName)")
+    #expect(response.thumbnailURL == "https://example.com/thumbnails/\(request.fileName).jpg")
+    #expect(response.comment == request.comment)
 }
 
 

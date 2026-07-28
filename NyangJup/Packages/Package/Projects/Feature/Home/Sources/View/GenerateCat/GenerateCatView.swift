@@ -88,10 +88,17 @@ private extension GenerateCatView {
     var catNameForm: some View {
         VStack(alignment: .leading, spacing: Constant.contentSpacing) {
             title
-            CatNameTextField(name: $name)
-            CatSubmitButton(
-                name: $name,
-                onSubmit: submit
+            NJTextField(
+                text: $name,
+                placeholder: Constant.namePlaceholder,
+                maxLength: Constant.nameMaxLength
+            )
+            NJButton(
+                text: Constant.submitButtonText,
+                backgroundColor: .red.opacity(Constant.submitButtonOpacity),
+                foregroundColor: .white,
+                isEnabled: !name.isEmpty,
+                onTap: submit
             )
         }
         .padding(.horizontal, Constant.horizontalPadding)
@@ -151,6 +158,10 @@ private extension GenerateCatView {
         static let previousImage = "chevron.left"
         static let nextImage = "chevron.right"
         static let title = "이름을 지어주세요!"
+        static let namePlaceholder = "이름"
+        static let nameMaxLength = 5
+        static let submitButtonText = "확인"
+        static let submitButtonOpacity: Double = 0.7
         static let navigationImageSize: CGFloat = 16
         static let navigationButtonSize: CGFloat = 32
         static let titleFontSize: CGFloat = 24

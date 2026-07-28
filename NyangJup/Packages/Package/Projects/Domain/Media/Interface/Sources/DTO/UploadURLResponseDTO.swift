@@ -7,9 +7,9 @@
 
 import Foundation
 
-public struct UploadURLResponseDTO: Decodable {
-    let uploadURL: String
-    let fileName: String
+public struct UploadURLResponseDTO: Decodable, Sendable {
+    public let uploadURL: String
+    public let fileName: String
 
     public init(
         uploadURL: String,

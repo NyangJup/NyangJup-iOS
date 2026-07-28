@@ -15,11 +15,14 @@ import FeatureRelayCatInterface
 
 public struct HomeRootView: View {
     @Environment(\.relayCatFactory) private var relayCatFactory
+    
+    @Namespace private var catProfileNamespace
+    
     @State private var homeViewModel: HomeViewModel
     @State private var coordinator: HomeCoordinator
+    
     private let mediaClient: MediaClient
-    @Namespace private var catProfileNamespace
-
+    
     public init(
         catsClient: CatsClient,
         profileClient: ProfileClient,
@@ -34,7 +37,7 @@ public struct HomeRootView: View {
         self._coordinator = State(initialValue: coordinator)
         self.mediaClient = mediaClient
     }
-
+    
     public var body: some View {
         NavigationStack(path: $coordinator.path) {
             HomeView(
@@ -54,7 +57,7 @@ public struct HomeRootView: View {
                             namespace: catProfileNamespace
                         )
                     }
-
+                    
                 case let .relayCat(relayCat, catId):
                     relayCatFactory.makeView(
                         RelayCatConfiguration(

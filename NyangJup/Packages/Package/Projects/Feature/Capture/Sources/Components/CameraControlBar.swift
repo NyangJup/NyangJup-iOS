@@ -22,14 +22,16 @@ struct CameraControlBar: View {
         VStack(spacing: Constant.controlSpacing) {
             captureButton
 
-            HStack(spacing: 0) {
-                albumButton
-                Spacer()
+            ZStack {
+                HStack(spacing: 0) {
+                    albumButton
+                    Spacer()
+                    switchButton
+                }
+
                 if showsModePicker {
                     modePicker
-                    Spacer()
                 }
-                switchButton
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, Constant.horizontalPadding)
@@ -62,7 +64,7 @@ private extension CameraControlBar {
             Image(systemName: Constant.albumImage)
                 .font(.system(size: Constant.secondaryButtonImageSize, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: Constant.secondaryButtonSize, height: Constant.secondaryButtonSize)
+                .frame(width: Constant.bottomButtonSize, height: Constant.bottomButtonSize)
                 .background(.black.opacity(Constant.albumBackgroundOpacity), in: Circle())
         }
         .glassEffect(.clear.interactive())
@@ -89,6 +91,7 @@ private extension CameraControlBar {
                         }
                     }
                 }
+                .background(.black.opacity(Constant.albumBackgroundOpacity), in: Circle())
         }
         .glassEffect(.clear.interactive())
     }
@@ -100,7 +103,8 @@ private extension CameraControlBar {
             Image(systemName: Constant.switchCameraImage)
                 .font(.system(size: Constant.secondaryButtonImageSize, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: Constant.switchButtonSize, height: Constant.switchButtonSize)
+                .frame(width: Constant.bottomButtonSize, height: Constant.bottomButtonSize)
+                .background(.black.opacity(Constant.albumBackgroundOpacity), in: Circle())
         }
         .glassEffect(.clear.interactive())
     }
@@ -117,8 +121,7 @@ private extension CameraControlBar {
         static let horizontalPadding: CGFloat = 28
         static let modePickerWidth: CGFloat = 150
         static let secondaryButtonImageSize: CGFloat = 20
-        static let secondaryButtonSize: CGFloat = 52
-        static let switchButtonSize: CGFloat = 44
+        static let bottomButtonSize: CGFloat = 52
         static let albumBackgroundOpacity: Double = 0.45
         static let captureButtonSize: CGFloat = 74
         static let captureButtonLineWidth: CGFloat = 1

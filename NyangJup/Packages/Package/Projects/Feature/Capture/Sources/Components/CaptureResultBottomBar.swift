@@ -22,8 +22,6 @@ struct CaptureResultBottomBar: View {
 
     var body: some View {
         VStack {
-            Spacer()
-
             if let trimThumbnails, let trimDuration {
                 VideoTrimBar(
                     thumbnails: trimThumbnails,

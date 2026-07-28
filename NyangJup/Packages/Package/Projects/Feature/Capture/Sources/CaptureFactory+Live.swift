@@ -8,31 +8,41 @@
 import SwiftUI
 
 import CoreCameraInterface
+import DomainMediaInterface
 import FeatureCaptureInterface
 
 public extension CaptureFactory {
     static func live(
-        cameraClient: CameraClient
+        cameraClient: CameraClient,
+        mediaClient: MediaClient
     ) -> Self {
         Self(
-            makeView: { configuration, delegate in
+            makeView: {
+                configuration,
+                delegate in
                 let configuration = configuration as? CaptureConfiguration
                 let delegate = delegate as? CaptureDelegate
                 let onAction: @MainActor @Sendable (CaptureDelegate.Action) -> Void = { action in
                     delegate?.send(action)
                 }
-                let coordinator = CaptureCoordinator()
-
+                
                 return AnyView(
-                    CaptureRootView(
+                    CaptureView(
                         viewModel: CaptureViewModel(
                             cameraClient: cameraClient,
+                            mediaClient: mediaClient,
                             videoTrimClient: VideoTrimClient(),
-                            coordinator: coordinator,
-                            configuration: configuration ?? .init(showsModePicker: true)
-                        ),
-                        coordinator: coordinator,
-                        onAction: onAction
+                            configuration: configuration ?? .init(
+                                showsModePicker: true,
+                                cat: nil
+                            ),
+                            onComplete: { _, uploadedMedia in
+                                onAction(.complete(uploadedMedia))
+                            },
+                            onClose: {
+                                onAction(.close)
+                            }
+                        )
                     )
                 )
             }

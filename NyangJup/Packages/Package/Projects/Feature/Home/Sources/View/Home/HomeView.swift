@@ -8,6 +8,7 @@
 import SwiftUI
 
 import FeatureCaptureInterface
+import SharedDesign
 
 public struct HomeView: View {
     @State private var viewModel: HomeViewModel
@@ -27,11 +28,8 @@ public struct HomeView: View {
             mapView
             catSpeechBubble
         }
-        .overlay(alignment: .topLeading) {
-            titleView
-        }
         .overlay(alignment: .bottomTrailing) {
-            bottomButton
+            plusButton
         }
         .ignoresSafeArea()
         .onAppear {
@@ -80,32 +78,24 @@ private extension HomeView {
             .position(position)
         }
     }
-
-    var titleView: some View {
-        Text(Constant.title)
-            .font(.largeTitle)
-            .padding(.leading, Constant.titleLeadingPadding)
-            .padding(.top, Constant.titleTopPadding)
-    }
-
-    var bottomButton: some View {
-        Button {
-            viewModel.send(.view(.plusButtonTapped))
-        } label: {
-            bottomButtonImage
-        }
-        .frame(width: Constant.bottomButtonSize, height: Constant.bottomButtonSize)
-        .glassEffect(.clear.interactive(), in: .circle)
+    
+    var plusButton: some View {
+        CircleButton(
+            onTap: { viewModel.send(.view(.plusButtonTapped)) },
+            image: Image(systemName: Constant.bottomButtonImage),
+            glassEffect: .regular.interactive(),
+            buttonSize: CGSize(
+                width: Constant.bottomButtonSize,
+                height: Constant.bottomButtonSize
+            ),
+            imageSize: CGSize(
+                width: Constant.bottomButtonImageSize,
+                height: Constant.bottomButtonImageSize
+            ),
+            foregroundColor: .black
+        )
         .padding(.trailing, Constant.bottomButtonTrailingPadding)
         .padding(.bottom, Constant.bottomButtonBottomPadding)
-    }
-
-    var bottomButtonImage: some View {
-        Image(systemName: Constant.bottomButtonImage)
-            .resizable()
-            .renderingMode(.template)
-            .foregroundStyle(.black)
-            .frame(width: Constant.bottomButtonImageSize, height: Constant.bottomButtonImageSize)
     }
 }
 
@@ -113,16 +103,14 @@ private extension HomeView {
 
 private extension HomeView {
     private enum Constant {
-        static let title: String = "냥줍"
         static let bottomButtonImage: String = "plus"
 
         static let titleLeadingPadding: CGFloat = 32
         static let titleTopPadding: CGFloat = 60
-
+        
         static let bottomButtonImageSize: CGFloat = 24
         static let bottomButtonSize: CGFloat = 60
         static let bottomButtonTrailingPadding: CGFloat = 20
         static let bottomButtonBottomPadding: CGFloat = 48
-
     }
 }

@@ -21,7 +21,7 @@ private struct DebounceTestView: View {
         Color.clear
             .debounce(
                 value: model.value,
-                for: .milliseconds(30),
+                for: .milliseconds(300),
                 perform: model.receive
             )
     }
@@ -42,9 +42,10 @@ func debounceDeliversOnlyLatestValue() async throws {
     viewController.view.layoutIfNeeded()
 
     model.value = 1
-    try await Task.sleep(for: .milliseconds(10))
+    try await Task.sleep(for: .milliseconds(50))
+    viewController.view.layoutIfNeeded()
     model.value = 2
-    try await Task.sleep(for: .milliseconds(60))
+    try await Task.sleep(for: .milliseconds(400))
 
     #expect(model.receivedValues == [2])
     _ = window

@@ -1,5 +1,6 @@
 import SwiftUI
 
+import DomainCatsInterface
 import FeatureCommonInterface
 
 public struct CaptureFactory: Factorable, Sendable {
@@ -14,10 +15,13 @@ public struct CaptureFactory: Factorable, Sendable {
 
 public struct CaptureConfiguration: FeatureConfiguration {
     public let showsModePicker: Bool
+    public let cat: Cat?
     
     public init(
-        showsModePicker: Bool = true
+        showsModePicker: Bool,
+        cat: Cat? = nil
     ) {
         self.showsModePicker = showsModePicker
+        self.cat = cat
     }
 }

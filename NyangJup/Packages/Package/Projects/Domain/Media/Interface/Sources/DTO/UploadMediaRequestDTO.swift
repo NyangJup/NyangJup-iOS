@@ -7,18 +7,24 @@
 
 import Foundation
 
-public struct UploadMediaRequestDTO: Encodable {
-    let catId: String
-    let mediaType: String
-    let place: String
+public struct UploadMediaRequestDTO: Encodable, Sendable {
+    public let catId: String?
+    public let fileName: String
+    public let mediaType: String
+    public let place: String?
+    public let comment: String
 
     public init(
-        catId: String,
+        catId: String?,
+        fileName: String,
         mediaType: String,
-        place: String
+        place: String?,
+        comment: String
     ) {
         self.catId = catId
+        self.fileName = fileName
         self.mediaType = mediaType
         self.place = place
+        self.comment = comment
     }
 }

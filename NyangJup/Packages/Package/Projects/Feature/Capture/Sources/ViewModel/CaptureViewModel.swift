@@ -10,6 +10,8 @@ import _PhotosUI_SwiftUI
 import UniformTypeIdentifiers
 
 import CoreCameraInterface
+import DomainCatsInterface
+import DomainMediaInterface
 import FeatureCommonInterface
 import FeatureCaptureInterface
 
@@ -23,22 +25,29 @@ public final class CaptureViewModel: NZViewModel {
         public var isRecording: Bool?
         public var capturedMedia: CapturedMedia?
         public var showsModePicker: Bool
+        public var showsConfirmSheet: Bool = false
+        public var isUploading: Bool = false
+        public var isPreparingMedia: Bool = false
+        public let cat: Cat?
+        
+        public var commentText: String = ""
         
         var videoTrimState: VideoTrimState?
         var isVideoTrimming: Bool {
             videoTrimState != nil
         }
         
-        public var previewImageData: Data? {
-            capturedMedia?.data
-        }
-        
         public var hasResultMedia: Bool {
             capturedMedia != nil
+        }
+
+        public var showsLoadingOverlay: Bool {
+            isUploading || isPreparingMedia
         }
         
         public init(configuration: CaptureConfiguration) {
             self.showsModePicker = configuration.showsModePicker
+            self.cat = configuration.cat
         }
     }
 
@@ -59,6 +68,8 @@ public final class CaptureViewModel: NZViewModel {
             case durationStartTimeChanged(Double)
             case durationEndTimeChanged(Double)
             case currentTimeChanged(Double)
+            case completeButtonTapped
+            case closeButtonTapped
         }
 
         public enum Internal {
@@ -71,21 +82,27 @@ public final class CaptureViewModel: NZViewModel {
     }
 
     public var state: State
-    weak var coordinator: (any Coordinator<CaptureRoute>)?
 
     let cameraClient: any CameraSessionControlling
+    let mediaClient: MediaClient
     let videoTrimClient: VideoTrimClient
+    private let onComplete: @MainActor @Sendable (CapturedMedia, Media) -> Void
+    private let onClose: @MainActor @Sendable () -> Void
     
     public init(
         cameraClient: CameraClient,
+        mediaClient: MediaClient,
         videoTrimClient: VideoTrimClient,
-        coordinator: any Coordinator<CaptureRoute>,
-        configuration: CaptureConfiguration
+        configuration: CaptureConfiguration,
+        onComplete: @escaping @MainActor @Sendable (CapturedMedia, Media) -> Void,
+        onClose: @escaping @MainActor @Sendable () -> Void
     ) {
         self.cameraClient = cameraClient.makeController()
+        self.mediaClient = mediaClient
         self.videoTrimClient = videoTrimClient
-        self.coordinator = coordinator
         self.state = State(configuration: configuration)
+        self.onComplete = onComplete
+        self.onClose = onClose
     }
 
     public func send(_ action: Action) {
@@ -136,29 +153,41 @@ private extension CaptureViewModel {
             state.capturedMedia = nil
             state.videoTrimState = nil
             state.isRecording = nil
+            state.isPreparingMedia = false
             
         case let .photoPickerChanged(item):
             guard let item else { return }
+            let isVideo = item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) })
+            state.isPreparingMedia = isVideo
+
             Task {
                 guard let data = try? await item.loadTransferable(type: Data.self) else {
+                    state.isPreparingMedia = false
                     return
                 }
 
-                if item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) {
+                if isVideo {
                     let url = FileManager.default.temporaryDirectory
                         .appendingPathComponent(UUID().uuidString)
                         .appendingPathExtension("mov")
                     guard (try? data.write(to: url, options: .atomic)) != nil else {
+                        state.isPreparingMedia = false
                         return
                     }
                     self.send(.internal(.captureCompleted(CapturedMedia(url: url, mode: .video))))
                 } else {
-                    self.state.capturedMedia = CapturedMedia(data: data, mode: .photo)
+                    self.send(.internal(.captureCompleted(CapturedMedia(data: data, mode: .photo))))
                 }
             }
 
         case .useButtonTapped:
+            state.showsConfirmSheet = true
+            
+        case .completeButtonTapped:
             completeCapture()
+
+        case .closeButtonTapped:
+            onClose()
             
         case let .durationStartTimeChanged(time):
             state.videoTrimState?.startTime = time
@@ -175,23 +204,35 @@ private extension CaptureViewModel {
         switch action {
         case let .captureCompleted(media):
             state.capturedMedia = media
+            state.mode = media.mode
+            state.isRecording = media.mode == .video ? false : nil
             if media.mode == .video {
-                guard let url = media.url else { return }
+                guard let url = media.url else {
+                    state.isPreparingMedia = false
+                    return
+                }
                 let videoTrimClient = videoTrimClient
+                state.isPreparingMedia = true
                 
                 Task {
-                    let duration = try await videoTrimClient.loadDuration(from: url)
-                    let thumbnails = try await videoTrimClient.generateThumbnails(from: url, count: 12)
-                    
-                    let trimState = VideoTrimState(
-                        duration: duration,
-                        startTime: 0,
-                        endTime: min(duration, 60),
-                        currentTime: 0,
-                        thumbnails: thumbnails
-                    )
-                    
-                    send(.internal(.videoTrimLoaded(trimState)))
+                    defer { state.isPreparingMedia = false }
+
+                    do {
+                        let duration = try await videoTrimClient.loadDuration(from: url)
+                        let thumbnails = try await videoTrimClient.generateThumbnails(from: url, count: 12)
+                        
+                        let trimState = VideoTrimState(
+                            duration: duration,
+                            startTime: 0,
+                            endTime: min(duration, 60),
+                            currentTime: 0,
+                            thumbnails: thumbnails
+                        )
+                        
+                        send(.internal(.videoTrimLoaded(trimState)))
+                    } catch {
+
+                    }
                 }
             }
             
@@ -203,7 +244,7 @@ private extension CaptureViewModel {
 
         case let .videoTrimExported(media):
             state.capturedMedia = media
-            coordinator?.push(to: .upload)
+            uploadMedia(media)
         }
     }
 
@@ -232,11 +273,22 @@ private extension CaptureViewModel {
     }
 
     func completeCapture() {
-        guard let media = state.capturedMedia else { return }
-        guard media.mode == .video,
-              let sourceURL = media.url,
+        guard !state.isUploading,
+              let media = state.capturedMedia else {
+            return
+        }
+
+        state.showsConfirmSheet = false
+        state.isUploading = true
+
+        guard media.mode == .video else {
+            uploadMedia(media)
+            return
+        }
+
+        guard let sourceURL = media.url,
               let trimState = state.videoTrimState else {
-            coordinator?.push(to: .upload)
+            state.isUploading = false
             return
         }
 
@@ -249,6 +301,49 @@ private extension CaptureViewModel {
                     endTime: trimState.endTime
                 )
                 send(.internal(.videoTrimExported(CapturedMedia(url: outputURL, mode: .video))))
+            } catch {
+                state.isUploading = false
+            }
+        }
+    }
+
+    func uploadMedia(_ media: CapturedMedia) {
+        let mediaType = switch media.mode {
+        case .photo: "PHOTO"
+        case .video: "VIDEO"
+        }
+        let mediaClient = mediaClient
+        let cat = state.cat
+        let comment = state.commentText
+
+        Task {
+            defer { state.isUploading = false }
+
+            do {
+                let uploadURLResponse = try await mediaClient.fetchUploadURL(
+                    FetchUploadURLRequestDTO(
+                        catId: cat?.id,
+                        mediaType: mediaType
+                    )
+                )
+                let response = try await mediaClient.uploadMedia(
+                    UploadMediaRequestDTO(
+                        catId: cat?.id,
+                        fileName: uploadURLResponse.fileName,
+                        mediaType: mediaType,
+                        place: cat?.place,
+                        comment: comment
+                    )
+                )
+                onComplete(
+                    media,
+                    Media(
+                        id: response.mediaId,
+                        thumbnailURL: response.thumbnailURL,
+                        mediaType: media.mode == .photo ? .photo : .video,
+                        mediaURL: response.mediaURL
+                    )
+                )
             } catch {
 
             }
