@@ -57,6 +57,14 @@ private actor LikeUpdateRequestRecorder {
     }
 }
 
+private actor DeletedMediaRecorder {
+    private(set) var ids: [String] = []
+
+    func record(id: String) {
+        ids.append(id)
+    }
+}
+
 private enum LikeUpdateError: Error {
     case failed
 }
@@ -69,8 +77,10 @@ private let testImageLoaderClient = ImageLoaderClient { _, _, _, _ in
 @Test
 func liveFactoryCreatesViewWithRelayCatConfiguration() {
     let relayCat = RelayCat(
-        id: "relay-cat",
-        memo: "",
+        mediaId: "relay-cat",
+        catId: "cat-id",
+        userId: "test-user-id",
+        comment: "",
         thumbnailURL: "https://example.com/thumbnail.jpg",
         name: "나비",
         mediaType: .photo,
@@ -83,8 +93,7 @@ func liveFactoryCreatesViewWithRelayCatConfiguration() {
         imageLoaderClient: testImageLoaderClient
     ).makeView(
         RelayCatConfiguration(
-            relayCat: relayCat,
-            catId: "cat-id"
+            relayCat: relayCat
         ),
         nil
     )
@@ -101,8 +110,7 @@ func heartTapOptimisticallyUpdatesItemAndCallsClient() async {
     }
     let viewModel = RelayCatViewModel(
         configuration: RelayCatConfiguration(
-            relayCat: relayCat,
-            catId: "cat-id"
+            relayCat: relayCat
         ),
         mediaClient: mediaClient,
         imageLoaderClient: testImageLoaderClient
@@ -111,7 +119,7 @@ func heartTapOptimisticallyUpdatesItemAndCallsClient() async {
     viewModel.send(
         .network(
             .updateIsLiked(
-                id: relayCat.id,
+                id: relayCat.mediaId,
                 isLiked: true
             )
         )
@@ -122,7 +130,7 @@ func heartTapOptimisticallyUpdatesItemAndCallsClient() async {
     let requests = await recorder.requests
     #expect(
         requests == [
-            LikeUpdateRequest(id: relayCat.id, isLiked: true)
+            LikeUpdateRequest(id: relayCat.mediaId, isLiked: true)
         ]
     )
 }
@@ -139,8 +147,7 @@ func failedHeartUpdateRestoresPreviousValue() async {
     }
     let viewModel = RelayCatViewModel(
         configuration: RelayCatConfiguration(
-            relayCat: relayCat,
-            catId: "cat-id"
+            relayCat: relayCat
         ),
         mediaClient: mediaClient,
         imageLoaderClient: testImageLoaderClient
@@ -149,7 +156,7 @@ func failedHeartUpdateRestoresPreviousValue() async {
     viewModel.send(
         .network(
             .updateIsLiked(
-                id: relayCat.id,
+                id: relayCat.mediaId,
                 isLiked: true
             )
         )
@@ -164,7 +171,7 @@ func failedHeartUpdateRestoresPreviousValue() async {
     let requests = await recorder.requests
     #expect(
         requests == [
-            LikeUpdateRequest(id: relayCat.id, isLiked: true)
+            LikeUpdateRequest(id: relayCat.mediaId, isLiked: true)
         ]
     )
     #expect(viewModel.state.items.first?.isLiked == false)
@@ -174,8 +181,10 @@ func failedHeartUpdateRestoresPreviousValue() async {
 @Test
 func viewModelFetchesRelayCatsOnAppear() async {
     let relayCat = RelayCat(
-        id: "relay-cat",
-        memo: "",
+        mediaId: "relay-cat",
+        catId: "cat-id",
+        userId: "test-user-id",
+        comment: "",
         thumbnailURL: "https://example.com/thumbnail.jpg",
         name: "나비",
         mediaType: .video,
@@ -183,8 +192,10 @@ func viewModelFetchesRelayCatsOnAppear() async {
         isLiked: false
     )
     let fetchedRelayCat = RelayCat(
-        id: "fetched-relay-cat",
-        memo: "새 콘텐츠",
+        mediaId: "fetched-relay-cat",
+        catId: "cat-id",
+        userId: "test-user-id",
+        comment: "새 콘텐츠",
         thumbnailURL: "https://example.com/fetched-thumbnail.jpg",
         name: "나비",
         mediaType: .photo,
@@ -192,8 +203,10 @@ func viewModelFetchesRelayCatsOnAppear() async {
         isLiked: true
     )
     let serverAnchorRelayCat = RelayCat(
-        id: relayCat.id,
-        memo: "서버 anchor",
+        mediaId: relayCat.mediaId,
+        catId: "cat-id",
+        userId: "test-user-id",
+        comment: "서버 anchor",
         thumbnailURL: "https://example.com/server-thumbnail.jpg",
         name: "나비",
         mediaType: .photo,
@@ -213,16 +226,15 @@ func viewModelFetchesRelayCatsOnAppear() async {
     }
     let viewModel = RelayCatViewModel(
         configuration: RelayCatConfiguration(
-            relayCat: relayCat,
-            catId: "cat-id"
+            relayCat: relayCat
         ),
         mediaClient: mediaClient,
         imageLoaderClient: testImageLoaderClient
     )
-    #expect(viewModel.state.anchorId == relayCat.id)
+    #expect(viewModel.state.anchorId == relayCat.mediaId)
     #expect(viewModel.state.catId == "cat-id")
     #expect(viewModel.state.items == [relayCat])
-    #expect(viewModel.state.currentItemId == relayCat.id)
+    #expect(viewModel.state.currentItemId == relayCat.mediaId)
 
     viewModel.state.currentItemId = nil
 
@@ -230,12 +242,12 @@ func viewModelFetchesRelayCatsOnAppear() async {
     await waitUntil { !viewModel.state.isLoading }
 
     let request = await recorder.request
-    #expect(request?.anchorId == relayCat.id)
+    #expect(request?.anchorId == relayCat.mediaId)
     #expect(request?.catId == "cat-id")
     #expect(request?.beforeCount == 5)
     #expect(request?.afterCount == 5)
     #expect(viewModel.state.items == [fetchedRelayCat, serverAnchorRelayCat])
-    #expect(viewModel.state.currentItemId == relayCat.id)
+    #expect(viewModel.state.currentItemId == relayCat.mediaId)
     #expect(viewModel.state.previousCursor == "previous-cursor")
     #expect(viewModel.state.nextCursor == "next-cursor")
 }
@@ -279,8 +291,7 @@ func viewModelFetchesPreviousAndNextPagesWithoutDuplicates() async {
     }
     let viewModel = RelayCatViewModel(
         configuration: RelayCatConfiguration(
-            relayCat: first,
-            catId: "cat-id"
+            relayCat: first
         ),
         mediaClient: mediaClient,
         imageLoaderClient: testImageLoaderClient
@@ -292,7 +303,7 @@ func viewModelFetchesPreviousAndNextPagesWithoutDuplicates() async {
     viewModel.send(
         .view(
             .itemAppeared(
-                id: first.id,
+                id: first.mediaId,
                 size: CGSize(width: 390, height: 844)
             )
         )
@@ -302,7 +313,7 @@ func viewModelFetchesPreviousAndNextPagesWithoutDuplicates() async {
     viewModel.send(
         .view(
             .itemAppeared(
-                id: last.id,
+                id: last.mediaId,
                 size: CGSize(width: 390, height: 844)
             )
         )
@@ -311,10 +322,10 @@ func viewModelFetchesPreviousAndNextPagesWithoutDuplicates() async {
 
     let requests = await recorder.requests
     #expect(requests.count == 3)
-    #expect(requests[1].anchorId == first.id)
+    #expect(requests[1].anchorId == first.mediaId)
     #expect(requests[1].beforeCount == 5)
     #expect(requests[1].afterCount == 0)
-    #expect(requests[2].anchorId == last.id)
+    #expect(requests[2].anchorId == last.mediaId)
     #expect(requests[2].beforeCount == 0)
     #expect(requests[2].afterCount == 5)
     #expect(viewModel.state.items == [previous, first, last, next])
@@ -327,8 +338,10 @@ func viewModelFetchesPreviousAndNextPagesWithoutDuplicates() async {
 func viewModelPreloadsAdjacentPhotosAfterInitialResponse() async {
     let previous = makeRelayCat(id: "previous")
     let anchor = RelayCat(
-        id: "anchor",
-        memo: "",
+        mediaId: "anchor",
+        catId: "cat-id",
+        userId: "test-user-id",
+        comment: "",
         thumbnailURL: "https://example.com/anchor-thumbnail.jpg",
         name: "나비",
         mediaType: .video,
@@ -359,8 +372,7 @@ func viewModelPreloadsAdjacentPhotosAfterInitialResponse() async {
     }
     let viewModel = RelayCatViewModel(
         configuration: RelayCatConfiguration(
-            relayCat: anchor,
-            catId: "cat-id"
+            relayCat: anchor
         ),
         mediaClient: mediaClient,
         imageLoaderClient: imageLoaderClient
@@ -370,7 +382,7 @@ func viewModelPreloadsAdjacentPhotosAfterInitialResponse() async {
     viewModel.send(
         .view(
             .itemAppeared(
-                id: anchor.id,
+                id: anchor.mediaId,
                 size: imageSize
             )
         )
@@ -398,8 +410,10 @@ func viewModelDoesNotPreloadAdjacentVideo() async {
     let previous = makeRelayCat(id: "previous")
     let anchor = makeRelayCat(id: "anchor")
     let nextVideo = RelayCat(
-        id: "next-video",
-        memo: "",
+        mediaId: "next-video",
+        catId: "cat-id",
+        userId: "test-user-id",
+        comment: "",
         thumbnailURL: "https://example.com/next-video-thumbnail.jpg",
         name: "나비",
         mediaType: .video,
@@ -429,8 +443,7 @@ func viewModelDoesNotPreloadAdjacentVideo() async {
     }
     let viewModel = RelayCatViewModel(
         configuration: RelayCatConfiguration(
-            relayCat: anchor,
-            catId: "cat-id"
+            relayCat: anchor
         ),
         mediaClient: mediaClient,
         imageLoaderClient: imageLoaderClient
@@ -441,7 +454,7 @@ func viewModelDoesNotPreloadAdjacentVideo() async {
     viewModel.send(
         .view(
             .itemAppeared(
-                id: anchor.id,
+                id: anchor.mediaId,
                 size: CGSize(width: 390, height: 844)
             )
         )
@@ -501,8 +514,7 @@ func viewModelPreloadsPhotosAddedByPreviousAndNextPages() async {
     }
     let viewModel = RelayCatViewModel(
         configuration: RelayCatConfiguration(
-            relayCat: first,
-            catId: "cat-id"
+            relayCat: first
         ),
         mediaClient: mediaClient,
         imageLoaderClient: imageLoaderClient
@@ -519,7 +531,7 @@ func viewModelPreloadsPhotosAddedByPreviousAndNextPages() async {
     viewModel.send(
         .view(
             .itemAppeared(
-                id: first.id,
+                id: first.mediaId,
                 size: imageSize
             )
         )
@@ -530,7 +542,7 @@ func viewModelPreloadsPhotosAddedByPreviousAndNextPages() async {
     viewModel.send(
         .view(
             .itemAppeared(
-                id: last.id,
+                id: last.mediaId,
                 size: imageSize
             )
         )
@@ -545,10 +557,195 @@ func viewModelPreloadsPhotosAddedByPreviousAndNextPages() async {
     ]))
 }
 
+@MainActor
+@Test
+func editingCurrentItemWithCaptureResultReplacesIt() {
+    let relayCat = makeOwnedRelayCat(id: "owned", userId: "current-user")
+    let viewModel = RelayCatViewModel(
+        configuration: RelayCatConfiguration(
+            relayCat: relayCat
+        ),
+        mediaClient: .test,
+        imageLoaderClient: testImageLoaderClient
+    )
+    viewModel.send(.view(.editButtonTapped))
+
+    #expect(viewModel.state.isCameraPresented)
+    #expect(viewModel.state.editingMediaId == relayCat.mediaId)
+
+    viewModel.send(.view(.cameraCompleted(
+        Media(
+            id: relayCat.mediaId,
+            catId: relayCat.catId,
+            userId: relayCat.userId,
+            comment: "수정된 메모",
+            thumbnailURL: "https://example.com/updated-thumbnail.jpg",
+            mediaType: .video,
+            mediaURL: "https://example.com/updated.mp4"
+        )
+    )))
+
+    #expect(viewModel.state.items.count == 1)
+    #expect(viewModel.state.currentItem?.comment == "수정된 메모")
+    #expect(viewModel.state.currentItem?.mediaType == .video)
+    #expect(viewModel.state.currentItem?.mediaURL == "https://example.com/updated.mp4")
+    #expect(viewModel.state.currentItemId == relayCat.mediaId)
+    #expect(!viewModel.state.isCameraPresented)
+    #expect(viewModel.state.editingMediaId == nil)
+}
+
+@MainActor
+@Test
+func deletingCurrentItemSelectsNextItem() async {
+    let current = makeOwnedRelayCat(id: "current", userId: "current-user")
+    let next = makeOwnedRelayCat(id: "next", userId: "other-user")
+    let recorder = DeletedMediaRecorder()
+    var mediaClient = MediaClient.test
+    mediaClient.deleteMedia = { id in
+        await recorder.record(id: id)
+        return Media(
+            id: id,
+            catId: "cat-id",
+            userId: "test-user-id",
+            comment: "",
+            thumbnailURL: "",
+            mediaType: .photo,
+            mediaURL: ""
+        )
+    }
+    let viewModel = RelayCatViewModel(
+        configuration: RelayCatConfiguration(
+            relayCat: current
+        ),
+        mediaClient: mediaClient,
+        imageLoaderClient: testImageLoaderClient
+    )
+    viewModel.state.items = [current, next]
+
+    viewModel.send(.view(.deleteButtonTapped))
+    await waitUntil { !viewModel.state.isDeleting }
+
+    let deletedIds = await recorder.ids
+    #expect(deletedIds == [current.mediaId])
+    #expect(viewModel.state.items == [next])
+    #expect(viewModel.state.currentItemId == next.mediaId)
+}
+
+@MainActor
+@Test
+func deletingLastItemSelectsPreviousItem() async {
+    let previous = makeRelayCat(id: "previous")
+    let current = makeRelayCat(id: "current")
+    var mediaClient = MediaClient.test
+    mediaClient.deleteMedia = { id in
+        Media(
+            id: id,
+            catId: current.catId,
+            userId: current.userId,
+            comment: current.comment,
+            thumbnailURL: current.thumbnailURL,
+            mediaType: current.mediaType,
+            mediaURL: current.mediaURL
+        )
+    }
+    let viewModel = RelayCatViewModel(
+        configuration: RelayCatConfiguration(relayCat: current),
+        mediaClient: mediaClient,
+        imageLoaderClient: testImageLoaderClient
+    )
+    viewModel.state.items = [previous, current]
+
+    viewModel.send(.view(.deleteButtonTapped))
+    await waitUntil { !viewModel.state.isDeleting }
+
+    #expect(viewModel.state.items == [previous])
+    #expect(viewModel.state.currentItemId == previous.mediaId)
+}
+
+@MainActor
+@Test
+func deletingOnlyItemClearsCurrentSelection() async {
+    let current = makeRelayCat(id: "current")
+    var mediaClient = MediaClient.test
+    mediaClient.deleteMedia = { id in
+        Media(
+            id: id,
+            catId: current.catId,
+            userId: current.userId,
+            comment: current.comment,
+            thumbnailURL: current.thumbnailURL,
+            mediaType: current.mediaType,
+            mediaURL: current.mediaURL
+        )
+    }
+    let viewModel = RelayCatViewModel(
+        configuration: RelayCatConfiguration(relayCat: current),
+        mediaClient: mediaClient,
+        imageLoaderClient: testImageLoaderClient
+    )
+
+    viewModel.send(.view(.deleteButtonTapped))
+    await waitUntil { !viewModel.state.isDeleting }
+
+    #expect(viewModel.state.items.isEmpty)
+    #expect(viewModel.state.currentItemId == nil)
+}
+
+@MainActor
+@Test
+func cancellingDeleteAlertDoesNotRequestDeletion() async {
+    let current = makeRelayCat(id: "current")
+    let recorder = DeletedMediaRecorder()
+    var mediaClient = MediaClient.test
+    mediaClient.deleteMedia = { id in
+        await recorder.record(id: id)
+        return Media(
+            id: id,
+            catId: current.catId,
+            userId: current.userId,
+            comment: current.comment,
+            thumbnailURL: current.thumbnailURL,
+            mediaType: current.mediaType,
+            mediaURL: current.mediaURL
+        )
+    }
+    let viewModel = RelayCatViewModel(
+        configuration: RelayCatConfiguration(relayCat: current),
+        mediaClient: mediaClient,
+        imageLoaderClient: testImageLoaderClient
+    )
+
+    viewModel.send(.view(.deleteMenuButtonTapped))
+    #expect(viewModel.state.isDeleteAlertPresented)
+
+    viewModel.state.isDeleteAlertPresented = false
+    await Task.yield()
+
+    #expect(await recorder.ids.isEmpty)
+    #expect(viewModel.state.items == [current])
+    #expect(viewModel.state.currentItemId == current.mediaId)
+}
+
 private func makeRelayCat(id: String) -> RelayCat {
     RelayCat(
-        id: id,
-        memo: "",
+        mediaId: id,
+        catId: "cat-id",
+        userId: "test-user-id",
+        comment: "",
+        thumbnailURL: "https://example.com/\(id)-thumbnail.jpg",
+        name: "나비",
+        mediaType: .photo,
+        mediaURL: "https://example.com/\(id).jpg",
+        isLiked: false
+    )
+}
+
+private func makeOwnedRelayCat(id: String, userId: String) -> RelayCat {
+    RelayCat(
+        mediaId: id,
+        catId: "cat-id",
+        userId: userId,
+        comment: "",
         thumbnailURL: "https://example.com/\(id)-thumbnail.jpg",
         name: "나비",
         mediaType: .photo,
@@ -559,8 +756,10 @@ private func makeRelayCat(id: String) -> RelayCat {
 
 private func makeVideoRelayCat(id: String) -> RelayCat {
     RelayCat(
-        id: id,
-        memo: "",
+        mediaId: id,
+        catId: "cat-id",
+        userId: "test-user-id",
+        comment: "",
         thumbnailURL: "https://example.com/\(id)-thumbnail.jpg",
         name: "나비",
         mediaType: .video,
