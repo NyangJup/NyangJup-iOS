@@ -227,12 +227,18 @@ final class RelayCatViewModel: NZViewModel {
         }
 
         guard state.items[index].isLiked != isLiked else { return }
+        let previousIsLiked = state.items[index].isLiked
         state.items[index].isLiked = isLiked
 
         Task {
             do {
                 try await mediaClient.updateIsLiked(id, isLiked)
             } catch {
+                guard let index = state.items.firstIndex(where: { $0.id == id }),
+                      state.items[index].isLiked == isLiked else {
+                    return
+                }
+                state.items[index].isLiked = previousIsLiked
             }
         }
     }
