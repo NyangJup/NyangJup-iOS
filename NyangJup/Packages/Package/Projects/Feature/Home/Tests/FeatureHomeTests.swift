@@ -106,6 +106,17 @@ private enum TestError: Error {
     case deleteCatFailed
 }
 
+private func makeCats(count: Int) -> [Cat] {
+    (0..<count).map { index in
+        Cat(
+            id: "cat-\(index)",
+            name: "고양이\(index)",
+            place: "집",
+            appearanceKey: "abyssinian"
+        )
+    }
+}
+
 @MainActor
 @Test
 func syncingCatsKeepsExistingCatNodeAndAddsMissingCat() {
@@ -146,6 +157,46 @@ func syncingCatsKeepsExistingCatNodeAndAddsMissingCat() {
     #expect(updatedExistingNode === existingNode)
     #expect(updatedExistingNode?.position == existingPosition)
     #expect(addedNode != nil)
+}
+
+@MainActor
+@Test
+func syncingCatsUpdatesExistingCatNameTag() {
+    let cat = Cat(
+        id: "existing-cat",
+        name: "나비",
+        place: "집",
+        appearanceKey: "abyssinian"
+    )
+    let updatedCat = Cat(
+        id: cat.id,
+        name: "후추",
+        place: cat.place,
+        appearanceKey: cat.appearanceKey
+    )
+    let scene = HomeMapScene(
+        size: CGSize(width: 390, height: 844),
+        cats: [cat],
+        onCatTapped: { _, _ in },
+        onSelectionCleared: {}
+    )!
+    scene.didMove(to: SKView())
+
+    let existingNode = scene.children.first {
+        $0.userData?["catID"] as? String == cat.id
+    }
+
+    scene.syncCats([updatedCat])
+
+    let updatedNode = scene.children.first {
+        $0.userData?["catID"] as? String == cat.id
+    }
+    let nameLabel = updatedNode?.childNode(
+        withName: "catNameLabel"
+    ) as? SKLabelNode
+
+    #expect(updatedNode === existingNode)
+    #expect(nameLabel?.text == updatedCat.name)
 }
 
 @MainActor
@@ -230,12 +281,32 @@ func plusButtonPresentsMakeCat() {
         profileClient: .test,
         coordinator: coordinator
     )
+    viewModel.state.cats = makeCats(count: 4)
     viewModel.state.selectedCatId = "selected-cat"
 
     #expect(viewModel.state.isMakeCatPresented == false)
     viewModel.send(.view(.plusButtonTapped))
     #expect(viewModel.state.isMakeCatPresented == true)
     #expect(viewModel.state.selectedCatId == nil)
+}
+
+@MainActor
+@Test
+func plusButtonAtCatLimitPresentsAlert() {
+    let viewModel = HomeViewModel(
+        catsClient: .test,
+        profileClient: .test,
+        coordinator: HomeCoordinatorSpy()
+    )
+    viewModel.state.cats = makeCats(count: HomeViewModel.maximumCatCount)
+    viewModel.state.selectedCatId = viewModel.state.cats.first?.id
+    let selectedCatId = viewModel.state.selectedCatId
+
+    viewModel.send(.view(.plusButtonTapped))
+
+    #expect(viewModel.state.isMakeCatPresented == false)
+    #expect(viewModel.state.showsCatLimitAlert == true)
+    #expect(viewModel.state.selectedCatId == selectedCatId)
 }
 
 @MainActor
@@ -313,6 +384,7 @@ func makeCatSubmittedAddsCreatedCatAndDismissesSheet() async {
         profileClient: .test,
         coordinator: coordinator
     )
+    viewModel.state.cats = makeCats(count: 4)
     viewModel.send(.view(.plusButtonTapped))
 
     viewModel.send(.view(.makeCatSubmitted(
@@ -320,13 +392,50 @@ func makeCatSubmittedAddsCreatedCatAndDismissesSheet() async {
         appearanceKey: "abyssinian"
     )))
 
-    await waitUntil { viewModel.state.cats.count == 1 }
+    await waitUntil {
+        viewModel.state.cats.count == HomeViewModel.maximumCatCount
+    }
     let request = await recorder.request
     #expect(request?.name == "나비")
     #expect(request?.appearanceKey == "abyssinian")
-    #expect(viewModel.state.cats.first?.name == "나비")
-    #expect(viewModel.state.cats.first?.appearanceKey == "abyssinian")
+    #expect(viewModel.state.cats.last?.name == "나비")
+    #expect(viewModel.state.cats.last?.appearanceKey == "abyssinian")
     #expect(viewModel.state.isMakeCatPresented == false)
+}
+
+@MainActor
+@Test
+func makeCatSubmittedAtLimitDoesNotCreateCat() async {
+    let recorder = CreateCatRequestRecorder()
+    var catsClient = CatsClient.test
+    catsClient.createCat = { request in
+        await recorder.record(request)
+        return Cat(
+            id: "created-cat",
+            name: request.name,
+            place: "",
+            appearanceKey: request.appearanceKey
+        )
+    }
+    let viewModel = HomeViewModel(
+        catsClient: catsClient,
+        profileClient: .test,
+        coordinator: HomeCoordinatorSpy()
+    )
+    viewModel.state.cats = makeCats(count: HomeViewModel.maximumCatCount)
+    viewModel.state.isMakeCatPresented = true
+
+    viewModel.send(.view(.makeCatSubmitted(
+        name: "나비",
+        appearanceKey: "abyssinian"
+    )))
+    await Task.yield()
+
+    let recordedRequest = await recorder.request
+    #expect(recordedRequest == nil)
+    #expect(viewModel.state.cats.count == HomeViewModel.maximumCatCount)
+    #expect(viewModel.state.isMakeCatPresented == false)
+    #expect(viewModel.state.showsCatLimitAlert == true)
 }
 
 @MainActor
@@ -421,7 +530,7 @@ func makeCatSubmittedFailureKeepsSheetPresented() async {
 
 @MainActor
 @Test
-func homeKeepsUpdatedCatAndDeletedCatRemovedAfterRefresh() async {
+func homeUpdatesAndDeletesCatsLocally() {
     let originalCat = Cat(
         id: "updated-cat",
         name: "수정 전",
@@ -440,16 +549,8 @@ func homeKeepsUpdatedCatAndDeletedCatRemovedAfterRefresh() async {
         place: "집",
         appearanceKey: "americanShorthair"
     )
-    let newlyFetchedCat = Cat(
-        id: "newly-fetched-cat",
-        name: "새 고양이",
-        place: "공원",
-        appearanceKey: "bengal"
-    )
-    var catsClient = CatsClient.test
-    catsClient.fetchCats = { _ in [originalCat, deletedCat, newlyFetchedCat] }
     let viewModel = HomeViewModel(
-        catsClient: catsClient,
+        catsClient: .test,
         profileClient: .test,
         coordinator: HomeCoordinatorSpy()
     )
@@ -461,19 +562,8 @@ func homeKeepsUpdatedCatAndDeletedCatRemovedAfterRefresh() async {
 
     #expect(viewModel.state.cats.map(\.id) == [updatedCat.id])
     #expect(viewModel.state.cats.first?.name == updatedCat.name)
-    #expect(viewModel.state.selectedCatId == nil)
-    #expect(viewModel.state.updatedCatsById[updatedCat.id]?.place == updatedCat.place)
-    #expect(viewModel.state.deletedCatIds.contains(deletedCat.id))
-
-    viewModel.send(.view(.onAppear))
-    await waitUntil {
-        viewModel.state.cats.first?.name == updatedCat.name
-            && viewModel.state.cats.count == 2
-    }
-
-    #expect(viewModel.state.cats.map(\.id) == [updatedCat.id, newlyFetchedCat.id])
-    #expect(viewModel.state.cats.first?.name == updatedCat.name)
     #expect(viewModel.state.cats.first?.place == updatedCat.place)
+    #expect(viewModel.state.selectedCatId == nil)
 }
 
 @MainActor
