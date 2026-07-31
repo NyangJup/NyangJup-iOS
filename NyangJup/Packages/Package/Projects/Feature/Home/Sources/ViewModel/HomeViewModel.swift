@@ -16,12 +16,15 @@ import FeatureHomeInterface
 @Observable
 public final class HomeViewModel: NZViewModel {
 
+    nonisolated static let maximumCatCount = 5
+
     public struct State {
         // keychain
         let uuidString: String = UUID().uuidString
         var cats: [Cat] = []
         var individualCode: String = ""
         var isMakeCatPresented: Bool = false
+        var showsCatLimitAlert: Bool = false
         var selectedCatId: String?
 
         var selectedCat: Cat? {
@@ -50,7 +53,8 @@ public final class HomeViewModel: NZViewModel {
         }
 
         public enum Internal {
-
+            case catDeleted(id: String)
+            case catUpdated(Cat)
         }
     }
 
@@ -74,7 +78,11 @@ public final class HomeViewModel: NZViewModel {
         switch action {
         case let .view(viewAction):
             handleViewAction(viewAction)
-        case .network, .internal:
+
+        case let .internal(internalAction):
+            handleInternalAction(internalAction)
+
+        case .network:
             break
         }
     }
@@ -95,10 +103,19 @@ public final class HomeViewModel: NZViewModel {
                 }
             }
         case .plusButtonTapped:
+            guard state.cats.count < Self.maximumCatCount else {
+                state.showsCatLimitAlert = true
+                return
+            }
             state.selectedCatId = nil
             state.isMakeCatPresented = true
 
         case let .makeCatSubmitted(name, appearanceKey):
+            guard state.cats.count < Self.maximumCatCount else {
+                state.isMakeCatPresented = false
+                state.showsCatLimitAlert = true
+                return
+            }
             Task {
                 do {
                     let cat = try await catsClient.createCat(
@@ -124,5 +141,21 @@ public final class HomeViewModel: NZViewModel {
             coordinator?.push(to: .feed(catId: selectedCatId))
         }
 
+    }
+
+    private func handleInternalAction(_ action: Action.Internal) {
+        switch action {
+        case let .catDeleted(id):
+            state.cats.removeAll { $0.id == id }
+            if state.selectedCatId == id {
+                state.selectedCatId = nil
+            }
+
+        case let .catUpdated(cat):
+            guard let index = state.cats.firstIndex(where: { $0.id == cat.id }) else {
+                return
+            }
+            state.cats[index] = cat
+        }
     }
 }

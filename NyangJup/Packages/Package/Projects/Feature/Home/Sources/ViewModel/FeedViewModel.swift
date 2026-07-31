@@ -16,12 +16,26 @@ import FeatureHomeInterface
 @Observable
 public final class FeedViewModel: NZViewModel {
 
+    nonisolated static let nameMaxLength = 5
+    nonisolated static let placeMaxLength = 20
+
     public struct State {
         var cat: Cat
         var items: [Media] = []
         var nextCursor: String?
         var isLoading: Bool = false
         var isCameraPresented: Bool = false
+        var showsEditAlert: Bool = false
+        var showsDeleteAlert: Bool = false
+        var editName: String = ""
+        var editPlace: String = ""
+
+        var canUpdateProfile: Bool {
+            !editName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && !editPlace.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && editName.count <= FeedViewModel.nameMaxLength
+                && editPlace.count <= FeedViewModel.placeMaxLength
+        }
 
         public init(
             cat: Cat
@@ -42,6 +56,10 @@ public final class FeedViewModel: NZViewModel {
             case plusButtonTapped
             case cameraCompleted(Media)
             case cameraDismissed
+            case editButtonTapped
+            case updateProfileAlertTapped
+            case deleteButtonTapped
+            case deleteAlertTapped
         }
 
         public enum Network {
@@ -55,15 +73,24 @@ public final class FeedViewModel: NZViewModel {
 
     public var state: State
     weak var coordinator: (any Coordinator<HomeRoute>)?
+    let catsClient: CatsClient
     let mediaClient: MediaClient
+    private let onCatDeleted: @MainActor @Sendable (String) -> Void
+    private let onCatUpdated: @MainActor @Sendable (Cat) -> Void
 
     public init(
         cat: Cat,
+        catsClient: CatsClient,
         mediaClient: MediaClient,
+        onCatDeleted: @escaping @MainActor @Sendable (String) -> Void,
+        onCatUpdated: @escaping @MainActor @Sendable (Cat) -> Void,
         coordinator: (any Coordinator<HomeRoute>)? = nil
     ) {
         self.state = State(cat: cat)
+        self.catsClient = catsClient
         self.mediaClient = mediaClient
+        self.onCatDeleted = onCatDeleted
+        self.onCatUpdated = onCatUpdated
         self.coordinator = coordinator
     }
 
@@ -114,6 +141,52 @@ public final class FeedViewModel: NZViewModel {
 
         case .cameraDismissed:
             state.isCameraPresented = false
+
+        case .editButtonTapped:
+            state.editName = state.cat.name
+            state.editPlace = state.cat.place ?? ""
+            state.showsEditAlert = true
+
+        case .updateProfileAlertTapped:
+            let name = state.editName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let place = state.editPlace.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty,
+                  !place.isEmpty,
+                  name.count <= Self.nameMaxLength,
+                  place.count <= Self.placeMaxLength else {
+                return
+            }
+
+            Task {
+                do {
+                    let updatedCat = try await catsClient.updateCatProfile(
+                        state.cat.id,
+                        UpdateCatProfileRequestDTO(
+                            name: name,
+                            place: place
+                        )
+                    )
+                    state.cat = updatedCat
+                    onCatUpdated(updatedCat)
+                } catch {
+
+                }
+            }
+
+        case .deleteButtonTapped:
+            state.showsDeleteAlert = true
+
+        case .deleteAlertTapped:
+            Task {
+                do {
+                    let catId = state.cat.id
+                    try await catsClient.deleteCat(catId)
+                    onCatDeleted(catId)
+                    coordinator?.pop()
+                } catch {
+
+                }
+            }
         }
     }
 

@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct Cat: Sendable {
+public struct Cat: Sendable, Equatable {
     public let id: String
     public let name: String
     public let place: String?

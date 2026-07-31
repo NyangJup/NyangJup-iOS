@@ -43,6 +43,32 @@ struct FeedView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    profileMenu
+                }
+            }
+            .alert(Constant.editAlertTitle, isPresented: $viewModel.state.showsEditAlert) {
+                editNameField
+                editPlaceField
+
+                Button(Constant.saveButtonTitle) {
+                    viewModel.send(.view(.updateProfileAlertTapped))
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!viewModel.state.canUpdateProfile)
+
+                Button(Constant.cancelButtonTitle, role: .cancel) { }
+            }
+            .alert(Constant.deleteAlertTitle, isPresented: $viewModel.state.showsDeleteAlert) {
+                Button(Constant.deleteConfirmButtonTitle, role: .destructive) {
+                    viewModel.send(.view(.deleteAlertTapped))
+                }
+
+                Button(Constant.deleteCancelButtonTitle, role: .cancel) { }
+            } message: {
+                Text(Constant.deleteAlertMessage)
+            }
             .overlay(alignment: .bottomTrailing) {
                 plusButton
             }
@@ -80,6 +106,45 @@ struct FeedView: View {
 // MARK: - View
 
 private extension FeedView {
+    var profileMenu: some View {
+        Menu {
+            Button(Constant.editButtonTitle) {
+                viewModel.send(.view(.editButtonTapped))
+            }
+
+            Button(Constant.deleteButtonTitle, role: .destructive) {
+                viewModel.send(.view(.deleteButtonTapped))
+            }
+        } label: {
+            Image(systemName: Constant.menuImageName)
+                .rotationEffect(.degrees(Constant.menuImageRotationDegrees))
+        }
+    }
+
+    var editNameField: some View {
+        TextField(Constant.nameFieldTitle, text: $viewModel.state.editName)
+            .padding(.trailing, Constant.nameFieldTrailingPadding)
+            .onChange(of: viewModel.state.editName) { _, newValue in
+                if newValue.count > FeedViewModel.nameMaxLength {
+                    viewModel.state.editName = String(
+                        newValue.prefix(FeedViewModel.nameMaxLength)
+                    )
+                }
+            }
+    }
+
+    var editPlaceField: some View {
+        TextField(Constant.placeFieldTitle, text: $viewModel.state.editPlace)
+            .padding(.trailing, Constant.placeFieldTrailingPadding)
+            .onChange(of: viewModel.state.editPlace) { _, newValue in
+                if newValue.count > FeedViewModel.placeMaxLength {
+                    viewModel.state.editPlace = String(
+                        newValue.prefix(FeedViewModel.placeMaxLength)
+                    )
+                }
+            }
+    }
+
     var profileHeader: some View {
         CatProfileInfoView(
             cat: viewModel.state.cat,
@@ -136,7 +201,22 @@ private extension FeedView {
         static let closeImageName: String = "xmark"
         static let feedTitle: String = "피드"
         static let scrollTopID: String = "feed-scroll-top"
+        static let editButtonTitle = "수정"
+        static let deleteButtonTitle = "삭제"
+        static let menuImageName = "ellipsis"
+        static let editAlertTitle = "고양이 프로필 수정"
+        static let nameFieldTitle = "이름"
+        static let placeFieldTitle = "장소"
+        static let saveButtonTitle = "저장"
+        static let cancelButtonTitle = "취소"
+        static let deleteAlertTitle = "고양이를 삭제할까요?"
+        static let deleteConfirmButtonTitle = "네"
+        static let deleteCancelButtonTitle = "아니요"
+        static let deleteAlertMessage = "피드 콘텐츠도 전부 사라져요."
 
+        static let menuImageRotationDegrees: Double = 90
+        static let nameFieldTrailingPadding: CGFloat = 32
+        static let placeFieldTrailingPadding: CGFloat = 40
         static let horizontalPadding: CGFloat = 24
         static let topPadding: CGFloat = 60
         static let sectionSpacing: CGFloat = 16

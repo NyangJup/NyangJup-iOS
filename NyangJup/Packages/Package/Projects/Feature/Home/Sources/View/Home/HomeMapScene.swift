@@ -97,6 +97,15 @@ extension HomeMapScene {
         let catIDs = Set(cats.map(\.id))
         let catNodes = children.filter { $0.name == Constant.catNodeName }
 
+        let catsByID = Dictionary(uniqueKeysWithValues: cats.map { ($0.id, $0) })
+        catNodes.forEach { node in
+            guard let catID = node.userData?[Constant.catIDKey] as? String,
+                  let cat = catsByID[catID] else {
+                return
+            }
+            updateNameTag(cat.name, in: node)
+        }
+
         catNodes
             .filter { node in
                 guard let catID = node.userData?[Constant.catIDKey] as? String else {
@@ -176,25 +185,21 @@ extension HomeMapScene {
     private func addNameTag(_ name: String, to cat: SKNode) {
 
         let label = SKLabelNode(fontNamed: Constant.nameTagFontName)
+        label.name = Constant.nameTagLabelNodeName
         label.text = name
         label.fontSize = Constant.nameTagFontSize
         label.fontColor = .white
         label.horizontalAlignmentMode = .center
         label.verticalAlignmentMode = .center
 
-        let nameTagSize = CGSize(
-            width: max(
-                label.frame.width + Constant.nameTagHorizontalPadding * 2,
-                Constant.nameTagMinimumWidth
-            ),
-            height: Constant.nameTagHeight
-        )
+        let nameTagSize = nameTagSize(for: label)
         let nameTagPosition = CGPoint(
             x: 0,
             y: -(Constant.catSize.height / 2 + Constant.nameTagSpacing + Constant.nameTagHeight / 2)
         )
 
         let background = SKShapeNode(rectOf: nameTagSize)
+        background.name = Constant.nameTagBackgroundNodeName
         background.fillColor = .black
         background.strokeColor = .clear
         background.position = nameTagPosition
@@ -204,6 +209,40 @@ extension HomeMapScene {
 
         cat.addChild(background)
         cat.addChild(label)
+    }
+
+    private func updateNameTag(_ name: String, in cat: SKNode) {
+        guard let label = cat.childNode(
+            withName: Constant.nameTagLabelNodeName
+        ) as? SKLabelNode,
+        let background = cat.childNode(
+            withName: Constant.nameTagBackgroundNodeName
+        ) as? SKShapeNode else {
+            addNameTag(name, to: cat)
+            return
+        }
+
+        label.text = name
+        let size = nameTagSize(for: label)
+        background.path = CGPath(
+            rect: CGRect(
+                x: -size.width / 2,
+                y: -size.height / 2,
+                width: size.width,
+                height: size.height
+            ),
+            transform: nil
+        )
+    }
+
+    private func nameTagSize(for label: SKLabelNode) -> CGSize {
+        CGSize(
+            width: max(
+                label.frame.width + Constant.nameTagHorizontalPadding * 2,
+                Constant.nameTagMinimumWidth
+            ),
+            height: Constant.nameTagHeight
+        )
     }
 
     private func moveRandomly(_ cat: SKNode, sprite: SKSpriteNode) {
@@ -319,6 +358,8 @@ private extension HomeMapScene {
 
         static let catIDKey: String = "catID"
 
+        static let nameTagLabelNodeName = "catNameLabel"
+        static let nameTagBackgroundNodeName = "catNameBackground"
         static let nameTagFontName: String = "HelveticaNeue-Bold"
         static let nameTagFontSize: CGFloat = 10
         static let nameTagHeight: CGFloat = 16
