@@ -16,15 +16,16 @@ import FeatureHomeInterface
 @Observable
 public final class HomeViewModel: NZViewModel {
 
+    nonisolated static let maximumCatCount = 5
+
     public struct State {
         // keychain
         let uuidString: String = UUID().uuidString
         var cats: [Cat] = []
         var individualCode: String = ""
         var isMakeCatPresented: Bool = false
+        var showsCatLimitAlert: Bool = false
         var selectedCatId: String?
-        var deletedCatIds: Set<String> = []
-        var updatedCatsById: [String: Cat] = [:]
 
         var selectedCat: Cat? {
             guard let selectedCatId else { return nil }
@@ -92,28 +93,29 @@ public final class HomeViewModel: NZViewModel {
             Task {
                 do {
                     let cats = try await catsClient.fetchCats(state.individualCode)
-                    let visibleCats = cats
-                        .filter {
-                            !state.deletedCatIds.contains($0.id)
-                        }
-                        .map {
-                            state.updatedCatsById[$0.id] ?? $0
-                        }
-                    let fetchedCatIDs = Set(visibleCats.map(\.id))
+                    let fetchedCatIDs = Set(cats.map(\.id))
                     let locallyAddedCats = state.cats.filter {
                         !fetchedCatIDs.contains($0.id)
-                            && !state.deletedCatIds.contains($0.id)
                     }
-                    state.cats = visibleCats + locallyAddedCats
+                    state.cats = cats + locallyAddedCats
                 } catch {
 
                 }
             }
         case .plusButtonTapped:
+            guard state.cats.count < Self.maximumCatCount else {
+                state.showsCatLimitAlert = true
+                return
+            }
             state.selectedCatId = nil
             state.isMakeCatPresented = true
 
         case let .makeCatSubmitted(name, appearanceKey):
+            guard state.cats.count < Self.maximumCatCount else {
+                state.isMakeCatPresented = false
+                state.showsCatLimitAlert = true
+                return
+            }
             Task {
                 do {
                     let cat = try await catsClient.createCat(
@@ -144,8 +146,6 @@ public final class HomeViewModel: NZViewModel {
     private func handleInternalAction(_ action: Action.Internal) {
         switch action {
         case let .catDeleted(id):
-            state.deletedCatIds.insert(id)
-            state.updatedCatsById[id] = nil
             state.cats.removeAll { $0.id == id }
             if state.selectedCatId == id {
                 state.selectedCatId = nil
@@ -155,7 +155,6 @@ public final class HomeViewModel: NZViewModel {
             guard let index = state.cats.firstIndex(where: { $0.id == cat.id }) else {
                 return
             }
-            state.updatedCatsById[cat.id] = cat
             state.cats[index] = cat
         }
     }
