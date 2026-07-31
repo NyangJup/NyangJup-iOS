@@ -20,6 +20,9 @@ extension CatsClient {
         createCat: { _ in
             throw CatsClientError.createCatNotImplemented
         },
+        updateCatProfile: { _, _ in
+            throw CatsClientError.updateCatProfileNotImplemented
+        },
         fetchCatFeed: { id in
             // FIXME: - 임시
             CatFeed(
@@ -29,6 +32,9 @@ extension CatsClient {
                 thumbnailURL: "https://picsum.photos/200/300",
                 feed: []
             )
+        },
+        deleteCat: { _ in
+            throw CatsClientError.deleteCatNotImplemented
         }
     )
 }

@@ -47,6 +47,21 @@ extension CatsClient {
                 appearanceKey: request.appearanceKey
             )
         },
+        updateCatProfile: { id, request in
+            let appearanceKey = [
+                "1": "abyssinian",
+                "2": "americanShorthair",
+                "3": "bengal",
+                "4": "britishShorthair"
+            ][id] ?? "abyssinian"
+
+            return Cat(
+                id: id,
+                name: request.name,
+                place: request.place,
+                appearanceKey: appearanceKey
+            )
+        },
         fetchCatFeed: { id in
             CatFeed(
                 id: "1",
@@ -137,6 +152,8 @@ extension CatsClient {
                     )
                 ]
             )
+        },
+        deleteCat: { _ in
         }
     )
 }
