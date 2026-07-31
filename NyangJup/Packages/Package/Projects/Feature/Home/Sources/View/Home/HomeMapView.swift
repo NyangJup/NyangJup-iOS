@@ -25,7 +25,7 @@ struct HomeMapView: View {
                     scene: scene,
                     options: [.allowsTransparency]
                 )
-                .onChange(of: cats.map(\.id)) {
+                .onChange(of: cats) {
                     scene.syncCats(cats)
                 }
                 .onChange(of: selectedCatID) {
