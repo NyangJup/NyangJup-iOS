@@ -21,6 +21,7 @@ public struct HomeRootView: View {
     @State private var homeViewModel: HomeViewModel
     @State private var coordinator: HomeCoordinator
     
+    private let catsClient: CatsClient
     private let mediaClient: MediaClient
     
     public init(
@@ -35,6 +36,7 @@ public struct HomeRootView: View {
             coordinator: coordinator
         ))
         self._coordinator = State(initialValue: coordinator)
+        self.catsClient = catsClient
         self.mediaClient = mediaClient
     }
     
@@ -51,7 +53,14 @@ public struct HomeRootView: View {
                         FeedView(
                             viewModel: FeedViewModel(
                                 cat: cat,
+                                catsClient: catsClient,
                                 mediaClient: mediaClient,
+                                onCatDeleted: { id in
+                                    homeViewModel.send(.internal(.catDeleted(id: id)))
+                                },
+                                onCatUpdated: { cat in
+                                    homeViewModel.send(.internal(.catUpdated(cat)))
+                                },
                                 coordinator: coordinator
                             ),
                             namespace: catProfileNamespace

@@ -23,6 +23,8 @@ public final class HomeViewModel: NZViewModel {
         var individualCode: String = ""
         var isMakeCatPresented: Bool = false
         var selectedCatId: String?
+        var deletedCatIds: Set<String> = []
+        var updatedCatsById: [String: Cat] = [:]
 
         var selectedCat: Cat? {
             guard let selectedCatId else { return nil }
@@ -50,7 +52,8 @@ public final class HomeViewModel: NZViewModel {
         }
 
         public enum Internal {
-
+            case catDeleted(id: String)
+            case catUpdated(Cat)
         }
     }
 
@@ -74,7 +77,11 @@ public final class HomeViewModel: NZViewModel {
         switch action {
         case let .view(viewAction):
             handleViewAction(viewAction)
-        case .network, .internal:
+
+        case let .internal(internalAction):
+            handleInternalAction(internalAction)
+
+        case .network:
             break
         }
     }
@@ -85,11 +92,19 @@ public final class HomeViewModel: NZViewModel {
             Task {
                 do {
                     let cats = try await catsClient.fetchCats(state.individualCode)
-                    let fetchedCatIDs = Set(cats.map(\.id))
+                    let visibleCats = cats
+                        .filter {
+                            !state.deletedCatIds.contains($0.id)
+                        }
+                        .map {
+                            state.updatedCatsById[$0.id] ?? $0
+                        }
+                    let fetchedCatIDs = Set(visibleCats.map(\.id))
                     let locallyAddedCats = state.cats.filter {
                         !fetchedCatIDs.contains($0.id)
+                            && !state.deletedCatIds.contains($0.id)
                     }
-                    state.cats = cats + locallyAddedCats
+                    state.cats = visibleCats + locallyAddedCats
                 } catch {
 
                 }
@@ -124,5 +139,24 @@ public final class HomeViewModel: NZViewModel {
             coordinator?.push(to: .feed(catId: selectedCatId))
         }
 
+    }
+
+    private func handleInternalAction(_ action: Action.Internal) {
+        switch action {
+        case let .catDeleted(id):
+            state.deletedCatIds.insert(id)
+            state.updatedCatsById[id] = nil
+            state.cats.removeAll { $0.id == id }
+            if state.selectedCatId == id {
+                state.selectedCatId = nil
+            }
+
+        case let .catUpdated(cat):
+            guard let index = state.cats.firstIndex(where: { $0.id == cat.id }) else {
+                return
+            }
+            state.updatedCatsById[cat.id] = cat
+            state.cats[index] = cat
+        }
     }
 }

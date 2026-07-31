@@ -43,6 +43,60 @@ struct FeedView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button("수정") {
+                            viewModel.send(.view(.editButtonTapped))
+                        }
+
+                        Button("삭제", role: .destructive) {
+                            viewModel.send(.view(.deleteButtonTapped))
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .rotationEffect(.degrees(90))
+                    }
+                }
+            }
+            .alert("고양이 프로필 수정", isPresented: $viewModel.state.showsEditAlert) {
+                TextField("이름", text: $viewModel.state.editName)
+                    .padding(.trailing, 32)
+                    .onChange(of: viewModel.state.editName) { _, newValue in
+                        if newValue.count > FeedViewModel.nameMaxLength {
+                            viewModel.state.editName = String(
+                                newValue.prefix(FeedViewModel.nameMaxLength)
+                            )
+                        }
+                    }
+
+                TextField("장소", text: $viewModel.state.editPlace)
+                    .padding(.trailing, 40)
+                    .onChange(of: viewModel.state.editPlace) { _, newValue in
+                        if newValue.count > FeedViewModel.placeMaxLength {
+                            viewModel.state.editPlace = String(
+                                newValue.prefix(FeedViewModel.placeMaxLength)
+                            )
+                        }
+                    }
+
+                Button("저장") {
+                    viewModel.send(.view(.updateProfileAlertTapped))
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!viewModel.state.canUpdateProfile)
+
+                Button("취소", role: .cancel) { }
+            }
+            .alert("고양이를 삭제할까요?", isPresented: $viewModel.state.showsDeleteAlert) {
+                Button("네", role: .destructive) {
+                    viewModel.send(.view(.deleteAlertTapped))
+                }
+
+                Button("아니요", role: .cancel) { }
+            } message: {
+                Text("피드 콘텐츠도 전부 사라져요.")
+            }
             .overlay(alignment: .bottomTrailing) {
                 plusButton
             }
