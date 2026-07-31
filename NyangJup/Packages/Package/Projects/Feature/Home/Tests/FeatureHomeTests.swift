@@ -67,9 +67,43 @@ private actor FeedRequestRecorder {
     }
 }
 
+private actor CatProfileRequestRecorder {
+    private(set) var catID: String?
+    private(set) var request: UpdateCatProfileRequestDTO?
+
+    func record(catID: String, request: UpdateCatProfileRequestDTO) {
+        self.catID = catID
+        self.request = request
+    }
+}
+
+private actor DeleteCatRequestRecorder {
+    private(set) var catID: String?
+
+    func record(catID: String) {
+        self.catID = catID
+    }
+}
+
+@MainActor
+private final class CatOutputSpy {
+    private(set) var deletedCatIDs: [String] = []
+    private(set) var updatedCats: [Cat] = []
+
+    func catDeleted(id: String) {
+        deletedCatIDs.append(id)
+    }
+
+    func catUpdated(_ cat: Cat) {
+        updatedCats.append(cat)
+    }
+}
+
 private enum TestError: Error {
     case createCatFailed
     case fetchFeedsFailed
+    case updateCatProfileFailed
+    case deleteCatFailed
 }
 
 @MainActor
@@ -387,6 +421,63 @@ func makeCatSubmittedFailureKeepsSheetPresented() async {
 
 @MainActor
 @Test
+func homeKeepsUpdatedCatAndDeletedCatRemovedAfterRefresh() async {
+    let originalCat = Cat(
+        id: "updated-cat",
+        name: "수정 전",
+        place: "이전 장소",
+        appearanceKey: "abyssinian"
+    )
+    let updatedCat = Cat(
+        id: originalCat.id,
+        name: "수정 후",
+        place: "새 장소",
+        appearanceKey: originalCat.appearanceKey
+    )
+    let deletedCat = Cat(
+        id: "deleted-cat",
+        name: "삭제할 고양이",
+        place: "집",
+        appearanceKey: "americanShorthair"
+    )
+    let newlyFetchedCat = Cat(
+        id: "newly-fetched-cat",
+        name: "새 고양이",
+        place: "공원",
+        appearanceKey: "bengal"
+    )
+    var catsClient = CatsClient.test
+    catsClient.fetchCats = { _ in [originalCat, deletedCat, newlyFetchedCat] }
+    let viewModel = HomeViewModel(
+        catsClient: catsClient,
+        profileClient: .test,
+        coordinator: HomeCoordinatorSpy()
+    )
+    viewModel.state.cats = [originalCat, deletedCat]
+    viewModel.state.selectedCatId = deletedCat.id
+
+    viewModel.send(.internal(.catUpdated(updatedCat)))
+    viewModel.send(.internal(.catDeleted(id: deletedCat.id)))
+
+    #expect(viewModel.state.cats.map(\.id) == [updatedCat.id])
+    #expect(viewModel.state.cats.first?.name == updatedCat.name)
+    #expect(viewModel.state.selectedCatId == nil)
+    #expect(viewModel.state.updatedCatsById[updatedCat.id]?.place == updatedCat.place)
+    #expect(viewModel.state.deletedCatIds.contains(deletedCat.id))
+
+    viewModel.send(.view(.onAppear))
+    await waitUntil {
+        viewModel.state.cats.first?.name == updatedCat.name
+            && viewModel.state.cats.count == 2
+    }
+
+    #expect(viewModel.state.cats.map(\.id) == [updatedCat.id, newlyFetchedCat.id])
+    #expect(viewModel.state.cats.first?.name == updatedCat.name)
+    #expect(viewModel.state.cats.first?.place == updatedCat.place)
+}
+
+@MainActor
+@Test
 func feedOnAppearLoadsFirstPage() async {
     let cat = Cat(
         id: "feed-cat",
@@ -394,7 +485,13 @@ func feedOnAppearLoadsFirstPage() async {
         place: "집",
         appearanceKey: "abyssinian"
     )
-    let viewModel = FeedViewModel(cat: cat, mediaClient: .test)
+    let viewModel = FeedViewModel(
+        cat: cat,
+        catsClient: .test,
+        mediaClient: .test,
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
+    )
 
     viewModel.send(.view(.onAppear))
     await waitUntil { !viewModel.state.isLoading }
@@ -413,7 +510,10 @@ func feedPlusButtonPresentsAndDismissesCamera() {
             place: "집",
             appearanceKey: "abyssinian"
         ),
-        mediaClient: .test
+        catsClient: .test,
+        mediaClient: .test,
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
     )
 
     viewModel.send(.view(.plusButtonTapped))
@@ -462,7 +562,10 @@ func feedCameraCompletionPrependsItemAndKeepsExistingPagination() {
             place: "집",
             appearanceKey: "abyssinian"
         ),
-        mediaClient: .test
+        catsClient: .test,
+        mediaClient: .test,
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
     )
     viewModel.state.items = existingItems
     viewModel.state.nextCursor = "existing-cursor"
@@ -504,7 +607,10 @@ func feedOnAppearDoesNotReloadExistingItems() async {
             place: "집",
             appearanceKey: "abyssinian"
         ),
-        mediaClient: mediaClient
+        catsClient: .test,
+        mediaClient: mediaClient,
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
     )
     viewModel.state.items = [existingItem]
     viewModel.state.nextCursor = "preserved-cursor"
@@ -533,7 +639,10 @@ func feedLoadNextPageAppendsItemsAndStopsAtLastPage() async {
             place: "집",
             appearanceKey: "abyssinian"
         ),
-        mediaClient: mediaClient
+        catsClient: .test,
+        mediaClient: mediaClient,
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
     )
 
     viewModel.send(.view(.onAppear))
@@ -572,7 +681,10 @@ func feedFetchFailureKeepsItemsAndEndsLoading() async {
             place: "집",
             appearanceKey: "abyssinian"
         ),
-        mediaClient: mediaClient
+        catsClient: .test,
+        mediaClient: mediaClient,
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
     )
     viewModel.state.items = [existingItem]
 
@@ -603,7 +715,10 @@ func feedPhotoTappedPushesRelayCatRoute() {
             place: "집",
             appearanceKey: "abyssinian"
         ),
+        catsClient: .test,
         mediaClient: .test,
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in },
         coordinator: coordinator
     )
 
@@ -643,7 +758,10 @@ func feedVideoTappedUsesMediaURL() {
             place: "집",
             appearanceKey: "abyssinian"
         ),
+        catsClient: .test,
         mediaClient: .test,
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in },
         coordinator: coordinator
     )
 
@@ -659,9 +777,166 @@ func feedVideoTappedUsesMediaURL() {
 }
 
 @MainActor
+@Test
+func feedUpdateProfileSuccessUpdatesStateAndSendsOutput() async {
+    let originalCat = Cat(
+        id: "feed-cat",
+        name: "수정 전",
+        place: "이전 장소",
+        appearanceKey: "abyssinian"
+    )
+    let updatedCat = Cat(
+        id: originalCat.id,
+        name: "수정 후",
+        place: "새 장소",
+        appearanceKey: originalCat.appearanceKey
+    )
+    let requestRecorder = CatProfileRequestRecorder()
+    let outputSpy = CatOutputSpy()
+    var catsClient = CatsClient.test
+    catsClient.updateCatProfile = { catID, request in
+        await requestRecorder.record(catID: catID, request: request)
+        return updatedCat
+    }
+    let viewModel = FeedViewModel(
+        cat: originalCat,
+        catsClient: catsClient,
+        mediaClient: .test,
+        onCatDeleted: outputSpy.catDeleted,
+        onCatUpdated: outputSpy.catUpdated
+    )
+    viewModel.state.editName = "  수정 후  "
+    viewModel.state.editPlace = "  새 장소  "
+
+    viewModel.send(.view(.updateProfileAlertTapped))
+    await waitUntil { outputSpy.updatedCats.count == 1 }
+
+    #expect(await requestRecorder.catID == originalCat.id)
+    #expect(await requestRecorder.request?.name == updatedCat.name)
+    #expect(await requestRecorder.request?.place == updatedCat.place)
+    #expect(viewModel.state.cat.id == updatedCat.id)
+    #expect(viewModel.state.cat.name == updatedCat.name)
+    #expect(viewModel.state.cat.place == updatedCat.place)
+    #expect(outputSpy.updatedCats.map(\.id) == [updatedCat.id])
+}
+
+@MainActor
+@Test
+func feedUpdateProfileFailureKeepsStateAndDoesNotSendOutput() async {
+    let originalCat = Cat(
+        id: "feed-cat",
+        name: "수정 전",
+        place: "이전 장소",
+        appearanceKey: "abyssinian"
+    )
+    let requestRecorder = CatProfileRequestRecorder()
+    let outputSpy = CatOutputSpy()
+    var catsClient = CatsClient.test
+    catsClient.updateCatProfile = { catID, request in
+        await requestRecorder.record(catID: catID, request: request)
+        throw TestError.updateCatProfileFailed
+    }
+    let viewModel = FeedViewModel(
+        cat: originalCat,
+        catsClient: catsClient,
+        mediaClient: .test,
+        onCatDeleted: outputSpy.catDeleted,
+        onCatUpdated: outputSpy.catUpdated
+    )
+    viewModel.state.editName = "수정 후"
+    viewModel.state.editPlace = "새 장소"
+
+    viewModel.send(.view(.updateProfileAlertTapped))
+    await waitUntilAsync { await requestRecorder.catID != nil }
+    await Task.yield()
+
+    #expect(viewModel.state.cat.id == originalCat.id)
+    #expect(viewModel.state.cat.name == originalCat.name)
+    #expect(viewModel.state.cat.place == originalCat.place)
+    #expect(outputSpy.updatedCats.isEmpty)
+}
+
+@MainActor
+@Test
+func feedDeleteSuccessSendsOutputAndPopsCoordinator() async {
+    let cat = Cat(
+        id: "feed-cat",
+        name: "나비",
+        place: "집",
+        appearanceKey: "abyssinian"
+    )
+    let requestRecorder = DeleteCatRequestRecorder()
+    let outputSpy = CatOutputSpy()
+    let coordinator = HomeCoordinatorSpy()
+    coordinator.push(to: .feed(catId: cat.id))
+    var catsClient = CatsClient.test
+    catsClient.deleteCat = { catID in
+        await requestRecorder.record(catID: catID)
+    }
+    let viewModel = FeedViewModel(
+        cat: cat,
+        catsClient: catsClient,
+        mediaClient: .test,
+        onCatDeleted: outputSpy.catDeleted,
+        onCatUpdated: outputSpy.catUpdated,
+        coordinator: coordinator
+    )
+
+    viewModel.send(.view(.deleteAlertTapped))
+    await waitUntil { outputSpy.deletedCatIDs.count == 1 }
+
+    #expect(await requestRecorder.catID == cat.id)
+    #expect(outputSpy.deletedCatIDs == [cat.id])
+    #expect(coordinator.routes.isEmpty)
+}
+
+@MainActor
+@Test
+func feedDeleteFailureDoesNotSendOutputOrPopCoordinator() async {
+    let cat = Cat(
+        id: "feed-cat",
+        name: "나비",
+        place: "집",
+        appearanceKey: "abyssinian"
+    )
+    let requestRecorder = DeleteCatRequestRecorder()
+    let outputSpy = CatOutputSpy()
+    let coordinator = HomeCoordinatorSpy()
+    coordinator.push(to: .feed(catId: cat.id))
+    var catsClient = CatsClient.test
+    catsClient.deleteCat = { catID in
+        await requestRecorder.record(catID: catID)
+        throw TestError.deleteCatFailed
+    }
+    let viewModel = FeedViewModel(
+        cat: cat,
+        catsClient: catsClient,
+        mediaClient: .test,
+        onCatDeleted: outputSpy.catDeleted,
+        onCatUpdated: outputSpy.catUpdated,
+        coordinator: coordinator
+    )
+
+    viewModel.send(.view(.deleteAlertTapped))
+    await waitUntilAsync { await requestRecorder.catID != nil }
+    await Task.yield()
+
+    #expect(outputSpy.deletedCatIDs.isEmpty)
+    #expect(coordinator.routes == [.feed(catId: cat.id)])
+}
+
+@MainActor
 private func waitUntil(_ condition: () -> Bool) async {
     for _ in 0..<100 {
         if condition() { return }
+        await Task.yield()
+    }
+}
+
+@MainActor
+private func waitUntilAsync(_ condition: @MainActor () async -> Bool) async {
+    for _ in 0..<100 {
+        if await condition() { return }
         await Task.yield()
     }
 }
