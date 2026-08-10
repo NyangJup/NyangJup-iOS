@@ -12,6 +12,10 @@ let package = Package(
             targets: ["FeatureCommon", "FeatureCommonInterface", "FeatureCommonTesting"]
         ),
         .library(
+            name: "FeatureCatRegistration",
+            targets: ["FeatureCatRegistration", "FeatureCatRegistrationInterface", "FeatureCatRegistrationTesting"]
+        ),
+        .library(
             name: "FeatureHome",
             targets: ["FeatureHome", "FeatureHomeInterface", "FeatureHomeTesting"]
         ),
@@ -97,6 +101,32 @@ let package = Package(
             path: "Projects/Feature/FeatureCommon/Tests"
         ),
         .target(
+            name: "FeatureCatRegistrationInterface",
+            dependencies: [
+                .domain(module: .cats, target: .interface),
+                .feature(module: .common, target: .interface)
+            ],
+            path: "Projects/Feature/CatRegistration/Interface/Sources"
+        ),
+        .target(
+            name: "FeatureCatRegistration",
+            dependencies: [
+                .domain(module: .cats, target: .interface),
+                .domain(module: .media, target: .interface),
+                .core(module: .imageLoader, target: .interface),
+                .shared(module: .design, target: .feature),
+                .feature(module: .common, target: .interface),
+                .feature(module: .capture, target: .interface),
+                .feature(module: .catRegistration, target: .interface)
+            ],
+            path: "Projects/Feature/CatRegistration/Sources"
+        ),
+        .target(
+            name: "FeatureCatRegistrationTesting",
+            dependencies: [],
+            path: "Projects/Feature/CatRegistration/Testing/Sources"
+        ),
+        .target(
             name: "FeatureHomeInterface",
             dependencies: [
                 .domain(module: .media, target: .interface),
@@ -116,6 +146,7 @@ let package = Package(
                 .feature(module: .common, target: .interface),
                 .feature(module: .home, target: .interface),
                 .feature(module: .capture, target: .interface),
+                .feature(module: .catRegistration, target: .interface),
                 .feature(module: .relayCat, target: .interface)
             ],
             path: "Projects/Feature/Home/Sources"
@@ -130,6 +161,7 @@ let package = Package(
             dependencies: [
                 .feature(module: .home, target: .feature),
                 .core(module: .ads, target: .interface),
+                .core(module: .imageLoader, target: .interface),
                 .domain(module: .cats, target: .testing),
                 .domain(module: .media, target: .testing),
                 .domain(module: .profile, target: .testing),
@@ -450,6 +482,7 @@ let package = Package(
 enum Module {
     enum Feature: String {
         case common = "Common"
+        case catRegistration = "CatRegistration"
         case capture = "Capture"
         case home = "Home"
         case relayCat = "RelayCat"
