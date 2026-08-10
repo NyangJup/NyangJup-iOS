@@ -53,6 +53,10 @@ let package = Package(
             name: "CoreVideo",
             targets: ["CoreVideoInterface"]
         ),
+        .library(
+            name: "CoreAds",
+            targets: ["CoreAds", "CoreAdsInterface"]
+        ),
         // MARK: - Shared Products
         .library(
             name: "SharedDesign",
@@ -60,7 +64,8 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-testing.git", from: "6.2.4")
+        .package(url: "https://github.com/apple/swift-testing.git", from: "6.2.4"),
+        .package(url: "https://github.com/googleads/swift-package-manager-google-mobile-ads.git", .upToNextMajor(from: "13.0.0")),
     ],
     targets: [
         .executableTarget(name: "ModuleGeneratorTool"),
@@ -393,6 +398,22 @@ let package = Package(
             dependencies: [],
             path: "Projects/Core/Video/Interface/Sources"
         ),
+        .target(
+            name: "CoreAdsInterface",
+            dependencies: [],
+            path: "Projects/Core/Ads/Interface/Sources"
+        ),
+        .target(
+            name: "CoreAds",
+            dependencies: [
+                .core(module: .ads, target: .interface),
+                .product(
+                    name: "GoogleMobileAds",
+                    package: "swift-package-manager-google-mobile-ads"
+                )
+            ],
+            path: "Projects/Core/Ads/Sources"
+        ),
         // MARK: - Shared Targets
         .target(
             name: "SharedDesign",
@@ -445,6 +466,7 @@ enum Module {
         case camera = "Camera"
         case network = "Network"
         case video = "Video"
+        case ads = "Ads"
         @available(*, unavailable)
         case placeholder = "__Placeholder"
     }
