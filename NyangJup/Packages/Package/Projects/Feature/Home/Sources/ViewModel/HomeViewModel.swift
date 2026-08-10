@@ -7,6 +7,7 @@
 
 import Foundation
 
+import CoreAdsInterface
 import DomainCatsInterface
 import DomainProfileInterface
 import FeatureCommonInterface
@@ -63,15 +64,18 @@ public final class HomeViewModel: NZViewModel {
 
     let catsClient: CatsClient
     let profileClient: ProfileClient
+    let adsClient: AdsClient
 
     public init(
         catsClient: CatsClient,
         profileClient: ProfileClient,
+        adsClient: AdsClient,
         coordinator: any Coordinator<HomeRoute>
     ) {
         self.catsClient = catsClient
         self.profileClient = profileClient
         self.coordinator = coordinator
+        self.adsClient = adsClient
     }
 
     public func send(_ action: Action) {
@@ -98,17 +102,35 @@ public final class HomeViewModel: NZViewModel {
                         !fetchedCatIDs.contains($0.id)
                     }
                     state.cats = cats + locallyAddedCats
+
+                    try await adsClient.loadRewardAds()
                 } catch {
 
                 }
             }
         case .plusButtonTapped:
-            guard state.cats.count < Self.maximumCatCount else {
-                state.showsCatLimitAlert = true
-                return
+            if state.cats.count == 0 {
+                state.selectedCatId = nil
+                state.isMakeCatPresented = true
+            } else {
+                guard state.cats.count < Self.maximumCatCount else {
+                    state.showsCatLimitAlert = true
+                    return
+                }
+
+                Task {
+                    do {
+                        let didWatcedReward = try await adsClient.showRewardAds()
+                        guard didWatcedReward else { return }
+
+                        state.selectedCatId = nil
+                        state.isMakeCatPresented = true
+
+                    } catch {
+
+                    }
+                }
             }
-            state.selectedCatId = nil
-            state.isMakeCatPresented = true
 
         case let .makeCatSubmitted(name, appearanceKey):
             guard state.cats.count < Self.maximumCatCount else {

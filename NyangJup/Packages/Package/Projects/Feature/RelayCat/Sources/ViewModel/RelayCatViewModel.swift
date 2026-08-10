@@ -7,6 +7,7 @@
 
 import Foundation
 
+import CoreAdsInterface
 import CoreImageLoaderInterface
 import DomainMediaInterface
 import FeatureCommonInterface
@@ -15,6 +16,10 @@ import FeatureRelayCatInterface
 @MainActor
 @Observable
 final class RelayCatViewModel: NZViewModel {
+
+    nonisolated static let adInsertInterval = 3
+    nonisolated static let nativeAdBatchSize = 2
+
     struct State {
         let anchorId: String
         let catId: String
@@ -30,6 +35,11 @@ final class RelayCatViewModel: NZViewModel {
         var editingMediaId: String?
         var isDeleteAlertPresented: Bool = false
         
+        /// 아직 배치되지 않은 광고 재고
+        var ads: [NativeAdItem] = []
+        /// mediaId → 그 콘텐츠 "뒤"에 붙을 광고. 한 번 정하면 바꾸지 않는다
+        var adSlots: [String: NativeAdItem] = [:]
+
         var imageId: String = ""
         var imageSize: CGSize = .zero
         var scale: CGFloat = .zero
@@ -45,6 +55,19 @@ final class RelayCatViewModel: NZViewModel {
             items.first { $0.mediaId == currentItemId }
         }
 
+        var displayItems: [RelayCatFeedItem] {
+            var result: [RelayCatFeedItem] = []
+
+            for item in items {
+                result.append(.relay(item))
+
+                if let ad = adSlots[item.mediaId] {
+                    result.append(.ad(ad))
+                }
+            }
+
+            return result
+        }
     }
 
     enum Action {
@@ -67,22 +90,26 @@ final class RelayCatViewModel: NZViewModel {
             case fetchNextRelayCats
             case updateIsLiked(id: String, isLiked: Bool)
             case deleteMedia(id: String)
+            case loadNativeAds
         }
     }
 
     var state: State
     private let mediaClient: MediaClient
     private let imageLoaderClient: ImageLoaderClient
+    private let adsClient: AdsClient
     private var imagePreloadTask: Task<Void, Never>?
 
     init(
         configuration: RelayCatConfiguration,
         mediaClient: MediaClient,
-        imageLoaderClient: ImageLoaderClient
+        imageLoaderClient: ImageLoaderClient,
+        adsClient: AdsClient
     ) {
         self.state = State(configuration: configuration)
         self.mediaClient = mediaClient
         self.imageLoaderClient = imageLoaderClient
+        self.adsClient = adsClient
     }
 
     func send(_ action: Action) {
@@ -115,20 +142,21 @@ final class RelayCatViewModel: NZViewModel {
             }
 
         case .editButtonTapped:
-            guard let currentItemId = state.currentItemId else {
+            // 광고 페이지에서는 currentItem이 nil이라 자연히 막힌다
+            guard let currentItem = state.currentItem else {
                 return
             }
-            state.editingMediaId = currentItemId
+            state.editingMediaId = currentItem.mediaId
             state.isCameraPresented = true
             
         case .deleteMenuButtonTapped:
             state.isDeleteAlertPresented = true
 
         case .deleteButtonTapped:
-            guard let currentItemId = state.currentItemId else {
+            guard let currentItem = state.currentItem else {
                 return
             }
-            send(.network(.deleteMedia(id: currentItemId)))
+            send(.network(.deleteMedia(id: currentItem.mediaId)))
 
         case let .cameraCompleted(media):
             replaceEditedItem(with: media)
@@ -155,6 +183,57 @@ final class RelayCatViewModel: NZViewModel {
 
         case let .deleteMedia(id):
             deleteMedia(id: id)
+
+        case .loadNativeAds:
+            loadNativeAds()
+        }
+    }
+
+    /// 재고가 비었을 때만 보충한다.
+    /// 콘텐츠를 새로 받아온 직후에만 호출되므로 콘텐츠 없이 광고만 쌓이지 않는다.
+    private func loadNativeAdsIfNeeded() {
+        guard state.ads.isEmpty else { return }
+        send(.network(.loadNativeAds))
+    }
+
+    private func loadNativeAds() {
+        Task {
+            do {
+                let ads = try await adsClient.loadNativeAds(Self.nativeAdBatchSize)
+                guard !ads.isEmpty else { return }
+
+                state.ads.append(contentsOf: ads)
+                assignAdSlots()
+            } catch {
+
+            }
+        }
+    }
+
+    /// anchor로부터의 거리로 광고 자리를 정한다.
+    /// 앞쪽에 콘텐츠가 끼어들어도 기존 배치는 유지된다.
+    private func assignAdSlots() {
+        guard let anchorIndex = state.items.firstIndex(
+            where: { $0.mediaId == state.anchorId }
+        ) else { return }
+
+        for (index, item) in state.items.enumerated() {
+            // 재고가 없으면 남은 자리는 비워둔다
+            guard !state.ads.isEmpty else { break }
+
+            // 이미 자리가 정해졌으면 건드리지 않는다
+            guard state.adSlots[item.mediaId] == nil else { continue }
+
+            // 마지막 콘텐츠 뒤에는 붙이지 않는다
+            guard index != state.items.count - 1 else { continue }
+
+            let distance = index - anchorIndex
+
+            guard distance != 0,
+                  distance % Self.adInsertInterval == 0
+            else { continue }
+
+            state.adSlots[item.mediaId] = state.ads.removeFirst()
         }
     }
 
@@ -184,6 +263,8 @@ final class RelayCatViewModel: NZViewModel {
                     state.currentItemId = response.items[response.anchorIndex].mediaId
                 }
 
+                assignAdSlots()
+                loadNativeAdsIfNeeded()
                 preloadAdjacentImages()
             } catch {
 
@@ -219,6 +300,8 @@ final class RelayCatViewModel: NZViewModel {
 
                 state.items.insert(contentsOf: previousItems, at: 0)
                 state.previousCursor = response.previousCursor
+                assignAdSlots()
+                loadNativeAdsIfNeeded()
                 preloadAdjacentImages()
             } catch {
 
@@ -254,6 +337,8 @@ final class RelayCatViewModel: NZViewModel {
 
                 state.items.append(contentsOf: nextItems)
                 state.nextCursor = response.nextCursor
+                assignAdSlots()
+                loadNativeAdsIfNeeded()
                 preloadAdjacentImages()
             } catch {
 

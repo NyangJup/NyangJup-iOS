@@ -13,6 +13,7 @@ import SharedDesign
 public struct HomeView: View {
     @State private var viewModel: HomeViewModel
     @State private var selectedCatPosition: CGPoint?
+    @State private var plusButtonTrigger = false
     private let namespace: Namespace.ID
 
     init(
@@ -111,7 +112,7 @@ private extension HomeView {
     
     var plusButton: some View {
         CircleButton(
-            onTap: { viewModel.send(.view(.plusButtonTapped)) },
+            onTap: { plusButtonTrigger.toggle() },
             image: Image(systemName: Constant.bottomButtonImage),
             glassEffect: .regular.interactive(),
             buttonSize: CGSize(
@@ -123,6 +124,11 @@ private extension HomeView {
                 height: Constant.bottomButtonImageSize
             ),
             foregroundColor: .black
+        )
+        .debounce(
+            value: plusButtonTrigger,
+            for: Constant.plusButtonDebounceDuration,
+            perform: { _ in viewModel.send(.view(.plusButtonTapped)) }
         )
         .padding(.trailing, Constant.bottomButtonTrailingPadding)
         .padding(.bottom, Constant.bottomButtonBottomPadding)
@@ -137,6 +143,7 @@ private extension HomeView {
         static let catLimitAlertTitle = "최대 \(HomeViewModel.maximumCatCount)마리까지 냥줍할 수 있어요"
         static let catLimitAlertMessage = "추후 업데이트에서 더 많은 냥줍을 지원할 예정이에요."
         static let confirmButtonTitle = "확인"
+        static let plusButtonDebounceDuration: Duration = .milliseconds(300)
 
         static let catCountFontSize: CGFloat = 16
         static let catCountHorizontalPadding: CGFloat = 14

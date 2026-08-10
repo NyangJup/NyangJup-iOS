@@ -8,6 +8,7 @@
 import Testing
 import UIKit
 
+import CoreAdsInterface
 import CoreImageLoaderInterface
 import DomainMediaInterface
 import DomainMediaTesting
@@ -65,6 +66,21 @@ private actor DeletedMediaRecorder {
     }
 }
 
+private actor NativeAdLoadRecorder {
+    private(set) var requestedCounts: [Int] = []
+    private var batches: [[NativeAdItem]]
+
+    init(batches: [[NativeAdItem]]) {
+        self.batches = batches
+    }
+
+    func load(count: Int) -> [NativeAdItem] {
+        requestedCounts.append(count)
+        guard !batches.isEmpty else { return [] }
+        return batches.removeFirst()
+    }
+}
+
 private enum LikeUpdateError: Error {
     case failed
 }
@@ -72,6 +88,13 @@ private enum LikeUpdateError: Error {
 private let testImageLoaderClient = ImageLoaderClient { _, _, _, _ in
     UIImage()
 }
+
+private let testAdsClient = AdsClient(
+    setup: {},
+    loadRewardAds: {},
+    showRewardAds: { false },
+    loadNativeAds: { _ in [] }
+)
 
 @MainActor
 @Test
@@ -90,7 +113,8 @@ func liveFactoryCreatesViewWithRelayCatConfiguration() {
 
     _ = RelayCatFactory.live(
         mediaClient: .test,
-        imageLoaderClient: testImageLoaderClient
+        imageLoaderClient: testImageLoaderClient,
+        adsClient: testAdsClient
     ).makeView(
         RelayCatConfiguration(
             relayCat: relayCat
@@ -113,7 +137,8 @@ func heartTapOptimisticallyUpdatesItemAndCallsClient() async {
             relayCat: relayCat
         ),
         mediaClient: mediaClient,
-        imageLoaderClient: testImageLoaderClient
+        imageLoaderClient: testImageLoaderClient,
+        adsClient: testAdsClient
     )
 
     viewModel.send(
@@ -150,7 +175,8 @@ func failedHeartUpdateRestoresPreviousValue() async {
             relayCat: relayCat
         ),
         mediaClient: mediaClient,
-        imageLoaderClient: testImageLoaderClient
+        imageLoaderClient: testImageLoaderClient,
+        adsClient: testAdsClient
     )
 
     viewModel.send(
@@ -229,7 +255,8 @@ func viewModelFetchesRelayCatsOnAppear() async {
             relayCat: relayCat
         ),
         mediaClient: mediaClient,
-        imageLoaderClient: testImageLoaderClient
+        imageLoaderClient: testImageLoaderClient,
+        adsClient: testAdsClient
     )
     #expect(viewModel.state.anchorId == relayCat.mediaId)
     #expect(viewModel.state.catId == "cat-id")
@@ -294,7 +321,8 @@ func viewModelFetchesPreviousAndNextPagesWithoutDuplicates() async {
             relayCat: first
         ),
         mediaClient: mediaClient,
-        imageLoaderClient: testImageLoaderClient
+        imageLoaderClient: testImageLoaderClient,
+        adsClient: testAdsClient
     )
 
     viewModel.send(.view(.onAppear(3)))
@@ -331,6 +359,139 @@ func viewModelFetchesPreviousAndNextPagesWithoutDuplicates() async {
     #expect(viewModel.state.items == [previous, first, last, next])
     #expect(viewModel.state.previousCursor == nil)
     #expect(viewModel.state.nextCursor == nil)
+}
+
+@MainActor
+@Test
+func nativeAdsAreInsertedAfterEveryThirdItemFromAnchor() async {
+    let items = (0..<8).map { makeRelayCat(id: "item-\($0)") }
+    let ads = [makeNativeAd(id: "ad-1"), makeNativeAd(id: "ad-2")]
+    let recorder = NativeAdLoadRecorder(batches: [ads])
+    var mediaClient = MediaClient.test
+    mediaClient.fetchRelayCats = { _ in
+        FetchRelayCatsResponseDTO(
+            items: items,
+            anchorIndex: 0,
+            previousCursor: nil,
+            nextCursor: nil
+        )
+    }
+    let adsClient = AdsClient(
+        setup: {},
+        loadRewardAds: {},
+        showRewardAds: { false },
+        loadNativeAds: { count in
+            await recorder.load(count: count)
+        }
+    )
+    let viewModel = RelayCatViewModel(
+        configuration: RelayCatConfiguration(relayCat: items[0]),
+        mediaClient: mediaClient,
+        imageLoaderClient: testImageLoaderClient,
+        adsClient: adsClient
+    )
+
+    viewModel.send(.view(.onAppear(3)))
+    await waitUntil { viewModel.state.adSlots.count == 2 }
+
+    #expect(await recorder.requestedCounts == [RelayCatViewModel.nativeAdBatchSize])
+    #expect(Set(viewModel.state.adSlots.keys) == ["item-3", "item-6"])
+    #expect(viewModel.state.displayItems.map(\.id) == [
+        "item-0", "item-1", "item-2", "item-3", "ad-ad-1",
+        "item-4", "item-5", "item-6", "ad-ad-2", "item-7"
+    ])
+}
+
+@MainActor
+@Test
+func nextPageBoundaryFiltersDuplicateContentAndDoesNotDuplicateAdSlots() async {
+    let initialItems = (0..<4).map { makeRelayCat(id: "item-\($0)") }
+    let nextItems = (3..<8).map { makeRelayCat(id: "item-\($0)") }
+    let firstBatch = [makeNativeAd(id: "ad-1"), makeNativeAd(id: "ad-2")]
+    let secondBatch = [makeNativeAd(id: "ad-3"), makeNativeAd(id: "ad-4")]
+    let recorder = NativeAdLoadRecorder(batches: [firstBatch, secondBatch])
+    var mediaClient = MediaClient.test
+    mediaClient.fetchRelayCats = { request in
+        if request.beforeCount == 0, request.afterCount == 5 {
+            return FetchRelayCatsResponseDTO(
+                items: nextItems,
+                anchorIndex: 0,
+                previousCursor: nil,
+                nextCursor: nil
+            )
+        }
+
+        return FetchRelayCatsResponseDTO(
+            items: initialItems,
+            anchorIndex: 0,
+            previousCursor: nil,
+            nextCursor: "next-cursor"
+        )
+    }
+    let adsClient = AdsClient(
+        setup: {},
+        loadRewardAds: {},
+        showRewardAds: { false },
+        loadNativeAds: { count in
+            await recorder.load(count: count)
+        }
+    )
+    let viewModel = RelayCatViewModel(
+        configuration: RelayCatConfiguration(relayCat: initialItems[0]),
+        mediaClient: mediaClient,
+        imageLoaderClient: testImageLoaderClient,
+        adsClient: adsClient
+    )
+
+    viewModel.send(.view(.onAppear(3)))
+    await waitUntil { !viewModel.state.isLoading && viewModel.state.nextCursor != nil }
+    viewModel.send(.view(.itemAppeared(
+        id: initialItems[3].mediaId,
+        size: CGSize(width: 390, height: 844)
+    )))
+    await waitUntil { !viewModel.state.isLoadingNext && viewModel.state.adSlots.count == 2 }
+
+    #expect(viewModel.state.items.map(\.mediaId) == (0..<8).map { "item-\($0)" })
+    #expect(Set(viewModel.state.adSlots.keys) == ["item-3", "item-6"])
+    #expect(Set(viewModel.state.displayItems.map(\.id)).count == viewModel.state.displayItems.count)
+}
+
+@MainActor
+@Test
+func adSelectionHasNoMenuItemAndIgnoresEditAndDelete() async {
+    let relayCat = makeRelayCat(id: "relay-cat")
+    let ad = makeNativeAd(id: "ad-1")
+    let deleteRecorder = DeletedMediaRecorder()
+    var mediaClient = MediaClient.test
+    mediaClient.deleteMedia = { id in
+        await deleteRecorder.record(id: id)
+        return Media(
+            id: id,
+            catId: relayCat.catId,
+            userId: relayCat.userId,
+            comment: relayCat.comment,
+            thumbnailURL: relayCat.thumbnailURL,
+            mediaType: relayCat.mediaType,
+            mediaURL: relayCat.mediaURL
+        )
+    }
+    let viewModel = RelayCatViewModel(
+        configuration: RelayCatConfiguration(relayCat: relayCat),
+        mediaClient: mediaClient,
+        imageLoaderClient: testImageLoaderClient,
+        adsClient: testAdsClient
+    )
+    viewModel.state.adSlots[relayCat.mediaId] = ad
+    viewModel.state.currentItemId = RelayCatFeedItem.ad(ad).id
+
+    #expect(viewModel.state.currentItem == nil)
+    viewModel.send(.view(.editButtonTapped))
+    viewModel.send(.view(.deleteButtonTapped))
+    await Task.yield()
+
+    #expect(!viewModel.state.isCameraPresented)
+    #expect(viewModel.state.editingMediaId == nil)
+    #expect(await deleteRecorder.ids.isEmpty)
 }
 
 @MainActor
@@ -375,7 +536,8 @@ func viewModelPreloadsAdjacentPhotosAfterInitialResponse() async {
             relayCat: anchor
         ),
         mediaClient: mediaClient,
-        imageLoaderClient: imageLoaderClient
+        imageLoaderClient: imageLoaderClient,
+        adsClient: testAdsClient
     )
     let imageSize = CGSize(width: 390, height: 844)
 
@@ -446,7 +608,8 @@ func viewModelDoesNotPreloadAdjacentVideo() async {
             relayCat: anchor
         ),
         mediaClient: mediaClient,
-        imageLoaderClient: imageLoaderClient
+        imageLoaderClient: imageLoaderClient,
+        adsClient: testAdsClient
     )
     viewModel.state.items = [previous, anchor, nextVideo]
 
@@ -517,7 +680,8 @@ func viewModelPreloadsPhotosAddedByPreviousAndNextPages() async {
             relayCat: first
         ),
         mediaClient: mediaClient,
-        imageLoaderClient: imageLoaderClient
+        imageLoaderClient: imageLoaderClient,
+        adsClient: testAdsClient
     )
     let imageSize = CGSize(width: 390, height: 844)
 
@@ -566,7 +730,8 @@ func editingCurrentItemWithCaptureResultReplacesIt() {
             relayCat: relayCat
         ),
         mediaClient: .test,
-        imageLoaderClient: testImageLoaderClient
+        imageLoaderClient: testImageLoaderClient,
+        adsClient: testAdsClient
     )
     viewModel.send(.view(.editButtonTapped))
 
@@ -618,7 +783,8 @@ func deletingCurrentItemSelectsNextItem() async {
             relayCat: current
         ),
         mediaClient: mediaClient,
-        imageLoaderClient: testImageLoaderClient
+        imageLoaderClient: testImageLoaderClient,
+        adsClient: testAdsClient
     )
     viewModel.state.items = [current, next]
 
@@ -651,7 +817,8 @@ func deletingLastItemSelectsPreviousItem() async {
     let viewModel = RelayCatViewModel(
         configuration: RelayCatConfiguration(relayCat: current),
         mediaClient: mediaClient,
-        imageLoaderClient: testImageLoaderClient
+        imageLoaderClient: testImageLoaderClient,
+        adsClient: testAdsClient
     )
     viewModel.state.items = [previous, current]
 
@@ -681,7 +848,8 @@ func deletingOnlyItemClearsCurrentSelection() async {
     let viewModel = RelayCatViewModel(
         configuration: RelayCatConfiguration(relayCat: current),
         mediaClient: mediaClient,
-        imageLoaderClient: testImageLoaderClient
+        imageLoaderClient: testImageLoaderClient,
+        adsClient: testAdsClient
     )
 
     viewModel.send(.view(.deleteButtonTapped))
@@ -712,7 +880,8 @@ func cancellingDeleteAlertDoesNotRequestDeletion() async {
     let viewModel = RelayCatViewModel(
         configuration: RelayCatConfiguration(relayCat: current),
         mediaClient: mediaClient,
-        imageLoaderClient: testImageLoaderClient
+        imageLoaderClient: testImageLoaderClient,
+        adsClient: testAdsClient
     )
 
     viewModel.send(.view(.deleteMenuButtonTapped))
@@ -738,6 +907,10 @@ private func makeRelayCat(id: String) -> RelayCat {
         mediaURL: "https://example.com/\(id).jpg",
         isLiked: false
     )
+}
+
+private func makeNativeAd(id: String) -> NativeAdItem {
+    NativeAdItem(id: id, object: NSObject())
 }
 
 private func makeOwnedRelayCat(id: String, userId: String) -> RelayCat {

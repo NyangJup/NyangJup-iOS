@@ -7,6 +7,7 @@
 
 import SwiftUI
 
+import CoreAdsInterface
 import DomainCatsInterface
 import DomainMediaInterface
 import DomainProfileInterface
@@ -23,21 +24,25 @@ public struct HomeRootView: View {
     
     private let catsClient: CatsClient
     private let mediaClient: MediaClient
+    private let adsClient: AdsClient
     
     public init(
         catsClient: CatsClient,
         profileClient: ProfileClient,
-        mediaClient: MediaClient
+        mediaClient: MediaClient,
+        adsClient: AdsClient
     ) {
         let coordinator = HomeCoordinator()
         self._homeViewModel = State(initialValue: HomeViewModel(
             catsClient: catsClient,
             profileClient: profileClient,
+            adsClient: adsClient,
             coordinator: coordinator
         ))
         self._coordinator = State(initialValue: coordinator)
         self.catsClient = catsClient
         self.mediaClient = mediaClient
+        self.adsClient = adsClient
     }
     
     public var body: some View {

@@ -8,6 +8,7 @@
 import Testing
 import SpriteKit
 
+import CoreAdsInterface
 import DomainCatsInterface
 import DomainCatsTesting
 import DomainMediaInterface
@@ -101,10 +102,26 @@ private final class CatOutputSpy {
 
 private enum TestError: Error {
     case createCatFailed
+    case rewardAdFailed
     case fetchFeedsFailed
     case updateCatProfileFailed
     case deleteCatFailed
 }
+
+private actor RewardAdRecorder {
+    private(set) var showCount = 0
+
+    func recordShow() {
+        showCount += 1
+    }
+}
+
+private let testAdsClient = AdsClient(
+    setup: {},
+    loadRewardAds: {},
+    showRewardAds: { true },
+    loadNativeAds: { _ in [] }
+)
 
 private func makeCats(count: Int) -> [Cat] {
     (0..<count).map { index in
@@ -274,11 +291,22 @@ func sceneIsNotCreatedWithInvalidMovementRange() {
 
 @MainActor
 @Test
-func plusButtonPresentsMakeCat() {
+func plusButtonPresentsMakeCatAfterRewardAdCompletes() async {
     let coordinator = HomeCoordinatorSpy()
+    let recorder = RewardAdRecorder()
+    let adsClient = AdsClient(
+        setup: {},
+        loadRewardAds: {},
+        showRewardAds: {
+            await recorder.recordShow()
+            return true
+        },
+        loadNativeAds: { _ in [] }
+    )
     let viewModel = HomeViewModel(
         catsClient: .test,
         profileClient: .test,
+        adsClient: adsClient,
         coordinator: coordinator
     )
     viewModel.state.cats = makeCats(count: 4)
@@ -286,8 +314,66 @@ func plusButtonPresentsMakeCat() {
 
     #expect(viewModel.state.isMakeCatPresented == false)
     viewModel.send(.view(.plusButtonTapped))
+    await waitUntil { viewModel.state.isMakeCatPresented }
+    #expect(await recorder.showCount == 1)
     #expect(viewModel.state.isMakeCatPresented == true)
     #expect(viewModel.state.selectedCatId == nil)
+}
+
+@MainActor
+@Test
+func failedRewardAdKeepsMakeCatDismissed() async {
+    let recorder = RewardAdRecorder()
+    let adsClient = AdsClient(
+        setup: {},
+        loadRewardAds: {},
+        showRewardAds: {
+            await recorder.recordShow()
+            throw TestError.rewardAdFailed
+        },
+        loadNativeAds: { _ in [] }
+    )
+    let viewModel = HomeViewModel(
+        catsClient: .test,
+        profileClient: .test,
+        adsClient: adsClient,
+        coordinator: HomeCoordinatorSpy()
+    )
+    viewModel.state.cats = makeCats(count: 1)
+
+    viewModel.send(.view(.plusButtonTapped))
+    await waitForRewardAdShows(recorder, count: 1)
+
+    #expect(await recorder.showCount == 1)
+    #expect(!viewModel.state.isMakeCatPresented)
+}
+
+@MainActor
+@Test
+func notReadyRewardAdKeepsMakeCatDismissed() async {
+    let recorder = RewardAdRecorder()
+    let adsClient = AdsClient(
+        setup: {},
+        loadRewardAds: {},
+        showRewardAds: {
+            await recorder.recordShow()
+            throw AdsError.adNotReady
+        },
+        loadNativeAds: { _ in [] }
+    )
+    let viewModel = HomeViewModel(
+        catsClient: .test,
+        profileClient: .test,
+        adsClient: adsClient,
+        coordinator: HomeCoordinatorSpy()
+    )
+    viewModel.state.cats = makeCats(count: 1)
+
+    viewModel.send(.view(.plusButtonTapped))
+    await waitForRewardAdShows(recorder, count: 1)
+
+    #expect(await recorder.showCount == 1)
+    #expect(!viewModel.state.isMakeCatPresented)
 }
 
 @MainActor
@@ -296,6 +382,7 @@ func plusButtonAtCatLimitPresentsAlert() {
     let viewModel = HomeViewModel(
         catsClient: .test,
         profileClient: .test,
+        adsClient: testAdsClient,
         coordinator: HomeCoordinatorSpy()
     )
     viewModel.state.cats = makeCats(count: HomeViewModel.maximumCatCount)
@@ -322,6 +409,7 @@ func catTappedSelectsCat() {
     let viewModel = HomeViewModel(
         catsClient: .test,
         profileClient: .test,
+        adsClient: testAdsClient,
         coordinator: coordinator
     )
     viewModel.state.cats = [selectedCat]
@@ -339,6 +427,7 @@ func selectionClearedClearsSelectedCat() {
     let viewModel = HomeViewModel(
         catsClient: .test,
         profileClient: .test,
+        adsClient: testAdsClient,
         coordinator: coordinator
     )
     viewModel.state.selectedCatId = "selected-cat"
@@ -355,6 +444,7 @@ func speechBubblePushesSelectedCatFeedRoute() {
     let viewModel = HomeViewModel(
         catsClient: .test,
         profileClient: .test,
+        adsClient: testAdsClient,
         coordinator: coordinator
     )
     viewModel.state.selectedCatId = "selected-cat"
@@ -382,10 +472,12 @@ func makeCatSubmittedAddsCreatedCatAndDismissesSheet() async {
     let viewModel = HomeViewModel(
         catsClient: catsClient,
         profileClient: .test,
+        adsClient: testAdsClient,
         coordinator: coordinator
     )
     viewModel.state.cats = makeCats(count: 4)
     viewModel.send(.view(.plusButtonTapped))
+    await waitUntil { viewModel.state.isMakeCatPresented }
 
     viewModel.send(.view(.makeCatSubmitted(
         name: "나비",
@@ -420,6 +512,7 @@ func makeCatSubmittedAtLimitDoesNotCreateCat() async {
     let viewModel = HomeViewModel(
         catsClient: catsClient,
         profileClient: .test,
+        adsClient: testAdsClient,
         coordinator: HomeCoordinatorSpy()
     )
     viewModel.state.cats = makeCats(count: HomeViewModel.maximumCatCount)
@@ -477,6 +570,7 @@ func lateFetchKeepsCatCreatedWhileRequestWasInFlight() async {
     let viewModel = HomeViewModel(
         catsClient: catsClient,
         profileClient: .test,
+        adsClient: testAdsClient,
         coordinator: HomeCoordinatorSpy()
     )
 
@@ -510,6 +604,7 @@ func makeCatSubmittedFailureKeepsSheetPresented() async {
     let viewModel = HomeViewModel(
         catsClient: catsClient,
         profileClient: .test,
+        adsClient: testAdsClient,
         coordinator: coordinator
     )
     viewModel.send(.view(.plusButtonTapped))
@@ -552,6 +647,7 @@ func homeUpdatesAndDeletesCatsLocally() {
     let viewModel = HomeViewModel(
         catsClient: .test,
         profileClient: .test,
+        adsClient: testAdsClient,
         coordinator: HomeCoordinatorSpy()
     )
     viewModel.state.cats = [originalCat, deletedCat]
@@ -1028,5 +1124,15 @@ private func waitUntilAsync(_ condition: @MainActor () async -> Bool) async {
     for _ in 0..<100 {
         if await condition() { return }
         await Task.yield()
+    }
+}
+
+private func waitForRewardAdShows(
+    _ recorder: RewardAdRecorder,
+    count: Int
+) async {
+    for _ in 0..<1_000 {
+        if await recorder.showCount == count { return }
+        try? await Task.sleep(for: .milliseconds(1))
     }
 }
