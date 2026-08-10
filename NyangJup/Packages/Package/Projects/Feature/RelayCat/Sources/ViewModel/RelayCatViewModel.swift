@@ -416,6 +416,7 @@ final class RelayCatViewModel: NZViewModel {
             comment: media.comment,
             thumbnailURL: media.thumbnailURL,
             name: previousItem.name,
+            catImageURL: previousItem.catImageURL,
             mediaType: media.mediaType,
             mediaURL: media.mediaURL,
             isLiked: previousItem.isLiked

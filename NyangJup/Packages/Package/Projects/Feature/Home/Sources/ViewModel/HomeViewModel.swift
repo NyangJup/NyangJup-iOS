@@ -27,6 +27,7 @@ public final class HomeViewModel: NZViewModel {
         var isMakeCatPresented: Bool = false
         var showsCatLimitAlert: Bool = false
         var selectedCatId: String?
+        var isFetching: Bool = false
 
         var selectedCat: Cat? {
             guard let selectedCatId else { return nil }
@@ -43,17 +44,19 @@ public final class HomeViewModel: NZViewModel {
         public enum View {
             case onAppear
             case plusButtonTapped
-            case makeCatSubmitted(name: String, appearanceKey: String)
+            case makeCatSubmitted(name: String, imageURL: String)
             case catTapped(id: String)
             case selectionCleared
             case speechBubbleTapped
         }
 
         public enum Network {
-
+            case fetchCats
         }
 
         public enum Internal {
+            case catRegistered(Cat)
+            case catRegistrationClosed
             case catDeleted(id: String)
             case catUpdated(Cat)
         }
@@ -86,28 +89,15 @@ public final class HomeViewModel: NZViewModel {
         case let .internal(internalAction):
             handleInternalAction(internalAction)
 
-        case .network:
-            break
+        case let .network(networkAction):
+            handleNetworkAction(networkAction)
         }
     }
 
     private func handleViewAction(_ action: Action.View) {
         switch action {
         case .onAppear:
-            Task {
-                do {
-                    let cats = try await catsClient.fetchCats(state.individualCode)
-                    let fetchedCatIDs = Set(cats.map(\.id))
-                    let locallyAddedCats = state.cats.filter {
-                        !fetchedCatIDs.contains($0.id)
-                    }
-                    state.cats = cats + locallyAddedCats
-
-                    try await adsClient.loadRewardAds()
-                } catch {
-
-                }
-            }
+            send(.network(.fetchCats))
         case .plusButtonTapped:
             if state.cats.count == 0 {
                 state.selectedCatId = nil
@@ -132,7 +122,7 @@ public final class HomeViewModel: NZViewModel {
                 }
             }
 
-        case let .makeCatSubmitted(name, appearanceKey):
+        case let .makeCatSubmitted(name, imageURL):
             guard state.cats.count < Self.maximumCatCount else {
                 state.isMakeCatPresented = false
                 state.showsCatLimitAlert = true
@@ -143,7 +133,7 @@ public final class HomeViewModel: NZViewModel {
                     let cat = try await catsClient.createCat(
                         CreateCatRequestDTO(
                             name: name,
-                            appearanceKey: appearanceKey
+                            fileName: imageURL
                         )
                     )
                     state.cats.append(cat)
@@ -167,6 +157,13 @@ public final class HomeViewModel: NZViewModel {
 
     private func handleInternalAction(_ action: Action.Internal) {
         switch action {
+        case let .catRegistered(cat):
+            state.cats.append(cat)
+            state.isMakeCatPresented = false
+
+        case .catRegistrationClosed:
+            state.isMakeCatPresented = false
+
         case let .catDeleted(id):
             state.cats.removeAll { $0.id == id }
             if state.selectedCatId == id {
@@ -178,6 +175,29 @@ public final class HomeViewModel: NZViewModel {
                 return
             }
             state.cats[index] = cat
+        }
+    }
+
+    private func handleNetworkAction(_ action: Action.Network) {
+        switch action {
+        case .fetchCats:
+            state.isFetching = true
+
+            Task {
+                defer { state.isFetching = false }
+                do {
+                    let cats = try await catsClient.fetchCats(state.individualCode)
+                    let fetchedCatIDs = Set(cats.map(\.id))
+                    let locallyAddedCats = state.cats.filter {
+                        !fetchedCatIDs.contains($0.id)
+                    }
+                    state.cats = cats + locallyAddedCats
+
+                    try await adsClient.loadRewardAds()
+                } catch {
+
+                }
+            }
         }
     }
 }

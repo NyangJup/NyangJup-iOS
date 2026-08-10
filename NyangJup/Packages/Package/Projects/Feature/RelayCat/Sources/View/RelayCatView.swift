@@ -78,6 +78,7 @@ struct RelayCatView: View {
                             viewModel.send(.view(.cameraCompleted(media)))
                         case .close:
                             viewModel.send(.view(.cameraDismissed))
+                        case .register: break
                         }
                     })
                 )

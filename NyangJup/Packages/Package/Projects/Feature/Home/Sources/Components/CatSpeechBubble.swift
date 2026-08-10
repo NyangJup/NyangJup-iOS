@@ -55,17 +55,7 @@ private extension CatSpeechBubble {
     }
 
     var feedLink: some View {
-        HStack(spacing: Constant.feedContentSpacing) {
-            Text(Constant.feedTitle)
-
-            NJImage.catFoot.image
-                .resizable()
-                .scaledToFit()
-                .frame(
-                    width: Constant.feedIconSize,
-                    height: Constant.feedIconSize
-                )
-        }
+        Text(Constant.feedTitle)
         .font(.system(size: Constant.feedFontSize, weight: .semibold))
         .padding(.leading, Constant.feedLabelPadding)
     }
@@ -83,7 +73,6 @@ private extension CatSpeechBubble {
         static let catImageSize: CGFloat = 34
         static let contentSpacing: CGFloat = 16
         static let informationSpacing: CGFloat = 0
-        static let feedContentSpacing: CGFloat = 2
         static let horizontalPadding: CGFloat = 20
         static let verticalPadding: CGFloat = 14
         static let feedLabelPadding: CGFloat = 4
@@ -91,7 +80,6 @@ private extension CatSpeechBubble {
         static let nameFontSize: CGFloat = 20
         static let placeFontSize: CGFloat = 17
         static let feedFontSize: CGFloat = 14
-        static let feedIconSize: CGFloat = 24
         static let placeTextOpacity: Double = 0.5
 
         static let cornerRadius: CGFloat = 16

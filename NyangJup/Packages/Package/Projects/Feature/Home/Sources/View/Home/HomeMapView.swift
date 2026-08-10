@@ -8,9 +8,13 @@
 import SwiftUI
 import SpriteKit
 
+import CoreImageLoaderInterface
 import DomainCatsInterface
 
 struct HomeMapView: View {
+    @Environment(\.displayScale) private var displayScale
+    @Environment(\.imageLoaderClient) private var imageLoaderClient
+
     @State private var scene: HomeMapScene?
 
     let cats: [Cat]
@@ -51,6 +55,8 @@ struct HomeMapView: View {
         scene = HomeMapScene(
             size: size,
             cats: cats,
+            imageLoaderClient: imageLoaderClient,
+            displayScale: displayScale,
             onCatTapped: onCatTapped,
             onSelectionCleared: onSelectionCleared
         )

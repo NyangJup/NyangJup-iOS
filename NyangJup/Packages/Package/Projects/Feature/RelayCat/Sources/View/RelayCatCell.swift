@@ -74,11 +74,7 @@ struct RelayCatCell: View {
             Spacer()
 
             HStack {
-                CatAvatarView(
-                    image: NJImage.koreanShorthair.image,
-                    backgroundSize: Constant.avatarBackgroundSize,
-                    imageSize: Constant.avatarImageSize
-                )
+                catAvatar
 
                 Text(relayCat.name)
                     .font(
@@ -103,6 +99,25 @@ struct RelayCatCell: View {
         }
         .padding(.horizontal, Constant.horizontalPadding)
         .padding(.bottom, Constant.infoBottomPadding)
+    }
+
+    @ViewBuilder
+    private var catAvatar: some View {
+        if let imageURL = URL(string: relayCat.catImageURL) {
+            NZAsyncImage(
+                url: imageURL,
+                targetSize: CGSize(
+                    width: Constant.avatarImageSize,
+                    height: Constant.avatarImageSize
+                )
+            ) { image in
+                CatAvatarView(
+                    image: image,
+                    backgroundSize: Constant.avatarBackgroundSize,
+                    imageSize: Constant.avatarImageSize
+                )
+            }
+        }
     }
 
     private var heartButton: some View {

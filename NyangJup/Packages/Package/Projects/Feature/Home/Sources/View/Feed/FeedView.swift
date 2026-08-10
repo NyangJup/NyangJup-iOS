@@ -92,6 +92,7 @@ struct FeedView: View {
                             scrollProxy.scrollTo(Constant.scrollTopID, anchor: .top)
                         case .close:
                             viewModel.send(.view(.cameraDismissed))
+                        case .register: break
                         }
                     })
                 )

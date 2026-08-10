@@ -7,10 +7,12 @@
 
 import SwiftUI
 
-import FeatureCaptureInterface
+import FeatureCatRegistrationInterface
 import SharedDesign
 
 public struct HomeView: View {
+    @Environment(\.catRegistrationFactory) private var catRegistrationFactory
+
     @State private var viewModel: HomeViewModel
     @State private var selectedCatPosition: CGPoint?
     @State private var plusButtonTrigger = false
@@ -39,8 +41,18 @@ public struct HomeView: View {
         .onAppear {
             viewModel.send(.view(.onAppear))
         }
-        .sheet(isPresented: $viewModel.state.isMakeCatPresented) {
-            generateCatView
+        .fullScreenCover(isPresented: $viewModel.state.isMakeCatPresented) {
+            catRegistrationFactory.makeView(
+                nil,
+                CatRegistrationDelegate { action in
+                    switch action {
+                    case let .complete(cat):
+                        viewModel.send(.internal(.catRegistered(cat)))
+                    case .close:
+                        viewModel.send(.internal(.catRegistrationClosed))
+                    }
+                }
+            )
         }
         .alert(
             Constant.catLimitAlertTitle,
@@ -101,15 +113,6 @@ private extension HomeView {
         }
     }
 
-    var generateCatView: some View {
-        GenerateCatView { name, appearanceKey in
-            viewModel.send(.view(.makeCatSubmitted(
-                name: name,
-                appearanceKey: appearanceKey
-            )))
-        }
-    }
-    
     var plusButton: some View {
         CircleButton(
             onTap: { plusButtonTrigger.toggle() },
@@ -132,6 +135,7 @@ private extension HomeView {
         )
         .padding(.trailing, Constant.bottomButtonTrailingPadding)
         .padding(.bottom, Constant.bottomButtonBottomPadding)
+        .disabled(viewModel.state.isFetching)
     }
 }
 
