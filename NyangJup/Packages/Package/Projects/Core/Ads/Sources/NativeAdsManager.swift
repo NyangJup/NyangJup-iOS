@@ -13,7 +13,7 @@ import GoogleMobileAds
 final class NativeAdsManager: NSObject {
     private var adLoader: AdLoader?
     private var received: [NativeAd] = []
-    private var continuation: CheckedContinuation<Void, Never>?
+    private var continuation: CheckedContinuation<[NativeAdItem], Never>?
 
     func loadAds(count: Int) async -> [NativeAdItem] {
         guard continuation == nil else { return [] }
@@ -31,21 +31,20 @@ final class NativeAdsManager: NSObject {
         adLoader = loader
         received = []
 
-        await withCheckedContinuation { continuation in
+        return await withCheckedContinuation { continuation in
             self.continuation = continuation
             loader.load(Request())
         }
-
-        let ads = received
-        received = []
-
-        return ads.map { NativeAdItem(object: $0) }
     }
 
-    private func finish() {
-        guard let continuation else { return }
+    private func finish(for adLoader: AdLoader) {
+        guard adLoader === self.adLoader, let continuation else { return }
+        let ads = received.map { NativeAdItem(object: $0) }
+
+        self.adLoader = nil
+        received = []
         self.continuation = nil
-        continuation.resume()
+        continuation.resume(returning: ads)
     }
 }
 
@@ -53,18 +52,19 @@ final class NativeAdsManager: NSObject {
 
 extension NativeAdsManager: NativeAdLoaderDelegate {
     func adLoader(_ adLoader: AdLoader, didReceive nativeAd: NativeAd) {
+        guard adLoader === self.adLoader else { return }
         received.append(nativeAd)
     }
 
     func adLoaderDidFinishLoading(_ adLoader: AdLoader) {
-        finish()
+        finish(for: adLoader)
     }
 
     func adLoader(
         _ adLoader: AdLoader,
         didFailToReceiveAdWithError error: any Error
     ) {
+        guard adLoader === self.adLoader else { return }
         print("네이티브 광고 로드 실패:", error)
-        finish()
     }
 }
