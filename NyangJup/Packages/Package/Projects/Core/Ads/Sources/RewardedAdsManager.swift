@@ -74,6 +74,10 @@ extension RewardedAdsManager: FullScreenContentDelegate {
         // 표시에 실패하면 보상 핸들러는 호출되지 않는다.
         // 여기서 풀어주지 않으면 showAd()가 영영 대기한다.
         finish(with: false)
+        didEarnReward = false
+
+        // 표시 실패 후에도 다음 요청을 처리할 수 있도록 새 광고를 미리 로드한다.
+        Task { try? await loadAd() }
     }
 
     func adWillPresentFullScreenContent(_ ad: FullScreenPresentingAd) {
