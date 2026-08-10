@@ -36,8 +36,12 @@ public extension CaptureFactory {
                                 showsModePicker: true,
                                 cat: nil
                             ),
-                            onComplete: { _, uploadedMedia in
-                                onAction(.complete(uploadedMedia))
+                            onComplete: { capturedMedia, uploadedMedia in
+                                if let uploadedMedia {
+                                    onAction(.complete(uploadedMedia))
+                                } else {
+                                    onAction(.register(capturedMedia))
+                                }
                             },
                             onClose: {
                                 onAction(.close)

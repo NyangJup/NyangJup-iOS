@@ -5,6 +5,7 @@
 //  Created by 정지훈 on 7/8/26.
 //
 
+import AVFoundation
 import Foundation
 import _PhotosUI_SwiftUI
 import UniformTypeIdentifiers
@@ -24,8 +25,10 @@ public final class CaptureViewModel: NZViewModel {
         public var zoomFactor: CGFloat = 1
         public var isRecording: Bool?
         public var capturedMedia: CapturedMedia?
+        public let usage: CaptureUsage
         public var showsModePicker: Bool
         public var showsConfirmSheet: Bool = false
+        public var isCameraPermissionAlertPresented: Bool = false
         public var isUploading: Bool = false
         public var isPreparingMedia: Bool = false
         public let cat: Cat?
@@ -48,6 +51,7 @@ public final class CaptureViewModel: NZViewModel {
         }
         
         public init(configuration: CaptureConfiguration) {
+            self.usage = configuration.usage
             self.showsModePicker = configuration.showsModePicker
             self.cat = configuration.cat
             self.catId = configuration.cat?.id ?? configuration.catId
@@ -62,6 +66,7 @@ public final class CaptureViewModel: NZViewModel {
 
         public enum View {
             case onAppear
+            case appBecameActive
             case onDisappear
             case modeChanged(CaptureMode)
             case zoomChanged(CGFloat)
@@ -91,7 +96,9 @@ public final class CaptureViewModel: NZViewModel {
     let cameraClient: any CameraSessionControlling
     let mediaClient: MediaClient
     let videoTrimClient: VideoTrimClient
-    private let onComplete: @MainActor @Sendable (CapturedMedia, Media) -> Void
+    private let cameraAuthorizationStatus: @Sendable () -> AVAuthorizationStatus
+    private let requestCameraAccess: @Sendable () async -> Bool
+    private let onComplete: @MainActor @Sendable (CapturedMedia, Media?) -> Void
     private let onClose: @MainActor @Sendable () -> Void
     
     public init(
@@ -99,10 +106,12 @@ public final class CaptureViewModel: NZViewModel {
         mediaClient: MediaClient,
         videoTrimClient: VideoTrimClient,
         configuration: CaptureConfiguration,
-        onComplete: @escaping @MainActor @Sendable (CapturedMedia, Media) -> Void,
-        onClose: @escaping @MainActor @Sendable () -> Void
+        onComplete: @escaping @MainActor @Sendable (CapturedMedia, Media?) -> Void,
+        onClose: @escaping @MainActor @Sendable () -> Void,
     ) {
         self.cameraClient = cameraClient.makeController()
+        self.cameraAuthorizationStatus = cameraClient.authorizationStatus
+        self.requestCameraAccess = cameraClient.requestAccess
         self.mediaClient = mediaClient
         self.videoTrimClient = videoTrimClient
         self.state = State(configuration: configuration)
@@ -129,7 +138,10 @@ private extension CaptureViewModel {
     func handleViewAction(_ action: Action.View) {
         switch action {
         case .onAppear:
-            cameraClient.start()
+            prepareCamera()
+
+        case .appBecameActive:
+            prepareCamera()
             
         case .onDisappear:
             cameraClient.stop()
@@ -186,7 +198,14 @@ private extension CaptureViewModel {
             }
 
         case .useButtonTapped:
-            state.showsConfirmSheet = true
+            switch state.usage {
+            case .media:
+                state.showsConfirmSheet = true
+
+            case .catRegistration:
+                guard let media = state.capturedMedia else { return }
+                onComplete(media, nil)
+            }
             
         case .completeButtonTapped:
             completeCapture()
@@ -202,6 +221,30 @@ private extension CaptureViewModel {
             
         case let .currentTimeChanged(time):
             state.videoTrimState?.currentTime = time
+        }
+    }
+
+    func prepareCamera() {
+        switch cameraAuthorizationStatus() {
+        case .authorized:
+            state.isCameraPermissionAlertPresented = false
+            cameraClient.start()
+
+        case .notDetermined:
+            Task {
+                if await requestCameraAccess() {
+                    state.isCameraPermissionAlertPresented = false
+                    cameraClient.start()
+                } else {
+                    state.isCameraPermissionAlertPresented = true
+                }
+            }
+
+        case .denied, .restricted:
+            state.isCameraPermissionAlertPresented = true
+
+        @unknown default:
+            state.isCameraPermissionAlertPresented = true
         }
     }
 

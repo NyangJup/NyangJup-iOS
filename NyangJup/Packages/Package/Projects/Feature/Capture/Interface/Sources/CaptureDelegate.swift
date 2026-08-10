@@ -7,6 +7,7 @@ import FeatureCommonInterface
 public struct CaptureDelegate: FeatureDelegate, Sendable {
     public enum Action: Sendable {
         case complete(Media)
+        case register(CapturedMedia)
         case close
     }
 

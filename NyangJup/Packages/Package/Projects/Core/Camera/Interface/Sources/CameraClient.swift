@@ -20,10 +20,16 @@ public protocol CameraSessionControlling: AnyObject {
 
 public struct CameraClient: Sendable {
     public var makeController: @MainActor @Sendable () -> any CameraSessionControlling
+    public var authorizationStatus: @Sendable () -> AVAuthorizationStatus
+    public var requestAccess: @Sendable () async -> Bool
 
     public init(
-        makeController: @escaping @MainActor @Sendable () -> any CameraSessionControlling
+        makeController: @escaping @MainActor @Sendable () -> any CameraSessionControlling,
+        authorizationStatus: @escaping @Sendable () -> AVAuthorizationStatus,
+        requestAccess: @escaping @Sendable () async -> Bool
     ) {
         self.makeController = makeController
+        self.authorizationStatus = authorizationStatus
+        self.requestAccess = requestAccess
     }
 }

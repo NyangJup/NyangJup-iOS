@@ -6,10 +6,14 @@
 //
 
 import SwiftUI
+import UIKit
 
 import SharedDesign
 
 public struct CaptureView: View {
+    @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
+
     @State private var viewModel: CaptureViewModel
 
     
@@ -54,6 +58,24 @@ public struct CaptureView: View {
         }
         .onDisappear {
             viewModel.send(.view(.onDisappear))
+        }
+        .onChange(of: scenePhase) {
+            guard scenePhase == .active else { return }
+            viewModel.send(.view(.appBecameActive))
+        }
+        .alert(
+            Constant.cameraPermissionAlertTitle,
+            isPresented: $viewModel.state.isCameraPermissionAlertPresented
+        ) {
+            Button(Constant.cancelTitle, role: .cancel) {}
+            Button(Constant.openSettingsTitle) {
+                guard let settingsURL = URL(
+                    string: UIApplication.openSettingsURLString
+                ) else { return }
+                openURL(settingsURL)
+            }
+        } message: {
+            Text(Constant.cameraPermissionAlertMessage)
         }
         .loadingOverlay(isPresented: viewModel.state.showsLoadingOverlay)
     }
@@ -228,5 +250,9 @@ private extension CaptureView {
         static let dismissButtonTopPadding: CGFloat = 0
         static let previewControlSpacing: CGFloat = 16
         static let resultControlSpacing: CGFloat = 16
+        static let cameraPermissionAlertTitle = "카메라 권한이 필요합니다"
+        static let cameraPermissionAlertMessage = "사진과 영상을 촬영하려면 설정에서 카메라 권한을 허용해 주세요."
+        static let cancelTitle = "취소"
+        static let openSettingsTitle = "설정으로 이동"
     }
 }

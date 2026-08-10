@@ -5,9 +5,17 @@ import UIKit
 
 public extension CameraClient {
     static var live: Self {
-       CameraClient(makeController: {
-           LiveCameraController()
-       })
+        CameraClient(
+            makeController: {
+                LiveCameraController()
+            },
+            authorizationStatus: {
+                AVCaptureDevice.authorizationStatus(for: .video)
+            },
+            requestAccess: {
+                await AVCaptureDevice.requestAccess(for: .video)
+            }
+        )
     }
 }
 
@@ -20,6 +28,7 @@ final class LiveCameraController: NSObject, CameraSessionControlling {
     private var currentInput: AVCaptureDeviceInput?
     private var photoContinuation: CheckedContinuation<CapturedMedia, Error>?
     private var movieContinuation: CheckedContinuation<CapturedMedia, Error>?
+    private var isConfigured = false
 
     private(set) var position: CameraPosition = .back
     private(set) var zoomFactor: CGFloat = 1
@@ -32,12 +41,11 @@ final class LiveCameraController: NSObject, CameraSessionControlling {
         movieOutput.recordedDuration.seconds
     }
 
-    override init() {
-        super.init()
-        configureSession()
-    }
-
     func start() {
+        if !isConfigured {
+            configureSession()
+            isConfigured = true
+        }
         guard !session.isRunning else { return }
         session.startRunning()
     }

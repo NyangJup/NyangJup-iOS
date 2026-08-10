@@ -3,9 +3,13 @@ import CoreCameraInterface
 public extension CameraClient {
     static var test: Self {
         #if os(iOS)
-        CameraClient {
-            TestCameraController()
-        }
+        CameraClient(
+            makeController: {
+                TestCameraController()
+            },
+            authorizationStatus: { .authorized },
+            requestAccess: { true }
+        )
         #else
         CameraClient()
         #endif
