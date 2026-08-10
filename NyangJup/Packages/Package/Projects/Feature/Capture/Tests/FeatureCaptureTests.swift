@@ -23,7 +23,7 @@ private final class CaptureOutputSpy {
     var completionCount = 0
     var didClose = false
 
-    func complete(capturedMedia: CapturedMedia, uploadedMedia: Media) {
+    func complete(capturedMedia: CapturedMedia, uploadedMedia: Media?) {
         self.completedMedia = capturedMedia
         self.uploadedMedia = uploadedMedia
         completionCount += 1
@@ -86,10 +86,13 @@ private final class RecordingCameraController: CameraSessionControlling {
     private(set) var isRecording = false
     var recordedDuration: TimeInterval = 0
     private(set) var requestedMaxDurations: [TimeInterval] = []
+    private(set) var startCallCount = 0
     private(set) var stopRecordingCallCount = 0
     private var continuation: CheckedContinuation<CapturedMedia, Error>?
 
-    func start() {}
+    func start() {
+        startCallCount += 1
+    }
     func stop() {}
     func switchCamera() async throws {}
     func setZoomFactor(_ zoomFactor: CGFloat) async throws {}
@@ -129,12 +132,152 @@ private final class RecordingCameraController: CameraSessionControlling {
     }
 }
 
+private final class CameraAuthorizationStub: @unchecked Sendable {
+    var status: AVAuthorizationStatus
+
+    init(status: AVAuthorizationStatus) {
+        self.status = status
+    }
+}
+
+@MainActor
+private func makeCameraClient(
+    controller: any CameraSessionControlling,
+    authorizationStatus: AVAuthorizationStatus,
+    requestAccess: Bool = true
+) -> CameraClient {
+    CameraClient(
+        makeController: { controller },
+        authorizationStatus: { authorizationStatus },
+        requestAccess: { requestAccess }
+    )
+}
+
 @MainActor
 @Test
 func clampsZoomFactor() {
     #expect(CaptureViewModel.clampedZoomFactor(0.5) == 1)
     #expect(CaptureViewModel.clampedZoomFactor(2) == 2)
     #expect(CaptureViewModel.clampedZoomFactor(4) == 3)
+}
+
+@MainActor
+@Test
+func authorizedCameraStartsOnAppear() {
+    let controller = RecordingCameraController()
+    let viewModel = CaptureViewModel(
+        cameraClient: makeCameraClient(
+            controller: controller,
+            authorizationStatus: .authorized
+        ),
+        mediaClient: .test,
+        videoTrimClient: VideoTrimClient(),
+        configuration: .init(showsModePicker: true),
+        onComplete: { _, _ in },
+        onClose: {}
+    )
+
+    viewModel.send(.view(.onAppear))
+
+    #expect(controller.startCallCount == 1)
+    #expect(!viewModel.state.isCameraPermissionAlertPresented)
+}
+
+@MainActor
+@Test
+func deniedCameraPermissionPresentsAlertWithoutStartingCamera() {
+    let controller = RecordingCameraController()
+    let viewModel = CaptureViewModel(
+        cameraClient: makeCameraClient(
+            controller: controller,
+            authorizationStatus: .denied
+        ),
+        mediaClient: .test,
+        videoTrimClient: VideoTrimClient(),
+        configuration: .init(showsModePicker: true),
+        onComplete: { _, _ in },
+        onClose: {}
+    )
+
+    viewModel.send(.view(.onAppear))
+
+    #expect(controller.startCallCount == 0)
+    #expect(viewModel.state.isCameraPermissionAlertPresented)
+}
+
+@MainActor
+@Test
+func authorizedCameraAfterReturningFromSettingsDismissesAlertAndStartsCamera() {
+    let controller = RecordingCameraController()
+    let authorization = CameraAuthorizationStub(status: .denied)
+    let cameraClient = CameraClient(
+        makeController: { controller },
+        authorizationStatus: { authorization.status },
+        requestAccess: { false }
+    )
+    let viewModel = CaptureViewModel(
+        cameraClient: cameraClient,
+        mediaClient: .test,
+        videoTrimClient: VideoTrimClient(),
+        configuration: .init(showsModePicker: true),
+        onComplete: { _, _ in },
+        onClose: {}
+    )
+
+    viewModel.send(.view(.onAppear))
+    #expect(viewModel.state.isCameraPermissionAlertPresented)
+    #expect(controller.startCallCount == 0)
+
+    authorization.status = .authorized
+    viewModel.send(.view(.appBecameActive))
+
+    #expect(!viewModel.state.isCameraPermissionAlertPresented)
+    #expect(controller.startCallCount == 1)
+}
+
+@MainActor
+@Test
+func newlyGrantedCameraPermissionStartsCamera() async {
+    let controller = RecordingCameraController()
+    let viewModel = CaptureViewModel(
+        cameraClient: makeCameraClient(
+            controller: controller,
+            authorizationStatus: .notDetermined
+        ),
+        mediaClient: .test,
+        videoTrimClient: VideoTrimClient(),
+        configuration: .init(showsModePicker: true),
+        onComplete: { _, _ in },
+        onClose: {}
+    )
+
+    viewModel.send(.view(.onAppear))
+    await waitUntil { controller.startCallCount == 1 }
+
+    #expect(!viewModel.state.isCameraPermissionAlertPresented)
+}
+
+@MainActor
+@Test
+func newlyDeniedCameraPermissionPresentsAlert() async {
+    let controller = RecordingCameraController()
+    let viewModel = CaptureViewModel(
+        cameraClient: makeCameraClient(
+            controller: controller,
+            authorizationStatus: .notDetermined,
+            requestAccess: false
+        ),
+        mediaClient: .test,
+        videoTrimClient: VideoTrimClient(),
+        configuration: .init(showsModePicker: true),
+        onComplete: { _, _ in },
+        onClose: {}
+    )
+
+    viewModel.send(.view(.onAppear))
+    await waitUntil { viewModel.state.isCameraPermissionAlertPresented }
+
+    #expect(controller.startCallCount == 0)
 }
 
 @MainActor
@@ -172,6 +315,32 @@ func captureViewModelUpdatesCaptureState() {
 
 @MainActor
 @Test
+func catRegistrationUseCompletesWithCapturedMediaWithoutPresentingConfirmation() {
+    let outputSpy = CaptureOutputSpy()
+    let viewModel = CaptureViewModel(
+        cameraClient: .test,
+        mediaClient: .test,
+        videoTrimClient: VideoTrimClient(),
+        configuration: .init(
+            usage: .catRegistration,
+            showsModePicker: false
+        ),
+        onComplete: { outputSpy.complete(capturedMedia: $0, uploadedMedia: $1) },
+        onClose: {}
+    )
+    let media = CapturedMedia(data: Data([0, 1, 2]), mode: .photo)
+
+    viewModel.send(.internal(.captureCompleted(media)))
+    viewModel.send(.view(.useButtonTapped))
+
+    #expect(outputSpy.completionCount == 1)
+    #expect(outputSpy.completedMedia?.data == media.data)
+    #expect(outputSpy.uploadedMedia == nil)
+    #expect(!viewModel.state.showsConfirmSheet)
+}
+
+@MainActor
+@Test
 func completingPhotoWaitsForBothUploadRequests() async {
     let outputSpy = CaptureOutputSpy()
     let uploadFlow = UploadFlowStub()
@@ -179,7 +348,7 @@ func completingPhotoWaitsForBothUploadRequests() async {
         id: "cat-id",
         name: "나비",
         place: "우리 집",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/cat-1.png"
     )
     var mediaClient = MediaClient.test
     mediaClient.fetchUploadURL = {
@@ -356,7 +525,10 @@ func capturedVideoSynchronizesModeAndPreparingState() async {
 func videoCaptureRequestsSixtySecondLimitAndCompletesAutomatically() async {
     let controller = RecordingCameraController()
     let viewModel = CaptureViewModel(
-        cameraClient: CameraClient { controller },
+        cameraClient: makeCameraClient(
+            controller: controller,
+            authorizationStatus: .authorized
+        ),
         mediaClient: .test,
         videoTrimClient: VideoTrimClient(),
         configuration: .init(showsModePicker: true),
@@ -385,7 +557,10 @@ func videoCaptureRequestsSixtySecondLimitAndCompletesAutomatically() async {
 func videoCaptureCanStopManuallyBeforeSixtySeconds() async {
     let controller = RecordingCameraController()
     let viewModel = CaptureViewModel(
-        cameraClient: CameraClient { controller },
+        cameraClient: makeCameraClient(
+            controller: controller,
+            authorizationStatus: .authorized
+        ),
         mediaClient: .test,
         videoTrimClient: VideoTrimClient(),
         configuration: .init(showsModePicker: true),
