@@ -7,6 +7,7 @@
 
 import SpriteKit
 
+import CoreImageLoaderInterface
 import DomainCatsInterface
 import SharedDesign
 
@@ -17,6 +18,9 @@ final class HomeMapScene: SKScene {
     private var cats: [Cat]
     private weak var selectedCatNode: SKNode?
 
+    private let imageLoaderClient: ImageLoaderClient
+    private let displayScale: CGFloat
+
     private let onCatTapped: (CatID, CatPosition) -> Void
     private let onSelectionCleared: () -> Void
 
@@ -25,15 +29,19 @@ final class HomeMapScene: SKScene {
     init?(
         size: CGSize,
         cats: [Cat],
+        imageLoaderClient: ImageLoaderClient,
+        displayScale: CGFloat,
         onCatTapped: @escaping (CatID, CatPosition) -> Void,
         onSelectionCleared: @escaping () -> Void,
     ) {
         guard size.width >= Constant.horizontalMoveInset * 2,
-              size.height >= Constant.verticalMoveInset * 2 else {
+              size.height >= Constant.bottomMoveInset + Constant.topMoveInset else {
             return nil
         }
 
         self.cats = cats
+        self.imageLoaderClient = imageLoaderClient
+        self.displayScale = displayScale
         self.onCatTapped = onCatTapped
         self.onSelectionCleared = onSelectionCleared
 
@@ -128,19 +136,30 @@ extension HomeMapScene {
         cats
             .filter { !existingCatIDs.contains($0.id) }
             .forEach { cat in
-                guard let appearance = CatAppearance(rawValue: cat.appearanceKey) else {
-                    return
-                }
-
-                let texture = SKTexture(image: appearance.imageAsset.uiImage)
-                texture.filteringMode = .nearest
-                addCat(texture: texture, cat: cat)
+                loadCat(cat)
             }
+    }
+
+    private func loadCat(_ cat: Cat) {
+        guard let imageURL = URL(string: cat.imageURL) else { return }
+
+        Task {
+            guard let image = try? await imageLoaderClient.loadImage(
+                imageURL,
+                Constant.catSize,
+                displayScale,
+                [.memory, .disk, .network]
+            ) else { return }
+
+            let texture = SKTexture(image: image)
+            texture.filteringMode = .nearest
+            addCat(texture: texture, cat: cat)
+        }
     }
 
     private func isValidContentSize(_ size: CGSize) -> Bool {
         size.width >= Constant.horizontalMoveInset * 2
-            && size.height >= Constant.verticalMoveInset * 2
+            && size.height >= Constant.bottomMoveInset + Constant.topMoveInset
     }
 
     private func addMapBackground() {
@@ -166,10 +185,7 @@ extension HomeMapScene {
         let node = SKNode()
         node.name = Constant.catNodeName
         node.userData = [Constant.catIDKey: cat.id]
-        node.position = CGPoint(
-            x: size.width / 2 + CGFloat(Int.random(in: Constant.initialXOffsetRange)),
-            y: size.height / 2
-        )
+        node.position = randomCatPosition()
         node.zPosition = Constant.catDefaultZPosition
 
         let sprite = SKSpriteNode(texture: texture)
@@ -252,10 +268,7 @@ extension HomeMapScene {
             guard let self, let cat, let sprite else { return }
             guard self.isValidContentSize(self.size) else { return }
 
-            let target = CGPoint(
-                x: CGFloat.random(in: Constant.horizontalMoveInset...(self.size.width - Constant.horizontalMoveInset)),
-                y: CGFloat.random(in: Constant.verticalMoveInset...(self.size.height - Constant.verticalMoveInset))
-            )
+            let target = self.randomCatPosition()
 
             sprite.xScale = target.x < cat.position.x ? -1 : 1
 
@@ -268,6 +281,17 @@ extension HomeMapScene {
         }
 
         cat.run(.repeatForever(.sequence([wait, chooseMove])))
+    }
+
+    private func randomCatPosition() -> CGPoint {
+        CGPoint(
+            x: CGFloat.random(
+                in: Constant.horizontalMoveInset...(size.width - Constant.horizontalMoveInset)
+            ),
+            y: CGFloat.random(
+                in: Constant.bottomMoveInset...(size.height - Constant.topMoveInset)
+            )
+        )
     }
 
     private func findCatNode(from node: SKNode) -> SKNode? {
@@ -374,9 +398,9 @@ private extension HomeMapScene {
         static let mapAnchorPoint = CGPoint(x: 0.5, y: 0.5)
         static let mapZPosition: CGFloat = 0
 
-        static let initialXOffsetRange: ClosedRange<Int> = 1...20
-        static let horizontalMoveInset: CGFloat = 40
-        static let verticalMoveInset: CGFloat = 80
+        static let horizontalMoveInset: CGFloat = catSize.width / 2
+        static let bottomMoveInset: CGFloat = catSize.height / 2 + nameTagSpacing + nameTagHeight
+        static let topMoveInset: CGFloat = catSize.height / 2
 
         static let waitDurationRange: ClosedRange<TimeInterval> = 0.5...1.5
         static let moveDurationRange: ClosedRange<TimeInterval> = 2.0...4.0
