@@ -7,6 +7,7 @@
 
 import SwiftUI
 
+import CoreAdsInterface
 import CoreImageLoaderInterface
 import DomainMediaInterface
 import FeatureRelayCatInterface
@@ -14,7 +15,8 @@ import FeatureRelayCatInterface
 public extension RelayCatFactory {
     static func live(
         mediaClient: MediaClient,
-        imageLoaderClient: ImageLoaderClient
+        imageLoaderClient: ImageLoaderClient,
+        adsClient: AdsClient
     ) -> Self {
         Self(
             makeView: { configuration, _ in
@@ -27,7 +29,8 @@ public extension RelayCatFactory {
                         viewModel: RelayCatViewModel(
                             configuration: configuration,
                             mediaClient: mediaClient,
-                            imageLoaderClient: imageLoaderClient
+                            imageLoaderClient: imageLoaderClient,
+                            adsClient: adsClient
                         )
                     )
                 )

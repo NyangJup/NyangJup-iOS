@@ -188,6 +188,7 @@ let package = Package(
             name: "FeatureRelayCat",
             dependencies: [
                 .domain(module: .media, target: .interface),
+                .core(module: .ads, target: .interface),
                 .core(module: .imageLoader, target: .interface),
                 .core(module: .video, target: .interface),
                 .shared(module: .design, target: .feature),
