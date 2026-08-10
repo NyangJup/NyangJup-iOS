@@ -12,6 +12,7 @@ public struct RelayCat: Hashable, Sendable {
     public let comment: String
     public let thumbnailURL: String
     public let name: String
+    public let catImageURL: String
     public let mediaType: MediaType
     public let mediaURL: String
     public var isLiked: Bool
@@ -23,6 +24,7 @@ public struct RelayCat: Hashable, Sendable {
         comment: String,
         thumbnailURL: String,
         name: String,
+        catImageURL: String,
         mediaType: MediaType,
         mediaURL: String,
         isLiked: Bool
@@ -33,6 +35,7 @@ public struct RelayCat: Hashable, Sendable {
         self.comment = comment
         self.thumbnailURL = thumbnailURL
         self.name = name
+        self.catImageURL = catImageURL
         self.mediaType = mediaType
         self.mediaURL = mediaURL
         self.isLiked = isLiked

@@ -17,6 +17,8 @@ public enum CatsClientError: Error {
 
 public struct CatsClient: Sendable {
     public typealias UUID = String
+    public typealias FileName = String
+    public typealias ImageURL = String
     
     public let networkClient: NetworkClient?
     
@@ -25,6 +27,7 @@ public struct CatsClient: Sendable {
     public var updateCatProfile: @Sendable (String, UpdateCatProfileRequestDTO) async throws -> Cat
     public var fetchCatFeed: @Sendable (UUID) async throws -> CatFeed
     public var deleteCat: @Sendable (String) async throws -> Void
+    public var fetchPixelCat: @Sendable (FileName) async throws -> ImageURL
     
     public init(
         networkClient: NetworkClient?,
@@ -32,7 +35,8 @@ public struct CatsClient: Sendable {
         createCat: @escaping @Sendable (CreateCatRequestDTO) async throws -> Cat,
         updateCatProfile: @escaping @Sendable (String, UpdateCatProfileRequestDTO) async throws -> Cat,
         fetchCatFeed: @escaping @Sendable (UUID) async throws -> CatFeed,
-        deleteCat: @escaping @Sendable (String) async throws -> Void
+        deleteCat: @escaping @Sendable (String) async throws -> Void,
+        fetchPixelCat: @escaping @Sendable (FileName) async throws -> ImageURL
     ) {
         self.networkClient = networkClient
         self.fetchCats = fetchCats
@@ -40,5 +44,6 @@ public struct CatsClient: Sendable {
         self.updateCatProfile = updateCatProfile
         self.fetchCatFeed = fetchCatFeed
         self.deleteCat = deleteCat
+        self.fetchPixelCat = fetchPixelCat
     }
 }

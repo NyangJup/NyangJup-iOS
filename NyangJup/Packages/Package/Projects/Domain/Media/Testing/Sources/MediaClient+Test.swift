@@ -278,6 +278,7 @@ extension MediaClient {
                     comment: "오늘도 냥냥한 하루!",
                     thumbnailURL: media.thumbnailURL,
                     name: "나비",
+                    catImageURL: "https://example.com/cat.png",
                     mediaType: media.mediaType,
                     mediaURL: media.mediaURL,
                     isLiked: false

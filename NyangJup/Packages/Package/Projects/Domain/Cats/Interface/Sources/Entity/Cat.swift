@@ -11,17 +11,17 @@ public struct Cat: Sendable, Equatable {
     public let id: String
     public let name: String
     public let place: String?
-    public let appearanceKey: String
+    public let imageURL: String
     
     public init(
         id: String,
         name: String,
         place: String?,
-        appearanceKey: String
+        imageURL: String
     ) {
         self.id = id
         self.name = name
         self.place = place
-        self.appearanceKey = appearanceKey
+        self.imageURL = imageURL
     }
 }
