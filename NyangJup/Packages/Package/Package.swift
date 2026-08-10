@@ -111,6 +111,7 @@ let package = Package(
                 .domain(module: .media, target: .interface),
                 .domain(module: .profile, target: .interface),
                 .core(module: .imageLoader, target: .interface),
+                .core(module: .ads, target: .interface),
                 .shared(module: .design, target: .feature),
                 .feature(module: .common, target: .interface),
                 .feature(module: .home, target: .interface),
