@@ -7,8 +7,10 @@
 
 import Testing
 import SpriteKit
+import UIKit
 
 import CoreAdsInterface
+import CoreImageLoaderInterface
 import DomainCatsInterface
 import DomainCatsTesting
 import DomainMediaInterface
@@ -106,6 +108,7 @@ private enum TestError: Error {
     case fetchFeedsFailed
     case updateCatProfileFailed
     case deleteCatFailed
+    case imageLoadingFailed
 }
 
 private actor RewardAdRecorder {
@@ -123,39 +126,54 @@ private let testAdsClient = AdsClient(
     loadNativeAds: { _ in [] }
 )
 
+private let successfulImageLoaderClient = ImageLoaderClient { _, _, _, _ in
+    UIImage()
+}
+
+private let failingImageLoaderClient = ImageLoaderClient { _, _, _, _ in
+    throw TestError.imageLoadingFailed
+}
+
 private func makeCats(count: Int) -> [Cat] {
     (0..<count).map { index in
         Cat(
             id: "cat-\(index)",
             name: "고양이\(index)",
             place: "집",
-            appearanceKey: "abyssinian"
+            imageURL: "https://example.com/cats/\(index).png"
         )
     }
 }
 
 @MainActor
 @Test
-func syncingCatsKeepsExistingCatNodeAndAddsMissingCat() {
+func syncingCatsKeepsExistingCatNodeAndAddsMissingCat() async {
     let existingCat = Cat(
         id: "existing-cat",
         name: "나비",
         place: "집",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/existing.png"
     )
     let addedCat = Cat(
         id: "added-cat",
         name: "냥이",
         place: "집",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/added.png"
     )
     let scene = HomeMapScene(
         size: CGSize(width: 390, height: 844),
         cats: [existingCat],
+        imageLoaderClient: successfulImageLoaderClient,
+        displayScale: 2,
         onCatTapped: { _, _ in },
         onSelectionCleared: {}
     )!
     scene.didMove(to: SKView())
+    await waitUntil {
+        scene.children.contains {
+            $0.userData?["catID"] as? String == existingCat.id
+        }
+    }
 
     let existingNode = scene.children.first {
         $0.userData?["catID"] as? String == existingCat.id
@@ -163,6 +181,11 @@ func syncingCatsKeepsExistingCatNodeAndAddsMissingCat() {
     let existingPosition = existingNode?.position
 
     scene.syncCats([existingCat, addedCat])
+    await waitUntil {
+        scene.children.contains {
+            $0.userData?["catID"] as? String == addedCat.id
+        }
+    }
 
     let updatedExistingNode = scene.children.first {
         $0.userData?["catID"] as? String == existingCat.id
@@ -178,26 +201,33 @@ func syncingCatsKeepsExistingCatNodeAndAddsMissingCat() {
 
 @MainActor
 @Test
-func syncingCatsUpdatesExistingCatNameTag() {
+func syncingCatsUpdatesExistingCatNameTag() async {
     let cat = Cat(
         id: "existing-cat",
         name: "나비",
         place: "집",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/existing.png"
     )
     let updatedCat = Cat(
         id: cat.id,
         name: "후추",
         place: cat.place,
-        appearanceKey: cat.appearanceKey
+        imageURL: cat.imageURL
     )
     let scene = HomeMapScene(
         size: CGSize(width: 390, height: 844),
         cats: [cat],
+        imageLoaderClient: successfulImageLoaderClient,
+        displayScale: 2,
         onCatTapped: { _, _ in },
         onSelectionCleared: {}
     )!
     scene.didMove(to: SKView())
+    await waitUntil {
+        scene.children.contains {
+            $0.userData?["catID"] as? String == cat.id
+        }
+    }
 
     let existingNode = scene.children.first {
         $0.userData?["catID"] as? String == cat.id
@@ -218,26 +248,33 @@ func syncingCatsUpdatesExistingCatNameTag() {
 
 @MainActor
 @Test
-func syncingCatsRemovesCatMissingFromState() {
+func syncingCatsRemovesCatMissingFromState() async {
     let removedCat = Cat(
         id: "removed-cat",
         name: "나비",
         place: "집",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/removed.png"
     )
     let remainingCat = Cat(
         id: "remaining-cat",
         name: "냥이",
         place: "집",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/remaining.png"
     )
     let scene = HomeMapScene(
         size: CGSize(width: 390, height: 844),
         cats: [removedCat, remainingCat],
+        imageLoaderClient: successfulImageLoaderClient,
+        displayScale: 2,
         onCatTapped: { _, _ in },
         onSelectionCleared: {}
     )!
     scene.didMove(to: SKView())
+    await waitUntil {
+        scene.children.filter {
+            $0.userData?["catID"] as? String != nil
+        }.count == 2
+    }
 
     scene.syncCats([remainingCat])
 
@@ -253,21 +290,28 @@ func syncingCatsRemovesCatMissingFromState() {
 
 @MainActor
 @Test
-func movingSceneTwiceDoesNotDuplicateCats() {
+func movingSceneTwiceDoesNotDuplicateCats() async {
     let cat = Cat(
         id: "existing-cat",
         name: "나비",
         place: "집",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/existing.png"
     )
     let scene = HomeMapScene(
         size: CGSize(width: 390, height: 844),
         cats: [cat],
+        imageLoaderClient: successfulImageLoaderClient,
+        displayScale: 2,
         onCatTapped: { _, _ in },
         onSelectionCleared: {}
     )!
 
     scene.didMove(to: SKView())
+    await waitUntil {
+        scene.children.contains {
+            $0.userData?["catID"] as? String == cat.id
+        }
+    }
     scene.didMove(to: SKView())
 
     let catNodes = scene.children.filter {
@@ -280,13 +324,73 @@ func movingSceneTwiceDoesNotDuplicateCats() {
 @Test
 func sceneIsNotCreatedWithInvalidMovementRange() {
     let scene = HomeMapScene(
-        size: CGSize(width: 79, height: 159),
+        size: CGSize(width: 47, height: 65),
         cats: [],
+        imageLoaderClient: successfulImageLoaderClient,
+        displayScale: 2,
         onCatTapped: { _, _ in },
         onSelectionCleared: {}
     )
 
     #expect(scene == nil)
+}
+
+@MainActor
+@Test
+func catsStartAtRandomPositionsInsideMap() async {
+    let scene = HomeMapScene(
+        size: CGSize(width: 390, height: 844),
+        cats: makeCats(count: 20),
+        imageLoaderClient: successfulImageLoaderClient,
+        displayScale: 2,
+        onCatTapped: { _, _ in },
+        onSelectionCleared: {}
+    )!
+
+    scene.didMove(to: SKView())
+    await waitUntil {
+        scene.children.filter {
+            $0.userData?["catID"] as? String != nil
+        }.count == 20
+    }
+
+    let catNodes = scene.children.filter {
+        $0.userData?["catID"] as? String != nil
+    }
+    let positions = Set(catNodes.map(\.position))
+
+    #expect(catNodes.allSatisfy {
+        scene.frame.contains($0.calculateAccumulatedFrame())
+    })
+    #expect(positions.count > 1)
+}
+
+@MainActor
+@Test
+func imageLoadingFailureDoesNotAddCatNode() async {
+    let cat = Cat(
+        id: "failed-cat",
+        name: "나비",
+        place: "집",
+        imageURL: "https://example.com/cats/failed.png"
+    )
+    let scene = HomeMapScene(
+        size: CGSize(width: 390, height: 844),
+        cats: [cat],
+        imageLoaderClient: failingImageLoaderClient,
+        displayScale: 2,
+        onCatTapped: { _, _ in },
+        onSelectionCleared: {}
+    )!
+
+    scene.didMove(to: SKView())
+    for _ in 0..<100 {
+        await Task.yield()
+    }
+
+    #expect(scene.children.allSatisfy {
+        $0.userData?["catID"] as? String == nil
+    })
 }
 
 @MainActor
@@ -403,7 +507,7 @@ func catTappedSelectsCat() {
         id: "selected-cat",
         name: "나비",
         place: "집",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/cat-1.png"
     )
     let coordinator = HomeCoordinatorSpy()
     let viewModel = HomeViewModel(
@@ -466,7 +570,7 @@ func makeCatSubmittedAddsCreatedCatAndDismissesSheet() async {
             id: "created-cat",
             name: request.name,
             place: "",
-            appearanceKey: request.appearanceKey
+            imageURL: request.fileName
         )
     }
     let viewModel = HomeViewModel(
@@ -481,7 +585,7 @@ func makeCatSubmittedAddsCreatedCatAndDismissesSheet() async {
 
     viewModel.send(.view(.makeCatSubmitted(
         name: "나비",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/cat-1.png"
     )))
 
     await waitUntil {
@@ -489,10 +593,39 @@ func makeCatSubmittedAddsCreatedCatAndDismissesSheet() async {
     }
     let request = await recorder.request
     #expect(request?.name == "나비")
-    #expect(request?.appearanceKey == "abyssinian")
+    #expect(request?.fileName == "https://example.com/cats/cat-1.png")
     #expect(viewModel.state.cats.last?.name == "나비")
-    #expect(viewModel.state.cats.last?.appearanceKey == "abyssinian")
+    #expect(viewModel.state.cats.last?.imageURL == "https://example.com/cats/cat-1.png")
     #expect(viewModel.state.isMakeCatPresented == false)
+}
+
+@MainActor
+@Test
+func catRegistrationDelegateActionsUpdatePresentationAndCats() {
+    let registeredCat = Cat(
+        id: "registered-cat",
+        name: "나비",
+        place: "집",
+        imageURL: "https://example.com/cats/registered.png"
+    )
+    let viewModel = HomeViewModel(
+        catsClient: .test,
+        profileClient: .test,
+        adsClient: testAdsClient,
+        coordinator: HomeCoordinatorSpy()
+    )
+    viewModel.state.isMakeCatPresented = true
+
+    viewModel.send(.internal(.catRegistered(registeredCat)))
+
+    #expect(viewModel.state.cats == [registeredCat])
+    #expect(!viewModel.state.isMakeCatPresented)
+
+    viewModel.state.isMakeCatPresented = true
+    viewModel.send(.internal(.catRegistrationClosed))
+
+    #expect(!viewModel.state.isMakeCatPresented)
+    #expect(viewModel.state.cats == [registeredCat])
 }
 
 @MainActor
@@ -506,7 +639,7 @@ func makeCatSubmittedAtLimitDoesNotCreateCat() async {
             id: "created-cat",
             name: request.name,
             place: "",
-            appearanceKey: request.appearanceKey
+            imageURL: request.fileName
         )
     }
     let viewModel = HomeViewModel(
@@ -520,7 +653,7 @@ func makeCatSubmittedAtLimitDoesNotCreateCat() async {
 
     viewModel.send(.view(.makeCatSubmitted(
         name: "나비",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/cat-1.png"
     )))
     await Task.yield()
 
@@ -538,13 +671,13 @@ func lateFetchKeepsCatCreatedWhileRequestWasInFlight() async {
         id: "local-cat",
         name: "나비",
         place: "집",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/cat-1.png"
     )
     let fetchedCat = Cat(
         id: "fetched-cat",
         name: "냥이",
         place: "집",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/cat-1.png"
     )
     let gate = FetchCatsGate()
     var catsClient = CatsClient.test
@@ -555,7 +688,7 @@ func lateFetchKeepsCatCreatedWhileRequestWasInFlight() async {
                 id: "fetched-cat",
                 name: "냥이",
                 place: "집",
-                appearanceKey: "abyssinian"
+                imageURL: "https://example.com/cats/cat-1.png"
             )
         ]
     }
@@ -564,7 +697,7 @@ func lateFetchKeepsCatCreatedWhileRequestWasInFlight() async {
             id: "local-cat",
             name: "나비",
             place: "집",
-            appearanceKey: "abyssinian"
+            imageURL: "https://example.com/cats/cat-1.png"
         )
     }
     let viewModel = HomeViewModel(
@@ -581,7 +714,7 @@ func lateFetchKeepsCatCreatedWhileRequestWasInFlight() async {
     }
     viewModel.send(.view(.makeCatSubmitted(
         name: localCat.name,
-        appearanceKey: localCat.appearanceKey
+        imageURL: localCat.imageURL
     )))
     await waitUntil { viewModel.state.cats.contains { $0.id == localCat.id } }
 
@@ -611,7 +744,7 @@ func makeCatSubmittedFailureKeepsSheetPresented() async {
 
     viewModel.send(.view(.makeCatSubmitted(
         name: "나비",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/cat-1.png"
     )))
 
     for _ in 0..<100 {
@@ -630,19 +763,19 @@ func homeUpdatesAndDeletesCatsLocally() {
         id: "updated-cat",
         name: "수정 전",
         place: "이전 장소",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/cat-1.png"
     )
     let updatedCat = Cat(
         id: originalCat.id,
         name: "수정 후",
         place: "새 장소",
-        appearanceKey: originalCat.appearanceKey
+        imageURL: originalCat.imageURL
     )
     let deletedCat = Cat(
         id: "deleted-cat",
         name: "삭제할 고양이",
         place: "집",
-        appearanceKey: "americanShorthair"
+        imageURL: "https://example.com/cats/cat-2.png"
     )
     let viewModel = HomeViewModel(
         catsClient: .test,
@@ -669,7 +802,7 @@ func feedOnAppearLoadsFirstPage() async {
         id: "feed-cat",
         name: "나비",
         place: "집",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/cat-1.png"
     )
     let viewModel = FeedViewModel(
         cat: cat,
@@ -694,7 +827,7 @@ func feedPlusButtonPresentsAndDismissesCamera() {
             id: "feed-cat",
             name: "나비",
             place: "집",
-            appearanceKey: "abyssinian"
+            imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: .test,
         mediaClient: .test,
@@ -746,7 +879,7 @@ func feedCameraCompletionPrependsItemAndKeepsExistingPagination() {
             id: "feed-cat",
             name: "나비",
             place: "집",
-            appearanceKey: "abyssinian"
+            imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: .test,
         mediaClient: .test,
@@ -791,7 +924,7 @@ func feedOnAppearDoesNotReloadExistingItems() async {
             id: "feed-cat",
             name: "나비",
             place: "집",
-            appearanceKey: "abyssinian"
+            imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: .test,
         mediaClient: mediaClient,
@@ -823,7 +956,7 @@ func feedLoadNextPageAppendsItemsAndStopsAtLastPage() async {
             id: "feed-cat",
             name: "나비",
             place: "집",
-            appearanceKey: "abyssinian"
+            imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: .test,
         mediaClient: mediaClient,
@@ -865,7 +998,7 @@ func feedFetchFailureKeepsItemsAndEndsLoading() async {
             id: "feed-cat",
             name: "나비",
             place: "집",
-            appearanceKey: "abyssinian"
+            imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: .test,
         mediaClient: mediaClient,
@@ -899,7 +1032,7 @@ func feedPhotoTappedPushesRelayCatRoute() {
             id: "feed-cat",
             name: "나비",
             place: "집",
-            appearanceKey: "abyssinian"
+            imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: .test,
         mediaClient: .test,
@@ -942,7 +1075,7 @@ func feedVideoTappedUsesMediaURL() {
             id: "feed-cat",
             name: "나비",
             place: "집",
-            appearanceKey: "abyssinian"
+            imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: .test,
         mediaClient: .test,
@@ -969,13 +1102,13 @@ func feedUpdateProfileSuccessUpdatesStateAndSendsOutput() async {
         id: "feed-cat",
         name: "수정 전",
         place: "이전 장소",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/cat-1.png"
     )
     let updatedCat = Cat(
         id: originalCat.id,
         name: "수정 후",
         place: "새 장소",
-        appearanceKey: originalCat.appearanceKey
+        imageURL: originalCat.imageURL
     )
     let requestRecorder = CatProfileRequestRecorder()
     let outputSpy = CatOutputSpy()
@@ -1013,7 +1146,7 @@ func feedUpdateProfileFailureKeepsStateAndDoesNotSendOutput() async {
         id: "feed-cat",
         name: "수정 전",
         place: "이전 장소",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/cat-1.png"
     )
     let requestRecorder = CatProfileRequestRecorder()
     let outputSpy = CatOutputSpy()
@@ -1049,7 +1182,7 @@ func feedDeleteSuccessSendsOutputAndPopsCoordinator() async {
         id: "feed-cat",
         name: "나비",
         place: "집",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/cat-1.png"
     )
     let requestRecorder = DeleteCatRequestRecorder()
     let outputSpy = CatOutputSpy()
@@ -1083,7 +1216,7 @@ func feedDeleteFailureDoesNotSendOutputOrPopCoordinator() async {
         id: "feed-cat",
         name: "나비",
         place: "집",
-        appearanceKey: "abyssinian"
+        imageURL: "https://example.com/cats/cat-1.png"
     )
     let requestRecorder = DeleteCatRequestRecorder()
     let outputSpy = CatOutputSpy()

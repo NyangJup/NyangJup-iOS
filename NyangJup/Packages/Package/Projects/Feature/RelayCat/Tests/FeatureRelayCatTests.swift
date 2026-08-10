@@ -106,6 +106,7 @@ func liveFactoryCreatesViewWithRelayCatConfiguration() {
         comment: "",
         thumbnailURL: "https://example.com/thumbnail.jpg",
         name: "나비",
+        catImageURL: "https://example.com/cat.png",
         mediaType: .photo,
         mediaURL: "https://example.com/photo.jpg",
         isLiked: false
@@ -213,6 +214,7 @@ func viewModelFetchesRelayCatsOnAppear() async {
         comment: "",
         thumbnailURL: "https://example.com/thumbnail.jpg",
         name: "나비",
+        catImageURL: "https://example.com/cat.png",
         mediaType: .video,
         mediaURL: "https://example.com/video.mp4",
         isLiked: false
@@ -224,6 +226,7 @@ func viewModelFetchesRelayCatsOnAppear() async {
         comment: "새 콘텐츠",
         thumbnailURL: "https://example.com/fetched-thumbnail.jpg",
         name: "나비",
+        catImageURL: "https://example.com/cat.png",
         mediaType: .photo,
         mediaURL: "https://example.com/fetched-photo.jpg",
         isLiked: true
@@ -235,6 +238,7 @@ func viewModelFetchesRelayCatsOnAppear() async {
         comment: "서버 anchor",
         thumbnailURL: "https://example.com/server-thumbnail.jpg",
         name: "나비",
+        catImageURL: "https://example.com/cat.png",
         mediaType: .photo,
         mediaURL: "https://example.com/server-photo.jpg",
         isLiked: true
@@ -505,6 +509,7 @@ func viewModelPreloadsAdjacentPhotosAfterInitialResponse() async {
         comment: "",
         thumbnailURL: "https://example.com/anchor-thumbnail.jpg",
         name: "나비",
+        catImageURL: "https://example.com/cat.png",
         mediaType: .video,
         mediaURL: "https://example.com/anchor.m3u8",
         isLiked: false
@@ -578,6 +583,7 @@ func viewModelDoesNotPreloadAdjacentVideo() async {
         comment: "",
         thumbnailURL: "https://example.com/next-video-thumbnail.jpg",
         name: "나비",
+        catImageURL: "https://example.com/cat.png",
         mediaType: .video,
         mediaURL: "https://example.com/next-video.m3u8",
         isLiked: false
@@ -754,6 +760,7 @@ func editingCurrentItemWithCaptureResultReplacesIt() {
     #expect(viewModel.state.currentItem?.comment == "수정된 메모")
     #expect(viewModel.state.currentItem?.mediaType == .video)
     #expect(viewModel.state.currentItem?.mediaURL == "https://example.com/updated.mp4")
+    #expect(viewModel.state.currentItem?.catImageURL == relayCat.catImageURL)
     #expect(viewModel.state.currentItemId == relayCat.mediaId)
     #expect(!viewModel.state.isCameraPresented)
     #expect(viewModel.state.editingMediaId == nil)
@@ -903,6 +910,7 @@ private func makeRelayCat(id: String) -> RelayCat {
         comment: "",
         thumbnailURL: "https://example.com/\(id)-thumbnail.jpg",
         name: "나비",
+        catImageURL: "https://example.com/\(id)-cat.png",
         mediaType: .photo,
         mediaURL: "https://example.com/\(id).jpg",
         isLiked: false
@@ -921,6 +929,7 @@ private func makeOwnedRelayCat(id: String, userId: String) -> RelayCat {
         comment: "",
         thumbnailURL: "https://example.com/\(id)-thumbnail.jpg",
         name: "나비",
+        catImageURL: "https://example.com/\(id)-cat.png",
         mediaType: .photo,
         mediaURL: "https://example.com/\(id).jpg",
         isLiked: false
@@ -935,6 +944,7 @@ private func makeVideoRelayCat(id: String) -> RelayCat {
         comment: "",
         thumbnailURL: "https://example.com/\(id)-thumbnail.jpg",
         name: "나비",
+        catImageURL: "https://example.com/\(id)-cat.png",
         mediaType: .video,
         mediaURL: "https://example.com/\(id).m3u8",
         isLiked: false
