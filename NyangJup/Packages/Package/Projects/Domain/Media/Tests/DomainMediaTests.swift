@@ -11,6 +11,7 @@ func relayCatStoresDetailFields() {
         comment: "낮잠 중",
         thumbnailURL: "https://example.com/thumbnail.jpg",
         name: "나비",
+        catImageURL: "https://example.com/cat.png",
         mediaType: .video,
         mediaURL: "https://example.com/video.mp4",
         isLiked: true
@@ -22,6 +23,7 @@ func relayCatStoresDetailFields() {
     #expect(relayCat.comment == "낮잠 중")
     #expect(relayCat.thumbnailURL == "https://example.com/thumbnail.jpg")
     #expect(relayCat.name == "나비")
+    #expect(relayCat.catImageURL == "https://example.com/cat.png")
     #expect(relayCat.mediaType == .video)
     #expect(relayCat.mediaURL == "https://example.com/video.mp4")
     #expect(relayCat.isLiked)
