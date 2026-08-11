@@ -1,7 +1,13 @@
 import SwiftUI
 
+import CoreCameraInterface
 import DomainCatsInterface
 import FeatureCommonInterface
+
+public enum CaptureUsage: Sendable {
+    case media
+    case catRegistration
+}
 
 public struct CaptureFactory: Factorable, Sendable {
     public var makeView: @MainActor @Sendable (FeatureConfiguration?, FeatureDelegate?) -> AnyView
@@ -14,6 +20,7 @@ public struct CaptureFactory: Factorable, Sendable {
 }
 
 public struct CaptureConfiguration: FeatureConfiguration {
+    public let usage: CaptureUsage
     public let showsModePicker: Bool
     public let cat: Cat?
     public let catId: String?
@@ -21,12 +28,14 @@ public struct CaptureConfiguration: FeatureConfiguration {
     public let mediaComment: String?
     
     public init(
+        usage: CaptureUsage = .media,
         showsModePicker: Bool,
         cat: Cat? = nil,
         catId: String? = nil,
         editingMediaId: String? = nil,
         mediaComment: String? = nil
     ) {
+        self.usage = usage
         self.showsModePicker = showsModePicker
         self.cat = cat
         self.catId = catId

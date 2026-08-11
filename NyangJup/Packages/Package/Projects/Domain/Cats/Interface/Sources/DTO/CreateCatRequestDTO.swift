@@ -9,13 +9,16 @@ import Foundation
 
 public struct CreateCatRequestDTO: Encodable, Sendable {
     public let name: String
-    public let appearanceKey: String
+    public let place: String
+    public let fileName: String
 
     public init(
         name: String,
-        appearanceKey: String
+        place: String = "",
+        fileName: String
     ) {
         self.name = name
-        self.appearanceKey = appearanceKey
+        self.place = place
+        self.fileName = fileName
     }
 }

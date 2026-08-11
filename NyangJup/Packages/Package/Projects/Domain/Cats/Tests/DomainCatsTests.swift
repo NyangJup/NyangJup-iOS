@@ -18,11 +18,11 @@ func testClientFetchCatsReturnsSampleCats() async throws {
     #expect(cats.map(\.id) == ["1", "2", "3", "4"])
     #expect(cats.map(\.name) == ["꾸꾸", "까까", "냥냥", "야르"])
     #expect(cats.allSatisfy { $0.place == "구로구" })
-    #expect(cats.map(\.appearanceKey) == [
-        "abyssinian",
-        "americanShorthair",
-        "bengal",
-        "britishShorthair"
+    #expect(cats.map(\.imageURL) == [
+        "https://picsum.photos/seed/nayngjup-cat-1/200/200",
+        "https://picsum.photos/seed/nayngjup-cat-2/200/200",
+        "https://picsum.photos/seed/nayngjup-cat-3/200/200",
+        "https://picsum.photos/seed/nayngjup-cat-4/200/200"
     ])
 }
 
@@ -30,15 +30,16 @@ func testClientFetchCatsReturnsSampleCats() async throws {
 func testClientCreateCatUsesRequestValues() async throws {
     let request = CreateCatRequestDTO(
         name: "나비",
-        appearanceKey: "abyssinian"
+        place: "집",
+        fileName: "https://example.com/cats/created.png"
     )
 
     let cat = try await CatsClient.test.createCat(request)
 
     #expect(cat.id == "created-cat")
     #expect(cat.name == request.name)
-    #expect(cat.place == "")
-    #expect(cat.appearanceKey == request.appearanceKey)
+    #expect(cat.place == request.place)
+    #expect(cat.imageURL == request.fileName)
 }
 
 @Test

@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		CA404BEE30258F4200679AA2 /* CoreAds in Frameworks */ = {isa = PBXBuildFile; productRef = CA404BED30258F4200679AA2 /* CoreAds */; };
+		CA404BDF3024684800679AA2 /* Config.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = CA404BDE3024684800679AA2 /* Config.xcconfig */; };
+		CA404BE03024684800679AA2 /* Config.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = CA404BDE3024684800679AA2 /* Config.xcconfig */; };
 		CA6BE5392FF7A59100458997 /* DomainCats in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE5382FF7A59100458997 /* DomainCats */; };
 		CA6BE53B2FF7A59100458997 /* DomainProfile in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE53A2FF7A59100458997 /* DomainProfile */; };
 		CA6BE53D2FF7A59100458997 /* CoreCamera in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE53C2FF7A59100458997 /* CoreCamera */; };
@@ -17,10 +19,12 @@
 		CAE684112FF3000000F5116A /* CoreImageLoader in Frameworks */ = {isa = PBXBuildFile; productRef = CAE684102FF3000000F5116A /* CoreImageLoader */; };
 		CAE700012FF8000000F5116A /* FeatureRelayCat in Frameworks */ = {isa = PBXBuildFile; productRef = CAE700002FF8000000F5116A /* FeatureRelayCat */; };
 		CAE700032FF8000000F5116A /* FeatureCapture in Frameworks */ = {isa = PBXBuildFile; productRef = CAE700022FF8000000F5116A /* FeatureCapture */; };
+		CAE700052FF8000000F5116A /* FeatureCatRegistration in Frameworks */ = {isa = PBXBuildFile; productRef = CAE700042FF8000000F5116A /* FeatureCatRegistration */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		CA404BEC302572CC00679AA2 /* HomeExample-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "HomeExample-Info.plist"; sourceTree = "<group>"; };
+		CA404BDE3024684800679AA2 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		CAE6836D2FF24C7500F5116A /* NyangJup.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NyangJup.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CAE684002FF3000000F5116A /* HomeExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HomeExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -70,6 +74,7 @@
 			files = (
 				CAE684112FF3000000F5116A /* CoreImageLoader in Frameworks */,
 				CAE700032FF8000000F5116A /* FeatureCapture in Frameworks */,
+				CAE700052FF8000000F5116A /* FeatureCatRegistration in Frameworks */,
 				CAE700012FF8000000F5116A /* FeatureRelayCat in Frameworks */,
 				CA6BE5392FF7A59100458997 /* DomainCats in Frameworks */,
 				CA6BE53F2FF7A59100458997 /* DomainMedia in Frameworks */,
@@ -112,6 +117,7 @@
 			isa = PBXGroup;
 			children = (
 				CA404BEC302572CC00679AA2 /* HomeExample-Info.plist */,
+				CA404BDE3024684800679AA2 /* Config.xcconfig */,
 				CAE6837C2FF24E9C00F5116A /* Packages */,
 				CAE6836E2FF24C7500F5116A /* Products */,
 				CAE16E122FF4E15C005604B2 /* App */,
@@ -174,6 +180,7 @@
 				CAE684102FF3000000F5116A /* CoreImageLoader */,
 				CAE684092FF3000000F5116A /* FeatureHome */,
 				CAE700022FF8000000F5116A /* FeatureCapture */,
+				CAE700042FF8000000F5116A /* FeatureCatRegistration */,
 				CAE700002FF8000000F5116A /* FeatureRelayCat */,
 				CAE6840F2FF3000000F5116A /* SharedDesign */,
 				CA6BE5382FF7A59100458997 /* DomainCats */,
@@ -232,6 +239,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CA404BDF3024684800679AA2 /* Config.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -239,6 +247,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CA404BE03024684800679AA2 /* Config.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -385,6 +394,7 @@
 		};
 		CAE683792FF24C7600F5116A /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = CA404BDE3024684800679AA2 /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -419,6 +429,7 @@
 		};
 		CAE6837A2FF24C7600F5116A /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = CA404BDE3024684800679AA2 /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -453,6 +464,7 @@
 		};
 		CAE6840C2FF3000000F5116A /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = CA404BDE3024684800679AA2 /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -488,6 +500,7 @@
 		};
 		CAE6840D2FF3000000F5116A /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = CA404BDE3024684800679AA2 /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -607,6 +620,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = CAE6840B2FF3000000F5116A /* XCLocalSwiftPackageReference "Packages/Package" */;
 			productName = FeatureCapture;
+		};
+		CAE700042FF8000000F5116A /* FeatureCatRegistration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CAE6840B2FF3000000F5116A /* XCLocalSwiftPackageReference "Packages/Package" */;
+			productName = FeatureCatRegistration;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

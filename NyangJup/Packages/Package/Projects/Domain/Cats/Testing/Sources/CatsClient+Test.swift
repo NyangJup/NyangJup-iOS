@@ -17,25 +17,25 @@ extension CatsClient {
                     id: "1",
                     name: "꾸꾸",
                     place: "구로구",
-                    appearanceKey: "abyssinian"
+                    imageURL: "https://picsum.photos/seed/nayngjup-cat-1/200/200"
                 ),
                 Cat(
                     id: "2",
                     name: "까까",
                     place: "구로구",
-                    appearanceKey: "americanShorthair"
+                    imageURL: "https://picsum.photos/seed/nayngjup-cat-2/200/200"
                 ),
                 Cat(
                     id: "3",
                     name: "냥냥",
                     place: "구로구",
-                    appearanceKey: "bengal"
+                    imageURL: "https://picsum.photos/seed/nayngjup-cat-3/200/200"
                 ),
                 Cat(
                     id: "4",
                     name: "야르",
                     place: "구로구",
-                    appearanceKey: "britishShorthair"
+                    imageURL: "https://picsum.photos/seed/nayngjup-cat-4/200/200"
                 )
             ]
         },
@@ -43,23 +43,23 @@ extension CatsClient {
             Cat(
                 id: "created-cat",
                 name: request.name,
-                place: "",
-                appearanceKey: request.appearanceKey
+                place: request.place,
+                imageURL: request.fileName
             )
         },
         updateCatProfile: { id, request in
-            let appearanceKey = [
-                "1": "abyssinian",
-                "2": "americanShorthair",
-                "3": "bengal",
-                "4": "britishShorthair"
-            ][id] ?? "abyssinian"
+            let imageURL = [
+                "1": "https://picsum.photos/seed/nayngjup-cat-1/200/200",
+                "2": "https://picsum.photos/seed/nayngjup-cat-2/200/200",
+                "3": "https://picsum.photos/seed/nayngjup-cat-3/200/200",
+                "4": "https://picsum.photos/seed/nayngjup-cat-4/200/200"
+            ][id] ?? "https://picsum.photos/seed/nayngjup-cat-1/200/200"
 
             return Cat(
                 id: id,
                 name: request.name,
                 place: request.place,
-                appearanceKey: appearanceKey
+                imageURL: imageURL
             )
         },
         fetchCatFeed: { id in
@@ -154,6 +154,9 @@ extension CatsClient {
             )
         },
         deleteCat: { _ in
+        },
+        fetchPixelCat: { _ in
+            ""
         }
     )
 }

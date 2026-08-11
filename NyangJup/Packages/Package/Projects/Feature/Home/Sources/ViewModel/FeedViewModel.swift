@@ -126,6 +126,7 @@ public final class FeedViewModel: NZViewModel {
                     comment: media.comment,
                     thumbnailURL: media.thumbnailURL,
                     name: state.cat.name,
+                    catImageURL: state.cat.imageURL,
                     mediaType: media.mediaType,
                     mediaURL: media.mediaURL,
                     isLiked: false

@@ -7,6 +7,7 @@
 
 import SwiftUI
 
+import CoreImageLoaderInterface
 import DomainCatsInterface
 import SharedDesign
 
@@ -23,11 +24,7 @@ struct CatProfileInfoView: View {
 
     var body: some View {
         HStack(spacing: contentSpacing) {
-            CatAvatarView(
-                image: catImage,
-                backgroundSize: imageBackgroundSize,
-                imageSize: catImageSize
-            )
+            catAvatar
             catInformation
             Spacer()
         }
@@ -58,11 +55,22 @@ private extension CatProfileInfoView {
             .foregroundStyle(placeColor)
     }
 
-    var catImage: Image {
-        guard let appearance = CatAppearance(rawValue: cat.appearanceKey) else {
-            return NJImage.catFoot.image
+    @ViewBuilder
+    var catAvatar: some View {
+        if let imageURL = URL(string: cat.imageURL) {
+            NZAsyncImage(
+                url: imageURL,
+                targetSize: CGSize(
+                    width: catImageSize,
+                    height: catImageSize
+                )
+            ) { image in
+                CatAvatarView(
+                    image: image,
+                    backgroundSize: imageBackgroundSize,
+                    imageSize: catImageSize
+                )
+            }
         }
-
-        return appearance.imageAsset.image
     }
 }

@@ -35,6 +35,9 @@ extension CatsClient {
         },
         deleteCat: { _ in
             throw CatsClientError.deleteCatNotImplemented
+        },
+        fetchPixelCat: { _ in
+            ""
         }
     )
 }
