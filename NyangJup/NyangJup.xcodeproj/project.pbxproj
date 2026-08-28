@@ -7,9 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		CA404BEE30258F4200679AA2 /* CoreAds in Frameworks */ = {isa = PBXBuildFile; productRef = CA404BED30258F4200679AA2 /* CoreAds */; };
 		CA404BDF3024684800679AA2 /* Config.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = CA404BDE3024684800679AA2 /* Config.xcconfig */; };
 		CA404BE03024684800679AA2 /* Config.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = CA404BDE3024684800679AA2 /* Config.xcconfig */; };
+		CA404BEE30258F4200679AA2 /* CoreAds in Frameworks */ = {isa = PBXBuildFile; productRef = CA404BED30258F4200679AA2 /* CoreAds */; };
 		CA6BE5392FF7A59100458997 /* DomainCats in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE5382FF7A59100458997 /* DomainCats */; };
 		CA6BE53B2FF7A59100458997 /* DomainProfile in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE53A2FF7A59100458997 /* DomainProfile */; };
 		CA6BE53D2FF7A59100458997 /* CoreCamera in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE53C2FF7A59100458997 /* CoreCamera */; };
@@ -23,8 +23,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		CA404BEC302572CC00679AA2 /* HomeExample-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "HomeExample-Info.plist"; sourceTree = "<group>"; };
 		CA404BDE3024684800679AA2 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		CA404BEC302572CC00679AA2 /* HomeExample-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "HomeExample-Info.plist"; sourceTree = "<group>"; };
+		CAC1EA3B3040205C0012057E /* NyangJup.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NyangJup.entitlements; sourceTree = "<group>"; };
 		CAE6836D2FF24C7500F5116A /* NyangJup.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NyangJup.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CAE684002FF3000000F5116A /* HomeExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HomeExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -116,6 +117,7 @@
 		CAE683642FF24C7500F5116A = {
 			isa = PBXGroup;
 			children = (
+				CAC1EA3B3040205C0012057E /* NyangJup.entitlements */,
 				CA404BEC302572CC00679AA2 /* HomeExample-Info.plist */,
 				CA404BDE3024684800679AA2 /* Config.xcconfig */,
 				CAE6837C2FF24E9C00F5116A /* Packages */,
@@ -398,6 +400,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = NyangJup.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = WBG9V97XP4;
@@ -415,7 +418,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = colin.NyangJup;
+				PRODUCT_BUNDLE_IDENTIFIER = com.colin.NyangJup;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -433,6 +436,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = NyangJup.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = WBG9V97XP4;
@@ -450,7 +454,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = colin.NyangJup;
+				PRODUCT_BUNDLE_IDENTIFIER = com.colin.NyangJup;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
