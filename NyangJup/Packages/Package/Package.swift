@@ -42,6 +42,10 @@ let package = Package(
         ),
         // MARK: - Core Products
         .library(
+            name: "CoreSecureStorage",
+            targets: ["CoreSecureStorage", "CoreSecureStorageInterface", "CoreSecureStorageTesting"]
+        ),
+        .library(
             name: "CoreImageLoader",
             targets: ["CoreImageLoader", "CoreImageLoaderInterface", "CoreImageLoaderTesting"]
         ),
@@ -347,6 +351,32 @@ let package = Package(
         ),
         // MARK: - Core Targets
         .target(
+            name: "CoreSecureStorageInterface",
+            dependencies: [],
+            path: "Projects/Core/SecureStorage/Interface/Sources"
+        ),
+        .target(
+            name: "CoreSecureStorage",
+            dependencies: [
+                .core(module: .secureStorage, target: .interface)
+            ],
+            path: "Projects/Core/SecureStorage/Sources"
+        ),
+        .target(
+            name: "CoreSecureStorageTesting",
+            dependencies: [],
+            path: "Projects/Core/SecureStorage/Testing/Sources"
+        ),
+        .testTarget(
+            name: "CoreSecureStorageTests",
+            dependencies: [
+                .core(module: .secureStorage, target: .feature),
+                .core(module: .secureStorage, target: .interface),
+                .product(name: "Testing", package: "swift-testing")
+            ],
+            path: "Projects/Core/SecureStorage/Tests"
+        ),
+        .target(
             name: "CoreImageLoaderInterface",
             dependencies: [],
             path: "Projects/Core/ImageLoader/Interface/Sources"
@@ -499,6 +529,7 @@ enum Module {
     }
 
     enum Core: String {
+        case secureStorage = "SecureStorage"
         case imageLoader = "ImageLoader"
         case camera = "Camera"
         case network = "Network"
