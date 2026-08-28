@@ -14,19 +14,21 @@ public protocol Endpoint {
     var headers: [String: String]? { get }
     var query: [URLQueryItem]? { get }
     var body: Encodable? { get }
+    var requiresAuthorization: Bool { get }
 }
 
 public extension Endpoint {
     var baseURL: URL {
-        let fallbackURL = URL(string: "https://httpbin.org")!
-        
-        let apiBaseURL: String? = ProcessInfo.processInfo.environment["API_BASE_URL"] ??
-        Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String
-        
-        guard let urlString = apiBaseURL,
-              let url = URL(string: urlString) else {
-            return fallbackURL
+        guard
+            let value = Bundle.main.object(
+                forInfoDictionaryKey: "API_BASE_URL"
+            ) as? String,
+            let url = URL(string: value),
+            url.scheme == "https"
+        else {
+            preconditionFailure("API_BASE_URL 설정을 확인해 주세요.")
         }
+        
         return url
     }
 }
