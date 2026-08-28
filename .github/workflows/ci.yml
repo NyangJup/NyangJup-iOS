@@ -26,6 +26,27 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_26.2.app
 
+      - name: Create Config.xcconfig
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          MINIGAME_URL: ${{ secrets.MINIGAME_URL }}
+        run: |
+          if [ -z "$BASE_URL" ] || [ -z "$MINIGAME_URL" ]; then
+            echo "BASE_URL and MINIGAME_URL secrets are required."
+            exit 1
+          fi
+
+          SAFE_BASE_URL="$(printf '%s' "$BASE_URL" | sed 's#//#$(NJ_SLASH)$(NJ_SLASH)#')"
+          SAFE_MINIGAME_URL="$(printf '%s' "$MINIGAME_URL" | sed 's#//#$(NJ_SLASH)$(NJ_SLASH)#')"
+
+          {
+            printf '%s\n' 'NJ_SLASH = /'
+            printf 'BASE_URL = %s\n' "$SAFE_BASE_URL"
+            printf 'MINIGAME_URL = %s\n' "$SAFE_MINIGAME_URL"
+            printf '%s\n' 'INFOPLIST_KEY_MiniGameURL = $(MINIGAME_URL)'
+            printf '%s\n' 'INFOPLIST_KEY_API_BASE_URL = $(BASE_URL)'
+          } > NyangJup/Config.xcconfig
+
       - name: Build
         run: |
           xcodebuild \

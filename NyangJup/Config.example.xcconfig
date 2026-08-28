@@ -1,0 +1,10 @@
+// Copy this file to Config.xcconfig and fill in local values.
+// Do not commit Config.xcconfig.
+
+NJ_SLASH = /
+
+BASE_URL =
+MINIGAME_URL =
+
+INFOPLIST_KEY_MiniGameURL = $(MINIGAME_URL)
+INFOPLIST_KEY_API_BASE_URL = $(BASE_URL)

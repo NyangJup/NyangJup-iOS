@@ -22,13 +22,21 @@ public struct LiveNetworkClient: NetworkClientProtocol, @unchecked Sendable {
     public func request<T: Decodable>(_ endpoint: any Endpoint) async throws -> T {
         let request = try await intercept(makeURLRequest(endpoint), endpoint: endpoint)
         let (data, response) = try await session.data(for: request)
-
-        try validate(response)
+        
+        try validate(data: data, response: response)
+        
+        if data.isEmpty {
+            guard let emptyResponse = EmptyResponse() as? T else {
+                throw NetworkError.decoding
+            }
+            
+            return emptyResponse
+        }
 
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
-            throw NetworkError.decodingError
+            throw NetworkError.decoding
         }
     }
 }
@@ -65,7 +73,7 @@ private extension LiveNetworkClient {
                     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 }
             } catch {
-                throw NetworkError.encodingError
+                throw NetworkError.encoding
             }
         }
 
@@ -77,36 +85,53 @@ private extension LiveNetworkClient {
         let pathURL = path.isEmpty ? endpoint.baseURL : endpoint.baseURL.appendingPathComponent(path)
 
         guard var components = URLComponents(url: pathURL, resolvingAgainstBaseURL: false) else {
-            throw NetworkError.invalidURLError
+            throw NetworkError.invalidURL
         }
 
         components.queryItems = endpoint.query
 
         guard let url = components.url else {
-            throw NetworkError.invalidURLError
+            throw NetworkError.invalidURL
         }
 
         return url
     }
 
-    func validate(_ response: URLResponse) throws {
+    func validate(
+        data: Data,
+        response: URLResponse
+    ) throws {
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw NetworkError.invalidResponseError
+            throw NetworkError.invalidResponse
         }
+        
+        let requestID = httpResponse.value(
+            forHTTPHeaderField: "X-Request-Id"
+        )
+        
+        let errorResponse = try? decoder.decode(
+            APIErrorResponse.self,
+            from: data
+        )
 
         switch httpResponse.statusCode {
         case HTTPStatusCode.success:
             return
+            
         case HTTPStatusCode.badRequest:
-            throw NetworkError.badRequestError(code: nil)
+            throw NetworkError.badRequest(errorResponse)
+        case HTTPStatusCode.requestTimeout:
+            throw NetworkError.timeout
         case HTTPStatusCode.unauthorized:
-            throw NetworkError.authorizationError
+            throw NetworkError.authorization(errorResponse)
         case HTTPStatusCode.notFound:
-            throw NetworkError.notFoundError
+            throw NetworkError.notFound(errorResponse)
         case HTTPStatusCode.serverError:
-            throw NetworkError.serverError
+            throw NetworkError.server(errorResponse)
+        case HTTPStatusCode.clientError:
+            throw NetworkError.client(errorResponse)
         default:
-            throw NetworkError.unknownError
+            throw NetworkError.unknown
         }
     }
 }
