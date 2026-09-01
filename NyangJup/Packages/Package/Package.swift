@@ -33,6 +33,10 @@ let package = Package(
             targets: ["DomainProfile", "DomainProfileInterface", "DomainProfileTesting"]
         ),
         .library(
+            name: "DomainDeviceSecurity",
+            targets: ["DomainDeviceSecurity", "DomainDeviceSecurityInterface", "DomainDeviceSecurityTesting"]
+        ),
+        .library(
             name: "DomainMedia",
             targets: ["DomainMedia", "DomainMediaInterface", "DomainMediaTesting"]
         ),
@@ -288,6 +292,41 @@ let package = Package(
             path: "Projects/Domain/Profile/Tests"
         ),
         .target(
+            name: "DomainDeviceSecurityInterface",
+            dependencies: [
+                .core(module: .network, target: .interface),
+                .core(module: .secureStorage, target: .interface)
+            ],
+            path: "Projects/Domain/DeviceSecurity/Interface/Sources"
+        ),
+        .target(
+            name: "DomainDeviceSecurity",
+            dependencies: [
+                .core(module: .network, target: .interface),
+                .core(module: .secureStorage, target: .interface),
+                .domain(module: .deviceSecurity, target: .interface)
+            ],
+            path: "Projects/Domain/DeviceSecurity/Sources"
+        ),
+        .target(
+            name: "DomainDeviceSecurityTesting",
+            dependencies: [
+                .domain(module: .deviceSecurity, target: .interface)
+            ],
+            path: "Projects/Domain/DeviceSecurity/Testing/Sources"
+        ),
+        .testTarget(
+            name: "DomainDeviceSecurityTests",
+            dependencies: [
+                .core(module: .network, target: .interface),
+                .core(module: .secureStorage, target: .interface),
+                .domain(module: .deviceSecurity, target: .feature),
+                .domain(module: .deviceSecurity, target: .interface),
+                .product(name: "Testing", package: "swift-testing")
+            ],
+            path: "Projects/Domain/DeviceSecurity/Tests"
+        ),
+        .target(
             name: "DomainMediaInterface",
             dependencies: [
                 .core(module: .network, target: .interface)
@@ -526,6 +565,7 @@ enum Module {
 
     enum Domain: String {
         case profile = "Profile"
+        case deviceSecurity = "DeviceSecurity"
         case media = "Media"
         case cats = "Cats"
         @available(*, unavailable)
