@@ -37,6 +37,10 @@ let package = Package(
             targets: ["DomainDeviceSecurity", "DomainDeviceSecurityInterface", "DomainDeviceSecurityTesting"]
         ),
         .library(
+            name: "DomainPixelReward",
+            targets: ["DomainPixelReward", "DomainPixelRewardInterface", "DomainPixelRewardTesting"]
+        ),
+        .library(
             name: "DomainMedia",
             targets: ["DomainMedia", "DomainMediaInterface", "DomainMediaTesting"]
         ),
@@ -327,6 +331,38 @@ let package = Package(
             path: "Projects/Domain/DeviceSecurity/Tests"
         ),
         .target(
+            name: "DomainPixelRewardInterface",
+            dependencies: [],
+            path: "Projects/Domain/PixelReward/Interface/Sources"
+        ),
+        .target(
+            name: "DomainPixelReward",
+            dependencies: [
+                .core(module: .network, target: .interface),
+                .domain(module: .deviceSecurity, target: .interface),
+                .domain(module: .pixelReward, target: .interface)
+            ],
+            path: "Projects/Domain/PixelReward/Sources"
+        ),
+        .target(
+            name: "DomainPixelRewardTesting",
+            dependencies: [
+                .domain(module: .pixelReward, target: .interface)
+            ],
+            path: "Projects/Domain/PixelReward/Testing/Sources"
+        ),
+        .testTarget(
+            name: "DomainPixelRewardTests",
+            dependencies: [
+                .core(module: .network, target: .interface),
+                .domain(module: .deviceSecurity, target: .interface),
+                .domain(module: .pixelReward, target: .feature),
+                .domain(module: .pixelReward, target: .interface),
+                .product(name: "Testing", package: "swift-testing")
+            ],
+            path: "Projects/Domain/PixelReward/Tests"
+        ),
+        .target(
             name: "DomainMediaInterface",
             dependencies: [
                 .core(module: .network, target: .interface)
@@ -566,6 +602,7 @@ enum Module {
     enum Domain: String {
         case profile = "Profile"
         case deviceSecurity = "DeviceSecurity"
+        case pixelReward = "PixelReward"
         case media = "Media"
         case cats = "Cats"
         @available(*, unavailable)
