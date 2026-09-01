@@ -82,5 +82,6 @@ public struct AppAttestationProvider: Sendable {
 
 public enum DeviceSecurityError: Error, Equatable, Sendable {
     case appAttestUnsupported
+    case invalidAppAttestKey
     case invalidChallenge
 }

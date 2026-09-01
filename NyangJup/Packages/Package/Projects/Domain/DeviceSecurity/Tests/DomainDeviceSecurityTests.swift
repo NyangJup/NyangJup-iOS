@@ -46,8 +46,33 @@ func existingKeyUsesAssertionToRefreshAccessToken() async throws {
     ])
 }
 
+@Test
+func invalidExistingKeyIsReplacedAndRegistered() async throws {
+    let storage = InMemorySecureStorage(values: [.appAttestKeyId: "invalid-key"])
+    let network = RecordingNetworkClient()
+    let attestationProvider = InvalidKeyAppAttestationProvider()
+    let client = DeviceSecurityClient.live(
+        networkClient: NetworkClient(provider: network),
+        secureStorageClient: storage.client,
+        appAttestationProvider: attestationProvider.client
+    )
+
+    try await client.authenticate()
+
+    #expect(storage.deletedKeys == [.appAttestKeyId])
+    #expect(try storage.client.read(.appAttestKeyId) == "replacement-key")
+    #expect(try storage.client.read(.accessToken) == "access-token")
+    #expect(attestationProvider.assertionAttempts == 1)
+    #expect(attestationProvider.keyGenerationAttempts == 1)
+    #expect(network.paths == [
+        "/security/app-attest/challenges",
+        "/security/app-attest/attestations"
+    ])
+}
+
 private final class InMemorySecureStorage: @unchecked Sendable {
     private var values: [String: String]
+    private(set) var deletedKeys: [String] = []
 
     init(values: [String: String] = [:]) {
         self.values = values
@@ -57,7 +82,30 @@ private final class InMemorySecureStorage: @unchecked Sendable {
         SecureStorageClient(
             save: { [weak self] value, key in self?.values[key] = value },
             read: { [weak self] key in self?.values[key] },
-            delete: { [weak self] key in self?.values.removeValue(forKey: key) }
+            delete: { [weak self] key in
+                self?.values.removeValue(forKey: key)
+                self?.deletedKeys.append(key)
+            }
+        )
+    }
+}
+
+private final class InvalidKeyAppAttestationProvider: @unchecked Sendable {
+    private(set) var assertionAttempts = 0
+    private(set) var keyGenerationAttempts = 0
+
+    var client: AppAttestationProvider {
+        AppAttestationProvider(
+            isSupported: { true },
+            generateKey: { [weak self] in
+                self?.keyGenerationAttempts += 1
+                return "replacement-key"
+            },
+            attestKey: { _, _ in Data([1]) },
+            generateAssertion: { [weak self] _, _ in
+                self?.assertionAttempts += 1
+                throw DeviceSecurityError.invalidAppAttestKey
+            }
         )
     }
 }
