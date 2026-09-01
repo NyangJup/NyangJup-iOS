@@ -95,15 +95,11 @@ func protectedRequestUsesAuthenticatedChallengeAndReturnsAssertion() async throw
 
     let sessionAssertion = try await client.generateAssertion(
         .adSession,
-        .post,
-        "/api/v1/pixel-rewards/ad-sessions",
-        Data()
+        AssertionEndpoint(path: "/pixel-rewards/ad-sessions")
     )
     let rewardAssertion = try await client.generateAssertion(
         .adReward,
-        .post,
-        "/api/v1/pixel-rewards/ad-sessions/session-id/claim",
-        Data()
+        AssertionEndpoint(path: "/pixel-rewards/ad-sessions/session-id/claim")
     )
 
     #expect(network.purposes == [.adSession, .adReward])
@@ -121,6 +117,46 @@ func protectedRequestUsesAuthenticatedChallengeAndReturnsAssertion() async throw
         path: "/api/v1/pixel-rewards/ad-sessions",
         body: Data()
     ))
+}
+
+@Test
+func protectedEndpointPreservesRequestAndAddsAssertionHeaders() {
+    let endpoint = AssertionEndpoint(
+        path: "/pixel-rewards/ad-sessions",
+        headers: ["X-Existing": "value"]
+    )
+    let protectedEndpoint = AppAttestProtectedEndpoint(
+        base: endpoint,
+        assertion: AppAttestAssertion(
+            keyId: "key-id",
+            challengeId: "challenge-id",
+            assertion: "assertion"
+        )
+    )
+
+    #expect(protectedEndpoint.baseURL == endpoint.baseURL)
+    #expect(protectedEndpoint.path == endpoint.path)
+    #expect(protectedEndpoint.method == endpoint.method)
+    #expect(protectedEndpoint.query == endpoint.query)
+    #expect(protectedEndpoint.body == nil)
+    #expect(protectedEndpoint.requiresAuthorization == endpoint.requiresAuthorization)
+    #expect(protectedEndpoint.headers == [
+        "X-Existing": "value",
+        "X-App-Attest-Key-Id": "key-id",
+        "X-App-Attest-Challenge-Id": "challenge-id",
+        "X-App-Attest-Assertion": "assertion"
+    ])
+}
+
+private struct AssertionEndpoint: Endpoint {
+    let path: String
+    var headers: [String: String]? = nil
+
+    let baseURL = URL(string: "https://api.nyangjup.store/api/v1")!
+    let method = HTTPMethod.post
+    let query: [URLQueryItem]? = nil
+    let body: Encodable? = nil
+    let requiresAuthorization = true
 }
 
 private final class InMemorySecureStorage: @unchecked Sendable {

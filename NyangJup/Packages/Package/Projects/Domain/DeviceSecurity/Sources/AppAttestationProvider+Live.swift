@@ -1,3 +1,10 @@
+//
+//  AppAttestationProvider+Live.swift
+//  NJPackage
+//
+//  Created by 정지훈 on 9/1/26.
+//
+
 import DeviceCheck
 import Foundation
 
@@ -38,7 +45,8 @@ public extension AppAttestationProvider {
             try await withCheckedThrowingContinuation { continuation in
                 DCAppAttestService.shared.generateAssertion(keyId, clientDataHash: clientDataHash) { data, error in
                     if let error {
-                        if let error = error as? DCError, error.code == .invalidKey {
+                        if let error = error as? DCError,
+                           error.code == .invalidKey || error.code == .invalidInput {
                             continuation.resume(throwing: DeviceSecurityError.invalidAppAttestKey)
                         } else {
                             continuation.resume(throwing: error)
