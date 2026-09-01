@@ -7,15 +7,12 @@
 
 import Foundation
 
-public struct UpdateNicknameRequestDTO: Encodable {
-    let id: String
-    let nickname: String
+public struct UpdateNicknameRequestDTO: Encodable, Sendable {
+    public let nickname: String
     
     public init(
-        id: String,
         nickname: String
     ) {
-        self.id = id
         self.nickname = nickname
     }
 }

@@ -3,24 +3,16 @@ import Testing
 import DomainProfileTesting
 
 @Test
-func testClientFetchIndividualCodeReturnsSampleCode() async throws {
-    let code = try await ProfileClient.test.fetchIndividualCode("123")
+func testClientFetchProfileReturnsSampleProfile() async throws {
+    let profile = try await ProfileClient.test.fetchProfile()
 
-    #expect(code == "NYANG-7K2P")
-}
-
-@Test
-func testClientFetchProfileReturnsRequestedID() async throws {
-    let profile = try await ProfileClient.test.fetchProfile("123")
-
-    #expect(profile.id == "123")
+    #expect(profile.individualCode == "A1B2C3")
     #expect(profile.nickname == "집사")
 }
 
 @Test
 func testClientUpdateNicknameCompletes() async throws {
     let request = UpdateNicknameRequestDTO(
-        id: "123",
         nickname: "새집사"
     )
 

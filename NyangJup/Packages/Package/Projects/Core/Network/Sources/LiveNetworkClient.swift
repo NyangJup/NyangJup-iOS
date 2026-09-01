@@ -1,5 +1,6 @@
 import Foundation
 import CoreNetworkInterface
+import CoreSecureStorageInterface
 
 public struct LiveNetworkClient: NetworkClientProtocol, @unchecked Sendable {
     private let session: URLSession
@@ -21,7 +22,31 @@ public struct LiveNetworkClient: NetworkClientProtocol, @unchecked Sendable {
     
     public func request<T: Decodable>(_ endpoint: any Endpoint) async throws -> T {
         let request = try await intercept(makeURLRequest(endpoint), endpoint: endpoint)
-        let (data, response) = try await session.data(for: request)
+        
+        let data: Data
+        let response: URLResponse
+        
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch let error as URLError {
+            switch error.code {
+            case .timedOut:
+                throw NetworkError.timeout
+                
+            case .notConnectedToInternet,
+                    .networkConnectionLost,
+                    .cannotConnectToHost,
+                    .cannotFindHost,
+                    .dnsLookupFailed:
+                throw NetworkError.networkUnavailable
+                
+            case .cancelled:
+                throw CancellationError()
+                
+            default:
+                throw NetworkError.unknown
+            }
+        }
         
         try validate(data: data, response: response)
         
@@ -42,7 +67,19 @@ public struct LiveNetworkClient: NetworkClientProtocol, @unchecked Sendable {
 }
 
 public extension NetworkClient {
-    static let live = NetworkClient(provider: LiveNetworkClient())
+    static func live(
+        secureStorageClient: SecureStorageClient
+    ) -> NetworkClient {
+        NetworkClient(
+            provider: LiveNetworkClient(
+                interceptors: [
+                    BearerTokenInterceptor(
+                        secureStorageClient: secureStorageClient
+                    )
+                ]
+            )
+        )
+    }
 }
 
 private extension LiveNetworkClient {

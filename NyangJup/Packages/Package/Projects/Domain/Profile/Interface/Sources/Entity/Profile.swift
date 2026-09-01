@@ -7,15 +7,15 @@
 
 import Foundation
 
-public struct Profile {
-    public let id: String
+public struct Profile: Sendable, Equatable {
+    public let individualCode: String
     public let nickname: String
     
     public init(
-        id: String,
+        individualCode: String,
         nickname: String
     ) {
-        self.id = id
+        self.individualCode = individualCode
         self.nickname = nickname
     }
 }

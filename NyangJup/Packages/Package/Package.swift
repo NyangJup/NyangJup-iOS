@@ -263,6 +263,8 @@ let package = Package(
         .target(
             name: "DomainProfile",
             dependencies: [
+                .core(module: .network, target: .interface),
+                .core(module: .secureStorage, target: .interface),
                 .domain(module: .profile, target: .interface)
             ],
             path: "Projects/Domain/Profile/Sources"
@@ -413,7 +415,8 @@ let package = Package(
         .target(
             name: "CoreNetwork",
             dependencies: [
-                .core(module: .network, target: .interface)
+                .core(module: .network, target: .interface),
+                .core(module: .secureStorage, target: .interface)
             ],
             path: "Projects/Core/Network/Sources"
         ),
@@ -427,6 +430,7 @@ let package = Package(
             dependencies: [
                 .core(module: .network, target: .feature),
                 .core(module: .network, target: .testing),
+                .core(module: .secureStorage, target: .interface),
                 .product(name: "Testing", package: "swift-testing")
             ],
             path: "Projects/Core/Network/Tests"

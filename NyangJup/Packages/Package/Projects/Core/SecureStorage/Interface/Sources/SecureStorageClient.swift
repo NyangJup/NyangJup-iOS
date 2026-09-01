@@ -24,7 +24,10 @@ public struct SecureStorageClient: Sendable {
 }
 
 public extension String {
-    static let accessToken: String = "accessToken"
-}
+    static let accessToken = "accessToken"
 
+    static let appAttestKeyId = "appAttestKeyId"
+    static let appAttestRegistered = "appAttestRegistered"
+
+}
 
