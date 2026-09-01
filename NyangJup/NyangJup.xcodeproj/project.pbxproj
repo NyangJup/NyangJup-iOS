@@ -14,6 +14,9 @@
 		CA6BE53B2FF7A59100458997 /* DomainProfile in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE53A2FF7A59100458997 /* DomainProfile */; };
 		CA6BE53D2FF7A59100458997 /* CoreCamera in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE53C2FF7A59100458997 /* CoreCamera */; };
 		CA6BE53F2FF7A59100458997 /* DomainMedia in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE53E2FF7A59100458997 /* DomainMedia */; };
+		CA8D00013000000000000001 /* DomainDeviceSecurity in Frameworks */ = {isa = PBXBuildFile; productRef = CA8D00023000000000000001 /* DomainDeviceSecurity */; };
+		CA8D00033000000000000001 /* CoreNetwork in Frameworks */ = {isa = PBXBuildFile; productRef = CA8D00043000000000000001 /* CoreNetwork */; };
+		CA8D00053000000000000001 /* CoreSecureStorage in Frameworks */ = {isa = PBXBuildFile; productRef = CA8D00063000000000000001 /* CoreSecureStorage */; };
 		CAE6840A2FF3000000F5116A /* FeatureHome in Frameworks */ = {isa = PBXBuildFile; productRef = CAE684092FF3000000F5116A /* FeatureHome */; };
 		CAE6840E2FF3000000F5116A /* SharedDesign in Frameworks */ = {isa = PBXBuildFile; productRef = CAE6840F2FF3000000F5116A /* SharedDesign */; };
 		CAE684112FF3000000F5116A /* CoreImageLoader in Frameworks */ = {isa = PBXBuildFile; productRef = CAE684102FF3000000F5116A /* CoreImageLoader */; };
@@ -81,6 +84,9 @@
 				CA6BE53F2FF7A59100458997 /* DomainMedia in Frameworks */,
 				CAE6840A2FF3000000F5116A /* FeatureHome in Frameworks */,
 				CA6BE53B2FF7A59100458997 /* DomainProfile in Frameworks */,
+				CA8D00013000000000000001 /* DomainDeviceSecurity in Frameworks */,
+				CA8D00033000000000000001 /* CoreNetwork in Frameworks */,
+				CA8D00053000000000000001 /* CoreSecureStorage in Frameworks */,
 				CA6BE53D2FF7A59100458997 /* CoreCamera in Frameworks */,
 				CA404BEE30258F4200679AA2 /* CoreAds in Frameworks */,
 				CAE6840E2FF3000000F5116A /* SharedDesign in Frameworks */,
@@ -187,6 +193,9 @@
 				CAE6840F2FF3000000F5116A /* SharedDesign */,
 				CA6BE5382FF7A59100458997 /* DomainCats */,
 				CA6BE53A2FF7A59100458997 /* DomainProfile */,
+				CA8D00023000000000000001 /* DomainDeviceSecurity */,
+				CA8D00043000000000000001 /* CoreNetwork */,
+				CA8D00063000000000000001 /* CoreSecureStorage */,
 				CA6BE53C2FF7A59100458997 /* CoreCamera */,
 				CA6BE53E2FF7A59100458997 /* DomainMedia */,
 				CA404BED30258F4200679AA2 /* CoreAds */,
@@ -454,7 +463,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.colin.NyangJup;
+				PRODUCT_BUNDLE_IDENTIFIER = com.colin.NyangJup2;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -472,6 +481,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = NyangJup.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = WBG9V97XP4;
@@ -480,6 +490,7 @@
 				INFOPLIST_FILE = "HomeExample-Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "고양이 사진과 영상을 촬영하기 위해 카메라 접근이 필요합니다.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "고양이 영상을 촬영하기 위해 마이크 접근이 필요합니다.";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "사용자에게 더 관련성 높은 광고를 제공하기 위해 앱 사용 정보를 활용합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -490,7 +501,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = colin.NyangJup.HomeExample;
+				PRODUCT_BUNDLE_IDENTIFIER = com.colin.NyangJup;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -508,6 +519,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = NyangJup.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = WBG9V97XP4;
@@ -516,6 +528,7 @@
 				INFOPLIST_FILE = "HomeExample-Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "고양이 사진과 영상을 촬영하기 위해 카메라 접근이 필요합니다.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "고양이 영상을 촬영하기 위해 마이크 접근이 필요합니다.";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "사용자에게 더 관련성 높은 광고를 제공하기 위해 앱 사용 정보를 활용합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -526,7 +539,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = colin.NyangJup.HomeExample;
+				PRODUCT_BUNDLE_IDENTIFIER = com.colin.NyangJup;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -599,6 +612,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = CAE6840B2FF3000000F5116A /* XCLocalSwiftPackageReference "Packages/Package" */;
 			productName = DomainMedia;
+		};
+		CA8D00023000000000000001 /* DomainDeviceSecurity */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CAE6840B2FF3000000F5116A /* XCLocalSwiftPackageReference "Packages/Package" */;
+			productName = DomainDeviceSecurity;
+		};
+		CA8D00043000000000000001 /* CoreNetwork */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CAE6840B2FF3000000F5116A /* XCLocalSwiftPackageReference "Packages/Package" */;
+			productName = CoreNetwork;
+		};
+		CA8D00063000000000000001 /* CoreSecureStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CAE6840B2FF3000000F5116A /* XCLocalSwiftPackageReference "Packages/Package" */;
+			productName = CoreSecureStorage;
 		};
 		CAE684092FF3000000F5116A /* FeatureHome */ = {
 			isa = XCSwiftPackageProductDependency;

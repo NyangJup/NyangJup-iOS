@@ -2,16 +2,16 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>MiniGameURL</key>
-	<string>$(MINIGAME_URL)</string>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>사용자에게 더 관련성 높은 광고를 제공하기 위해 앱 사용 정보를 활용합니다.</string>
+	<key>API_BASE_URL</key>
+	<string>$(BASE_URL)</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-5153214263116373~7551477484</string>
-	<key>REWARD_AD_ID</key>
-	<string>ca-app-pub-3940256099942544/1712485313</string>
+	<key>MiniGameURL</key>
+	<string>$(MINIGAME_URL)</string>
 	<key>NATIVE_AD_ID</key>
 	<string>ca-app-pub-3940256099942544/3986624511</string>
+	<key>REWARD_AD_ID</key>
+	<string>ca-app-pub-3940256099942544/1712485313</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>
