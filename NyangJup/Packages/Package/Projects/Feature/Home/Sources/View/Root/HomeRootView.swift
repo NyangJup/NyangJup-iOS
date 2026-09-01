@@ -10,6 +10,7 @@ import SwiftUI
 import CoreAdsInterface
 import DomainCatsInterface
 import DomainMediaInterface
+import DomainPixelRewardInterface
 import DomainProfileInterface
 import FeatureHomeInterface
 import FeatureRelayCatInterface
@@ -30,13 +31,15 @@ public struct HomeRootView: View {
         catsClient: CatsClient,
         profileClient: ProfileClient,
         mediaClient: MediaClient,
-        adsClient: AdsClient
+        adsClient: AdsClient,
+        pixelRewardClient: PixelRewardClient
     ) {
         let coordinator = HomeCoordinator()
         self._homeViewModel = State(initialValue: HomeViewModel(
             catsClient: catsClient,
             profileClient: profileClient,
             adsClient: adsClient,
+            pixelRewardClient: pixelRewardClient,
             coordinator: coordinator
         ))
         self._coordinator = State(initialValue: coordinator)

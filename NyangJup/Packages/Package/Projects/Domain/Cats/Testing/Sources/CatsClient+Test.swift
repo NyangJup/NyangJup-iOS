@@ -31,12 +31,12 @@ extension CatsClient {
                     place: "구로구",
                     imageURL: "https://picsum.photos/seed/nayngjup-cat-3/200/200"
                 ),
-                Cat(
-                    id: "4",
-                    name: "야르",
-                    place: "구로구",
-                    imageURL: "https://picsum.photos/seed/nayngjup-cat-4/200/200"
-                )
+//                Cat(
+//                    id: "4",
+//                    name: "야르",
+//                    place: "구로구",
+//                    imageURL: "https://picsum.photos/seed/nayngjup-cat-4/200/200"
+//                )
             ]
         },
         createCat: { request in

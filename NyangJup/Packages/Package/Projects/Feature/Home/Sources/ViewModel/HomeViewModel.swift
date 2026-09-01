@@ -9,6 +9,7 @@ import Foundation
 
 import CoreAdsInterface
 import DomainCatsInterface
+import DomainPixelRewardInterface
 import DomainProfileInterface
 import FeatureCommonInterface
 import FeatureHomeInterface
@@ -28,6 +29,10 @@ public final class HomeViewModel: NZViewModel {
         var showsCatLimitAlert: Bool = false
         var selectedCatId: String?
         var isFetching: Bool = false
+        var pixelRewardBalance: Int64?
+        var pendingAdSession: PixelRewardAdSession?
+        var hasEarnedPendingAdReward = false
+        var isRewardFlowInProgress = false
 
         var selectedCat: Cat? {
             guard let selectedCatId else { return nil }
@@ -52,6 +57,7 @@ public final class HomeViewModel: NZViewModel {
 
         public enum Network {
             case fetchCats
+            case fetchPixelRewardBalance
         }
 
         public enum Internal {
@@ -68,17 +74,20 @@ public final class HomeViewModel: NZViewModel {
     let catsClient: CatsClient
     let profileClient: ProfileClient
     let adsClient: AdsClient
+    let pixelRewardClient: PixelRewardClient
 
     public init(
         catsClient: CatsClient,
         profileClient: ProfileClient,
         adsClient: AdsClient,
+        pixelRewardClient: PixelRewardClient,
         coordinator: any Coordinator<HomeRoute>
     ) {
         self.catsClient = catsClient
         self.profileClient = profileClient
         self.coordinator = coordinator
         self.adsClient = adsClient
+        self.pixelRewardClient = pixelRewardClient
     }
 
     public func send(_ action: Action) {
@@ -98,29 +107,13 @@ public final class HomeViewModel: NZViewModel {
         switch action {
         case .onAppear:
             send(.network(.fetchCats))
+            send(.network(.fetchPixelRewardBalance))
         case .plusButtonTapped:
-            if state.cats.count == 0 {
-                state.selectedCatId = nil
-                state.isMakeCatPresented = true
-            } else {
-                guard state.cats.count < Self.maximumCatCount else {
-                    state.showsCatLimitAlert = true
-                    return
-                }
-
-                Task {
-                    do {
-                        let didWatcedReward = try await adsClient.showRewardAds()
-                        guard didWatcedReward else { return }
-
-                        state.selectedCatId = nil
-                        state.isMakeCatPresented = true
-
-                    } catch {
-
-                    }
-                }
+            guard state.cats.count < Self.maximumCatCount else {
+                state.showsCatLimitAlert = true
+                return
             }
+            startPixelRewardFlow()
 
         case let .makeCatSubmitted(name, imageURL):
             guard state.cats.count < Self.maximumCatCount else {
@@ -138,6 +131,7 @@ public final class HomeViewModel: NZViewModel {
                     )
                     state.cats.append(cat)
                     state.isMakeCatPresented = false
+                    send(.network(.fetchPixelRewardBalance))
                 } catch {
 
                 }
@@ -160,9 +154,11 @@ public final class HomeViewModel: NZViewModel {
         case let .catRegistered(cat):
             state.cats.append(cat)
             state.isMakeCatPresented = false
+            send(.network(.fetchPixelRewardBalance))
 
         case .catRegistrationClosed:
             state.isMakeCatPresented = false
+            send(.network(.fetchPixelRewardBalance))
 
         case let .catDeleted(id):
             state.cats.removeAll { $0.id == id }
@@ -198,6 +194,77 @@ public final class HomeViewModel: NZViewModel {
 
                 }
             }
+
+        case .fetchPixelRewardBalance:
+            Task {
+                do {
+                    let balance = try await pixelRewardClient.fetchBalance()
+                    state.pixelRewardBalance = balance.balance
+                    if balance.balance > 0 {
+                        clearPendingAdSession()
+                    }
+                } catch {
+
+                }
+            }
         }
+    }
+
+    private func startPixelRewardFlow() {
+        guard !state.isRewardFlowInProgress else { return }
+        state.isRewardFlowInProgress = true
+
+        Task {
+            defer { state.isRewardFlowInProgress = false }
+
+            do {
+                let currentBalance = try await pixelRewardClient.fetchBalance()
+                state.pixelRewardBalance = currentBalance.balance
+
+                if currentBalance.balance > 0 {
+                    clearPendingAdSession()
+                    presentCatRegistration()
+                    return
+                }
+
+                let session = try await reusableAdSession()
+                if !state.hasEarnedPendingAdReward {
+                    let earnedReward = try await adsClient.showRewardAds()
+                    guard earnedReward else { return }
+                    state.hasEarnedPendingAdReward = true
+                }
+
+                let claimedBalance = try await pixelRewardClient.claimAdReward(session.sessionId)
+                state.pixelRewardBalance = claimedBalance.balance
+                clearPendingAdSession()
+
+                guard claimedBalance.balance > 0 else { return }
+                presentCatRegistration()
+            } catch {
+
+            }
+        }
+    }
+
+    private func reusableAdSession() async throws -> PixelRewardAdSession {
+        if let session = state.pendingAdSession,
+           session.expiresAt > Date.now {
+            return session
+        }
+
+        clearPendingAdSession()
+        let session = try await pixelRewardClient.createAdSession()
+        state.pendingAdSession = session
+        return session
+    }
+
+    private func clearPendingAdSession() {
+        state.pendingAdSession = nil
+        state.hasEarnedPendingAdReward = false
+    }
+
+    private func presentCatRegistration() {
+        state.selectedCatId = nil
+        state.isMakeCatPresented = true
     }
 }

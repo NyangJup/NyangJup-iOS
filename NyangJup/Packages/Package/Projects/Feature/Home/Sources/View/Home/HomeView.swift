@@ -135,7 +135,10 @@ private extension HomeView {
         )
         .padding(.trailing, Constant.bottomButtonTrailingPadding)
         .padding(.bottom, Constant.bottomButtonBottomPadding)
-        .disabled(viewModel.state.isFetching)
+        .disabled(
+            viewModel.state.isFetching ||
+            viewModel.state.isRewardFlowInProgress
+        )
     }
 }
 
