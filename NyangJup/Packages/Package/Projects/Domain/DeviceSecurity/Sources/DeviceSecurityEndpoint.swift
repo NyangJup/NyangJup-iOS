@@ -29,5 +29,12 @@ enum DeviceSecurityEndpoint: Endpoint {
         }
     }
 
-    var requiresAuthorization: Bool { false }
+    var requiresAuthorization: Bool {
+        switch self {
+        case let .issueChallenge(request):
+            request.purpose != .attestation
+        case .registerNew, .registerCompleted:
+            false
+        }
+    }
 }

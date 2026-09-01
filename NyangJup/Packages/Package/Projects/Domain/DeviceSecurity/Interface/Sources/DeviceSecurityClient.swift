@@ -5,14 +5,43 @@ import CoreSecureStorageInterface
 
 public struct DeviceSecurityClient: Sendable {
     public var authenticate: @Sendable () async throws -> Void
+    public var generateAssertion: @Sendable (
+        _ purpose: AppAttestPurpose,
+        _ method: HTTPMethod,
+        _ path: String,
+        _ body: Data
+    ) async throws -> AppAttestAssertion
 
-    public init(authenticate: @escaping @Sendable () async throws -> Void) {
+    public init(
+        authenticate: @escaping @Sendable () async throws -> Void,
+        generateAssertion: @escaping @Sendable (
+            _: AppAttestPurpose,
+            _: HTTPMethod,
+            _: String,
+            _: Data
+        ) async throws -> AppAttestAssertion
+    ) {
         self.authenticate = authenticate
+        self.generateAssertion = generateAssertion
     }
 }
 
-public enum AppAttestPurpose: String, Encodable, Sendable {
+public enum AppAttestPurpose: String, Encodable, Equatable, Sendable {
     case attestation = "ATTESTATION"
+    case adSession = "AD_SESSION"
+    case adReward = "AD_REWARD"
+}
+
+public struct AppAttestAssertion: Sendable, Equatable {
+    public let keyId: String
+    public let challengeId: String
+    public let assertion: String
+
+    public init(keyId: String, challengeId: String, assertion: String) {
+        self.keyId = keyId
+        self.challengeId = challengeId
+        self.assertion = assertion
+    }
 }
 
 public struct AppAttestChallengeRequest: Encodable, Sendable {
