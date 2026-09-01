@@ -1,12 +1,18 @@
+//
+//  PixelRewardEndpoint.swift
+//  NJPackage
+//
+//  Created by 정지훈 on 9/1/26.
+//
+
 import Foundation
 
 import CoreNetworkInterface
-import DomainDeviceSecurityInterface
 
 enum PixelRewardEndpoint: Endpoint {
     case balance
-    case createAdSession(AppAttestAssertion)
-    case claimAdReward(sessionId: String, assertion: AppAttestAssertion)
+    case createAdSession
+    case claimAdReward(sessionId: String)
 
     var path: String {
         switch self {
@@ -14,7 +20,7 @@ enum PixelRewardEndpoint: Endpoint {
             "/pixel-rewards/balance"
         case .createAdSession:
             "/pixel-rewards/ad-sessions"
-        case let .claimAdReward(sessionId, _):
+        case let .claimAdReward(sessionId):
             "/pixel-rewards/ad-sessions/\(sessionId)/claim"
         }
     }
@@ -28,19 +34,7 @@ enum PixelRewardEndpoint: Endpoint {
         }
     }
 
-    var headers: [String: String]? {
-        switch self {
-        case .balance:
-            nil
-        case let .createAdSession(assertion), let .claimAdReward(_, assertion):
-            [
-                "X-App-Attest-Key-Id": assertion.keyId,
-                "X-App-Attest-Challenge-Id": assertion.challengeId,
-                "X-App-Attest-Assertion": assertion.assertion
-            ]
-        }
-    }
-
+    var headers: [String: String]? { nil }
     var query: [URLQueryItem]? { nil }
     var body: Encodable? { nil }
     var requiresAuthorization: Bool { true }

@@ -1,3 +1,10 @@
+//
+//  PixelRewardClient+Live.swift
+//  NJPackage
+//
+//  Created by 정지훈 on 9/1/26.
+//
+
 import Foundation
 
 import CoreNetworkInterface
@@ -17,92 +24,48 @@ public extension PixelRewardClient {
                     )
                     return PixelRewardBalance(balance: response.balance)
                 } catch {
-                    throw mapPixelRewardError(error)
+                    throw PixelRewardErrorMapper.map(error)
                 }
             },
             createAdSession: {
                 do {
+                    let endpoint = PixelRewardEndpoint.createAdSession
                     let assertion = try await deviceSecurityClient.generateAssertion(
                         .adSession,
-                        .post,
-                        "/api/v1/pixel-rewards/ad-sessions",
-                        Data()
+                        endpoint
                     )
                     let response: PixelRewardAdSessionResponseDTO = try await networkClient.request(
-                        PixelRewardEndpoint.createAdSession(assertion)
+                        AppAttestProtectedEndpoint(
+                            base: endpoint,
+                            assertion: assertion
+                        )
                     )
                     return PixelRewardAdSession(
                         sessionId: response.sessionId,
-                        expiresAt: try parseISO8601Date(response.expiresAt)
+                        expiresAt: try ISO8601DateParser.parse(response.expiresAt)
                     )
                 } catch {
-                    throw mapPixelRewardError(error)
+                    throw PixelRewardErrorMapper.map(error)
                 }
             },
             claimAdReward: { sessionId in
                 do {
-                    let canonicalPath = "/api/v1/pixel-rewards/ad-sessions/\(sessionId)/claim"
+                    let endpoint = PixelRewardEndpoint.claimAdReward(sessionId: sessionId)
                     let assertion = try await deviceSecurityClient.generateAssertion(
                         .adReward,
-                        .post,
-                        canonicalPath,
-                        Data()
+                        endpoint
                     )
                     let response: PixelRewardBalanceResponseDTO = try await networkClient.request(
-                        PixelRewardEndpoint.claimAdReward(
-                            sessionId: sessionId,
+                        AppAttestProtectedEndpoint(
+                            base: endpoint,
                             assertion: assertion
                         )
                     )
                     return PixelRewardBalance(balance: response.balance)
                 } catch {
-                    throw mapPixelRewardError(error)
+                    throw PixelRewardErrorMapper.map(error)
                 }
             }
         )
-    }
-}
-
-private func parseISO8601Date(_ value: String) throws -> Date {
-    let formatter = ISO8601DateFormatter()
-    if let date = formatter.date(from: value) {
-        return date
-    }
-
-    formatter.formatOptions.insert(.withFractionalSeconds)
-    guard let date = formatter.date(from: value) else {
-        throw NetworkError.decoding
-    }
-    return date
-}
-
-private func mapPixelRewardError(_ error: any Error) -> any Error {
-    guard let networkError = error as? NetworkError else {
-        return error
-    }
-
-    let response: APIErrorResponse?
-    switch networkError {
-    case let .authorization(value),
-         let .badRequest(value),
-         let .notFound(value),
-         let .server(value),
-         let .client(value):
-        response = value
-    default:
-        response = nil
-    }
-
-    switch response?.code {
-    case "AD_SESSION_CONFLICT":
-        return PixelRewardError.sessionUnavailable
-    case "AD_SESSION_NOT_FOUND":
-        return PixelRewardError.sessionNotFound
-    case "APP_ATTEST_REPLAY":
-        return PixelRewardError.appAttestReplay
-    case "INVALID_APP_ATTEST_CHALLENGE":
-        return PixelRewardError.invalidChallenge
-    default:
-        return networkError
     }
 }

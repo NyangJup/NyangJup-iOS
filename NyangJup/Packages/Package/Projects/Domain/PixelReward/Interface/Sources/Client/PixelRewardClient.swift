@@ -1,3 +1,10 @@
+//
+//  PixelRewardClient.swift
+//  NJPackage
+//
+//  Created by 정지훈 on 9/1/26.
+//
+
 public struct PixelRewardClient: Sendable {
     public var fetchBalance: @Sendable () async throws -> PixelRewardBalance
     public var createAdSession: @Sendable () async throws -> PixelRewardAdSession

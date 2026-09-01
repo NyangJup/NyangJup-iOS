@@ -152,6 +152,7 @@ let package = Package(
                 .domain(module: .cats, target: .interface),
                 .domain(module: .media, target: .interface),
                 .domain(module: .profile, target: .interface),
+                .domain(module: .pixelReward, target: .interface),
                 .core(module: .imageLoader, target: .interface),
                 .core(module: .ads, target: .interface),
                 .shared(module: .design, target: .feature),
@@ -177,6 +178,7 @@ let package = Package(
                 .domain(module: .cats, target: .testing),
                 .domain(module: .media, target: .testing),
                 .domain(module: .profile, target: .testing),
+                .domain(module: .pixelReward, target: .testing),
                 .product(name: "Testing", package: "swift-testing")
             ],
             path: "Projects/Feature/Home/Tests"

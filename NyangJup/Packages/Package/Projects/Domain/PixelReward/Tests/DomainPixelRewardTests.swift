@@ -1,3 +1,10 @@
+//
+//  DomainPixelRewardTests.swift
+//  NJPackage
+//
+//  Created by 정지훈 on 9/1/26.
+//
+
 import Foundation
 import Testing
 
@@ -42,8 +49,8 @@ func pixelRewardClientMapsResponsesAndBuildsProtectedRequests() async throws {
     #expect(network.headers[2] == RecordingDeviceSecurityClient.assertionHeaders)
     #expect(security.purposes == [.adSession, .adReward])
     #expect(security.paths == [
-        "/api/v1/pixel-rewards/ad-sessions",
-        "/api/v1/pixel-rewards/ad-sessions/session-id/claim"
+        "/pixel-rewards/ad-sessions",
+        "/pixel-rewards/ad-sessions/session-id/claim"
     ])
     #expect(security.methods == ["POST", "POST"])
     #expect(security.bodySizes == [0, 0])
@@ -143,11 +150,11 @@ private final class RecordingDeviceSecurityClient: @unchecked Sendable {
     var client: DeviceSecurityClient {
         DeviceSecurityClient(
             authenticate: {},
-            generateAssertion: { [weak self] purpose, method, path, body in
+            generateAssertion: { [weak self] purpose, endpoint in
                 self?.purposes.append(purpose)
-                self?.methods.append(method.rawValue)
-                self?.paths.append(path)
-                self?.bodySizes.append(body.count)
+                self?.methods.append(endpoint.method.rawValue)
+                self?.paths.append(endpoint.path)
+                self?.bodySizes.append(endpoint.body == nil ? 0 : -1)
                 return Self.assertion
             }
         )
