@@ -22,6 +22,8 @@ import DomainDeviceSecurity
 import DomainDeviceSecurityInterface
 import DomainProfile
 import DomainProfileInterface
+import DomainPixelReward
+import DomainPixelRewardInterface
 import DomainCatsTesting
 
 @main
@@ -34,6 +36,7 @@ struct HomeExampleApp: App {
     private let adsClient: AdsClient
     private let deviceSecurityClient: DeviceSecurityClient
     private let profileClient: ProfileClient
+    private let pixelRewardClient: PixelRewardClient
 
     @State private var isAuthenticated = false
     @State private var authenticationFailed = false
@@ -65,11 +68,16 @@ struct HomeExampleApp: App {
         )
         self.adsClient = adsClient
         self.nativeAdFactory = .live
-        self.deviceSecurityClient = DeviceSecurityClient.live(
+        let deviceSecurityClient = DeviceSecurityClient.live(
             networkClient: networkClient,
             secureStorageClient: secureStorageClient
         )
+        self.deviceSecurityClient = deviceSecurityClient
         self.profileClient = ProfileClient.live(networkClient: networkClient)
+        self.pixelRewardClient = PixelRewardClient.live(
+            networkClient: networkClient,
+            deviceSecurityClient: deviceSecurityClient
+        )
     }
 
     var body: some Scene {
@@ -80,7 +88,8 @@ struct HomeExampleApp: App {
                         catsClient: .test,
                         profileClient: profileClient,
                         mediaClient: .test,
-                        adsClient: adsClient
+                        adsClient: adsClient,
+                        pixelRewardClient: pixelRewardClient
                     )
                 } else if authenticationFailed {
                     ContentUnavailableView(
@@ -105,6 +114,8 @@ struct HomeExampleApp: App {
                     authenticationFailureMessage = authenticationErrorMessage(error)
                     authenticationFailed = true
                 }
+                
+                
             }
         }
     }
