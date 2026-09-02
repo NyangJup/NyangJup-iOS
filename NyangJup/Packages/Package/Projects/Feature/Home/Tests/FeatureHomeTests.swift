@@ -37,14 +37,6 @@ private final class HomeCoordinatorSpy: Coordinator {
     }
 }
 
-private actor CreateCatRequestRecorder {
-    private(set) var request: CreateCatRequestDTO?
-
-    func record(_ request: CreateCatRequestDTO) {
-        self.request = request
-    }
-}
-
 private actor FetchCatsGate {
     private var continuation: CheckedContinuation<Void, Never>?
 
@@ -105,9 +97,8 @@ private final class CatOutputSpy {
 }
 
 private enum TestError: Error, Sendable {
-    case createCatFailed
     case rewardAdFailed
-    case fetchFeedsFailed
+    case fetchCatFeedFailed
     case updateCatProfileFailed
     case deleteCatFailed
     case imageLoadingFailed
@@ -973,48 +964,6 @@ func speechBubblePushesSelectedCatFeedRoute() {
 
 @MainActor
 @Test
-func makeCatSubmittedAddsCreatedCatAndDismissesSheet() async {
-    let coordinator = HomeCoordinatorSpy()
-    let recorder = CreateCatRequestRecorder()
-    var catsClient = CatsClient.test
-    catsClient.createCat = { request in
-        await recorder.record(request)
-        return Cat(
-            id: "created-cat",
-            name: request.name,
-            place: "",
-            imageURL: request.fileName
-        )
-    }
-    let viewModel = HomeViewModel(
-        catsClient: catsClient,
-        profileClient: .test,
-        adsClient: testAdsClient,
-        pixelRewardClient: .test,
-        coordinator: coordinator
-    )
-    viewModel.state.cats = makeCats(count: 4)
-    viewModel.send(.view(.plusButtonTapped))
-    await waitUntil { viewModel.state.isMakeCatPresented }
-
-    viewModel.send(.view(.makeCatSubmitted(
-        name: "나비",
-        imageURL: "https://example.com/cats/cat-1.png"
-    )))
-
-    await waitUntil {
-        viewModel.state.cats.count == HomeViewModel.maximumCatCount
-    }
-    let request = await recorder.request
-    #expect(request?.name == "나비")
-    #expect(request?.fileName == "https://example.com/cats/cat-1.png")
-    #expect(viewModel.state.cats.last?.name == "나비")
-    #expect(viewModel.state.cats.last?.imageURL == "https://example.com/cats/cat-1.png")
-    #expect(viewModel.state.isMakeCatPresented == false)
-}
-
-@MainActor
-@Test
 func catRegistrationDelegateActionsUpdatePresentationAndCats() {
     let registeredCat = Cat(
         id: "registered-cat",
@@ -1045,43 +994,6 @@ func catRegistrationDelegateActionsUpdatePresentationAndCats() {
 
 @MainActor
 @Test
-func makeCatSubmittedAtLimitDoesNotCreateCat() async {
-    let recorder = CreateCatRequestRecorder()
-    var catsClient = CatsClient.test
-    catsClient.createCat = { request in
-        await recorder.record(request)
-        return Cat(
-            id: "created-cat",
-            name: request.name,
-            place: "",
-            imageURL: request.fileName
-        )
-    }
-    let viewModel = HomeViewModel(
-        catsClient: catsClient,
-        profileClient: .test,
-        adsClient: testAdsClient,
-        pixelRewardClient: .test,
-        coordinator: HomeCoordinatorSpy()
-    )
-    viewModel.state.cats = makeCats(count: HomeViewModel.maximumCatCount)
-    viewModel.state.isMakeCatPresented = true
-
-    viewModel.send(.view(.makeCatSubmitted(
-        name: "나비",
-        imageURL: "https://example.com/cats/cat-1.png"
-    )))
-    await Task.yield()
-
-    let recordedRequest = await recorder.request
-    #expect(recordedRequest == nil)
-    #expect(viewModel.state.cats.count == HomeViewModel.maximumCatCount)
-    #expect(viewModel.state.isMakeCatPresented == false)
-    #expect(viewModel.state.showsCatLimitAlert == true)
-}
-
-@MainActor
-@Test
 func lateFetchKeepsCatCreatedWhileRequestWasInFlight() async {
     let localCat = Cat(
         id: "local-cat",
@@ -1097,7 +1009,7 @@ func lateFetchKeepsCatCreatedWhileRequestWasInFlight() async {
     )
     let gate = FetchCatsGate()
     var catsClient = CatsClient.test
-    catsClient.fetchCats = { _ in
+    catsClient.fetchCats = {
         await gate.wait()
         return [
             Cat(
@@ -1107,14 +1019,6 @@ func lateFetchKeepsCatCreatedWhileRequestWasInFlight() async {
                 imageURL: "https://example.com/cats/cat-1.png"
             )
         ]
-    }
-    catsClient.createCat = { _ in
-        Cat(
-            id: "local-cat",
-            name: "나비",
-            place: "집",
-            imageURL: "https://example.com/cats/cat-1.png"
-        )
     }
     let viewModel = HomeViewModel(
         catsClient: catsClient,
@@ -1129,49 +1033,12 @@ func lateFetchKeepsCatCreatedWhileRequestWasInFlight() async {
         if await gate.isWaiting { break }
         await Task.yield()
     }
-    viewModel.send(.view(.makeCatSubmitted(
-        name: localCat.name,
-        imageURL: localCat.imageURL
-    )))
-    await waitUntil { viewModel.state.cats.contains { $0.id == localCat.id } }
+    viewModel.send(.internal(.catRegistered(localCat)))
 
     await gate.resume()
     await waitUntil { viewModel.state.cats.count == 2 }
 
     #expect(viewModel.state.cats.map(\.id) == [fetchedCat.id, localCat.id])
-}
-
-@MainActor
-@Test
-func makeCatSubmittedFailureKeepsSheetPresented() async {
-    let coordinator = HomeCoordinatorSpy()
-    let recorder = CreateCatRequestRecorder()
-    var catsClient = CatsClient.test
-    catsClient.createCat = { request in
-        await recorder.record(request)
-        throw TestError.createCatFailed
-    }
-    let viewModel = HomeViewModel(
-        catsClient: catsClient,
-        profileClient: .test,
-        adsClient: testAdsClient,
-        pixelRewardClient: .test,
-        coordinator: coordinator
-    )
-    viewModel.send(.view(.plusButtonTapped))
-
-    viewModel.send(.view(.makeCatSubmitted(
-        name: "나비",
-        imageURL: "https://example.com/cats/cat-1.png"
-    )))
-
-    for _ in 0..<100 {
-        if await recorder.request != nil { break }
-        await Task.yield()
-    }
-    #expect(await recorder.request != nil)
-    #expect(viewModel.state.cats.isEmpty)
-    #expect(viewModel.state.isMakeCatPresented == true)
 }
 
 @MainActor
@@ -1226,7 +1093,6 @@ func feedOnAppearLoadsFirstPage() async {
     let viewModel = FeedViewModel(
         cat: cat,
         catsClient: .test,
-        mediaClient: .test,
         onCatDeleted: { _ in },
         onCatUpdated: { _ in }
     )
@@ -1234,7 +1100,7 @@ func feedOnAppearLoadsFirstPage() async {
     viewModel.send(.view(.onAppear))
     await waitUntil { !viewModel.state.isLoading }
 
-    #expect(viewModel.state.items.count == 10)
+    #expect(viewModel.state.items.count == 9)
     #expect(viewModel.state.nextCursor == "feed-page-2")
 }
 
@@ -1249,7 +1115,6 @@ func feedPlusButtonPresentsAndDismissesCamera() {
             imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: .test,
-        mediaClient: .test,
         onCatDeleted: { _ in },
         onCatUpdated: { _ in }
     )
@@ -1301,7 +1166,6 @@ func feedCameraCompletionPrependsItemAndKeepsExistingPagination() {
             imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: .test,
-        mediaClient: .test,
         onCatDeleted: { _ in },
         onCatUpdated: { _ in }
     )
@@ -1324,10 +1188,10 @@ func feedCameraCompletionPrependsItemAndKeepsExistingPagination() {
 @Test
 func feedOnAppearDoesNotReloadExistingItems() async {
     let recorder = FeedRequestRecorder()
-    var mediaClient = MediaClient.test
-    mediaClient.fetchFeeds = { _, cursor in
+    var catsClient = CatsClient.test
+    catsClient.fetchCatFeed = { catID, cursor in
         await recorder.record(cursor: cursor)
-        return try await MediaClient.test.fetchFeeds("feed-cat", cursor)
+        return try await CatsClient.test.fetchCatFeed(catID, cursor)
     }
     let existingItem = Media(
         id: "existing-media",
@@ -1345,8 +1209,7 @@ func feedOnAppearDoesNotReloadExistingItems() async {
             place: "집",
             imageURL: "https://example.com/cats/cat-1.png"
         ),
-        catsClient: .test,
-        mediaClient: mediaClient,
+        catsClient: catsClient,
         onCatDeleted: { _ in },
         onCatUpdated: { _ in }
     )
@@ -1365,20 +1228,42 @@ func feedOnAppearDoesNotReloadExistingItems() async {
 @Test
 func feedLoadNextPageAppendsItemsAndStopsAtLastPage() async {
     let recorder = FeedRequestRecorder()
-    var mediaClient = MediaClient.test
-    mediaClient.fetchFeeds = { catID, cursor in
+    let cat = Cat(
+        id: "feed-cat",
+        name: "나비",
+        place: "집",
+        imageURL: "https://example.com/cats/cat-1.png"
+    )
+    let firstItem = Media(
+        id: "first-page-media",
+        catId: cat.id,
+        userId: "user-1",
+        comment: "",
+        thumbnailURL: "https://example.com/first.jpg",
+        mediaType: .photo,
+        mediaURL: "https://example.com/first.jpg"
+    )
+    let secondItem = Media(
+        id: "second-page-media",
+        catId: cat.id,
+        userId: "user-1",
+        comment: "",
+        thumbnailURL: "https://example.com/second.jpg",
+        mediaType: .video,
+        mediaURL: "https://example.com/second.mp4"
+    )
+    var catsClient = CatsClient.test
+    catsClient.fetchCatFeed = { _, cursor in
         await recorder.record(cursor: cursor)
-        return try await MediaClient.test.fetchFeeds(catID, cursor)
+        return CatFeed(
+            cat: cat,
+            items: cursor == nil ? [firstItem] : [secondItem],
+            nextCursor: cursor == nil ? "feed-page-2" : nil
+        )
     }
     let viewModel = FeedViewModel(
-        cat: Cat(
-            id: "feed-cat",
-            name: "나비",
-            place: "집",
-            imageURL: "https://example.com/cats/cat-1.png"
-        ),
-        catsClient: .test,
-        mediaClient: mediaClient,
+        cat: cat,
+        catsClient: catsClient,
         onCatDeleted: { _ in },
         onCatUpdated: { _ in }
     )
@@ -1388,12 +1273,12 @@ func feedLoadNextPageAppendsItemsAndStopsAtLastPage() async {
     viewModel.send(.view(.loadNextPage))
     await waitUntil { !viewModel.state.isLoading }
 
-    #expect(viewModel.state.items.count == 20)
+    #expect(viewModel.state.items.map(\.id) == [firstItem.id, secondItem.id])
     #expect(viewModel.state.nextCursor == nil)
 
     viewModel.send(.view(.loadNextPage))
     await Task.yield()
-    #expect(await recorder.cursors.count == 2)
+    #expect(await recorder.cursors == [nil, "feed-page-2"])
 }
 
 @MainActor
@@ -1408,9 +1293,9 @@ func feedFetchFailureKeepsItemsAndEndsLoading() async {
         mediaType: .photo,
         mediaURL: "https://example.com/existing.jpg"
     )
-    var mediaClient = MediaClient.test
-    mediaClient.fetchFeeds = { _, _ in
-        throw TestError.fetchFeedsFailed
+    var catsClient = CatsClient.test
+    catsClient.fetchCatFeed = { _, _ in
+        throw TestError.fetchCatFeedFailed
     }
     let viewModel = FeedViewModel(
         cat: Cat(
@@ -1419,8 +1304,7 @@ func feedFetchFailureKeepsItemsAndEndsLoading() async {
             place: "집",
             imageURL: "https://example.com/cats/cat-1.png"
         ),
-        catsClient: .test,
-        mediaClient: mediaClient,
+        catsClient: catsClient,
         onCatDeleted: { _ in },
         onCatUpdated: { _ in }
     )
@@ -1454,7 +1338,6 @@ func feedPhotoTappedPushesRelayCatRoute() {
             imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: .test,
-        mediaClient: .test,
         onCatDeleted: { _ in },
         onCatUpdated: { _ in },
         coordinator: coordinator
@@ -1497,7 +1380,6 @@ func feedVideoTappedUsesMediaURL() {
             imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: .test,
-        mediaClient: .test,
         onCatDeleted: { _ in },
         onCatUpdated: { _ in },
         coordinator: coordinator
@@ -1539,7 +1421,6 @@ func feedUpdateProfileSuccessUpdatesStateAndSendsOutput() async {
     let viewModel = FeedViewModel(
         cat: originalCat,
         catsClient: catsClient,
-        mediaClient: .test,
         onCatDeleted: outputSpy.catDeleted,
         onCatUpdated: outputSpy.catUpdated
     )
@@ -1577,7 +1458,6 @@ func feedUpdateProfileFailureKeepsStateAndDoesNotSendOutput() async {
     let viewModel = FeedViewModel(
         cat: originalCat,
         catsClient: catsClient,
-        mediaClient: .test,
         onCatDeleted: outputSpy.catDeleted,
         onCatUpdated: outputSpy.catUpdated
     )
@@ -1614,7 +1494,6 @@ func feedDeleteSuccessSendsOutputAndPopsCoordinator() async {
     let viewModel = FeedViewModel(
         cat: cat,
         catsClient: catsClient,
-        mediaClient: .test,
         onCatDeleted: outputSpy.catDeleted,
         onCatUpdated: outputSpy.catUpdated,
         coordinator: coordinator
@@ -1649,7 +1528,6 @@ func feedDeleteFailureDoesNotSendOutputOrPopCoordinator() async {
     let viewModel = FeedViewModel(
         cat: cat,
         catsClient: catsClient,
-        mediaClient: .test,
         onCatDeleted: outputSpy.catDeleted,
         onCatUpdated: outputSpy.catUpdated,
         coordinator: coordinator

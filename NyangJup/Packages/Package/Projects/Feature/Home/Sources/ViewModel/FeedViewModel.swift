@@ -74,21 +74,18 @@ public final class FeedViewModel: NZViewModel {
     public var state: State
     weak var coordinator: (any Coordinator<HomeRoute>)?
     let catsClient: CatsClient
-    let mediaClient: MediaClient
     private let onCatDeleted: @MainActor @Sendable (String) -> Void
     private let onCatUpdated: @MainActor @Sendable (Cat) -> Void
 
     public init(
         cat: Cat,
         catsClient: CatsClient,
-        mediaClient: MediaClient,
         onCatDeleted: @escaping @MainActor @Sendable (String) -> Void,
         onCatUpdated: @escaping @MainActor @Sendable (Cat) -> Void,
         coordinator: (any Coordinator<HomeRoute>)? = nil
     ) {
         self.state = State(cat: cat)
         self.catsClient = catsClient
-        self.mediaClient = mediaClient
         self.onCatDeleted = onCatDeleted
         self.onCatUpdated = onCatUpdated
         self.coordinator = coordinator
@@ -207,10 +204,13 @@ public final class FeedViewModel: NZViewModel {
                 defer { state.isLoading = false }
 
                 do {
-                    let page = try await mediaClient.fetchFeeds(
+                    let page = try await catsClient.fetchCatFeed(
                         state.cat.id,
                         cursor
                     )
+
+                    state.cat = page.cat
+                    onCatUpdated(page.cat)
 
                     if cursor == nil {
                         state.items = page.items

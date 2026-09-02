@@ -21,10 +21,7 @@ public final class HomeViewModel: NZViewModel {
     nonisolated static let maximumCatCount = 5
 
     public struct State {
-        // keychain
-        let uuidString: String = UUID().uuidString
         var cats: [Cat] = []
-        var individualCode: String = ""
         var isMakeCatPresented: Bool = false
         var showsCatLimitAlert: Bool = false
         var selectedCatId: String?
@@ -49,7 +46,6 @@ public final class HomeViewModel: NZViewModel {
         public enum View {
             case onAppear
             case plusButtonTapped
-            case makeCatSubmitted(name: String, imageURL: String)
             case catTapped(id: String)
             case selectionCleared
             case speechBubbleTapped
@@ -115,27 +111,6 @@ public final class HomeViewModel: NZViewModel {
             }
             startPixelRewardFlow()
 
-        case let .makeCatSubmitted(name, imageURL):
-            guard state.cats.count < Self.maximumCatCount else {
-                state.isMakeCatPresented = false
-                state.showsCatLimitAlert = true
-                return
-            }
-            Task {
-                do {
-                    let cat = try await catsClient.createCat(
-                        CreateCatRequestDTO(
-                            name: name,
-                            fileName: imageURL
-                        )
-                    )
-                    state.cats.append(cat)
-                    state.isMakeCatPresented = false
-                    send(.network(.fetchPixelRewardBalance))
-                } catch {
-
-                }
-            }
         case let .catTapped(id):
             state.selectedCatId = id
 
@@ -182,7 +157,7 @@ public final class HomeViewModel: NZViewModel {
             Task {
                 defer { state.isFetching = false }
                 do {
-                    let cats = try await catsClient.fetchCats(state.individualCode)
+                    let cats = try await catsClient.fetchCats()
                     let fetchedCatIDs = Set(cats.map(\.id))
                     let locallyAddedCats = state.cats.filter {
                         !fetchedCatIDs.contains($0.id)

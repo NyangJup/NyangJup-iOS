@@ -7,6 +7,7 @@
 
 public enum AppAttestPurpose: String, Encodable, Equatable, Sendable {
     case attestation = "ATTESTATION"
+    case pixelGeneration = "PIXEL_GENERATION"
     case adSession = "AD_SESSION"
     case adReward = "AD_REWARD"
 }

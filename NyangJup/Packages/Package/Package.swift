@@ -138,6 +138,16 @@ let package = Package(
             dependencies: [],
             path: "Projects/Feature/CatRegistration/Testing/Sources"
         ),
+        .testTarget(
+            name: "FeatureCatRegistrationTests",
+            dependencies: [
+                .domain(module: .cats, target: .testing),
+                .domain(module: .media, target: .testing),
+                .feature(module: .catRegistration, target: .feature),
+                .product(name: "Testing", package: "swift-testing")
+            ],
+            path: "Projects/Feature/CatRegistration/Tests"
+        ),
         .target(
             name: "FeatureHomeInterface",
             dependencies: [
@@ -405,7 +415,9 @@ let package = Package(
         .target(
             name: "DomainCats",
             dependencies: [
-                .domain(module: .cats, target: .interface)
+                .core(module: .network, target: .interface),
+                .domain(module: .cats, target: .interface),
+                .domain(module: .deviceSecurity, target: .interface)
             ],
             path: "Projects/Domain/Cats/Sources"
         ),
@@ -421,8 +433,10 @@ let package = Package(
         .testTarget(
             name: "DomainCatsTests",
             dependencies: [
+                .core(module: .network, target: .interface),
+                .domain(module: .cats, target: .feature),
                 .domain(module: .cats, target: .interface),
-                .domain(module: .cats, target: .testing),
+                .domain(module: .deviceSecurity, target: .interface),
                 .domain(module: .media, target: .interface),
                 .product(name: "Testing", package: "swift-testing")
             ],

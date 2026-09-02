@@ -9,7 +9,6 @@ import SwiftUI
 
 import CoreAdsInterface
 import DomainCatsInterface
-import DomainMediaInterface
 import DomainPixelRewardInterface
 import DomainProfileInterface
 import FeatureHomeInterface
@@ -24,13 +23,11 @@ public struct HomeRootView: View {
     @State private var coordinator: HomeCoordinator
     
     private let catsClient: CatsClient
-    private let mediaClient: MediaClient
     private let adsClient: AdsClient
     
     public init(
         catsClient: CatsClient,
         profileClient: ProfileClient,
-        mediaClient: MediaClient,
         adsClient: AdsClient,
         pixelRewardClient: PixelRewardClient
     ) {
@@ -44,7 +41,6 @@ public struct HomeRootView: View {
         ))
         self._coordinator = State(initialValue: coordinator)
         self.catsClient = catsClient
-        self.mediaClient = mediaClient
         self.adsClient = adsClient
     }
     
@@ -62,7 +58,6 @@ public struct HomeRootView: View {
                             viewModel: FeedViewModel(
                                 cat: cat,
                                 catsClient: catsClient,
-                                mediaClient: mediaClient,
                                 onCatDeleted: { id in
                                     homeViewModel.send(.internal(.catDeleted(id: id)))
                                 },

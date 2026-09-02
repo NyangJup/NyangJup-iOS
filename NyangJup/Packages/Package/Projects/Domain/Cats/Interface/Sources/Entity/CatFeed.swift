@@ -9,25 +9,18 @@ import Foundation
 
 import DomainMediaInterface
 
-public struct CatFeed {
-    let id: String
-    let name: String
-    let place: String?
-    let thumbnailURL: String
-    
-    let feed: [Media]
+public struct CatFeed: Sendable {
+    public let cat: Cat
+    public let items: [Media]
+    public let nextCursor: String?
     
     public init(
-        id: String,
-        name: String,
-        place: String?,
-        thumbnailURL: String,
-        feed: [Media]
+        cat: Cat,
+        items: [Media],
+        nextCursor: String?
     ) {
-        self.id = id
-        self.name = name
-        self.place = place
-        self.thumbnailURL = thumbnailURL
-        self.feed = feed
+        self.cat = cat
+        self.items = items
+        self.nextCursor = nextCursor
     }
 }

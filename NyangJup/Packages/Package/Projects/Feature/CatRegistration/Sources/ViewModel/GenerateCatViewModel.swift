@@ -20,8 +20,12 @@ final class GenerateCatViewModel: NZViewModel {
         var isLoading = false
         var errorMessage: String?
         var photoData: Data
-        var pixelImageURL: URL?
+        var pixelCat: PixelCat?
         var isAlertPrsented: Bool = false
+
+        var pixelImageURL: URL? {
+            pixelCat.flatMap { URL(string: $0.imageURL) }
+        }
 
         init(photoData: Data) {
             self.photoData = photoData
@@ -126,14 +130,12 @@ private extension GenerateCatViewModel {
                         )
                     )
 
-                    let pixelImageURL = try await catsClient.fetchPixelCat(
-                        urlResponse.fileName
+                    let pixelCat = try await catsClient.fetchPixelCat(
+                        PixelCatRequestDTO(fileName: urlResponse.fileName)
                     )
 
-                    state.pixelImageURL = URL(string: pixelImageURL)
+                    state.pixelCat = pixelCat
 
-                    // ✅ 변경
-                    // 이미지 생성은 끝났지만 아직 화면 전환은 하지 않음
                     state.isGenerated = true
 
                 } catch {
@@ -143,6 +145,12 @@ private extension GenerateCatViewModel {
             }
 
         case .createCat:
+            guard let pixelCat = state.pixelCat else {
+                state.isAlertPrsented = true
+                state.errorMessage = "생성된 고양이 이미지를 확인해주세요."
+                return
+            }
+
             state.isLoading = true
 
             Task {
@@ -151,18 +159,11 @@ private extension GenerateCatViewModel {
                 }
 
                 do {
-                    let urlResponse = try await mediaClient.fetchUploadURL(
-                        FetchUploadURLRequestDTO(
-                            catId: nil,
-                            mediaType: "PHOTO"
-                        )
-                    )
-
                     let cat = try await catsClient.createCat(
                         CreateCatRequestDTO(
                             name: state.name,
                             place: state.place,
-                            fileName: urlResponse.fileName
+                            fileName: pixelCat.fileName
                         )
                     )
 
@@ -170,7 +171,7 @@ private extension GenerateCatViewModel {
 
                 } catch {
                     state.isAlertPrsented = true
-                    state.errorMessage = "이미지 생성에 실패했어요."
+                    state.errorMessage = "픽셀 고양이 생성에 실패했어요."
                 }
             }
         }

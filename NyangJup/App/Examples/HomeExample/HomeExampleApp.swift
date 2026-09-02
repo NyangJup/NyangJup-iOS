@@ -17,6 +17,8 @@ import FeatureCatRegistrationInterface
 import FeatureHome
 import FeatureRelayCat
 import FeatureRelayCatInterface
+import DomainCats
+import DomainCatsInterface
 import DomainMediaTesting
 import DomainDeviceSecurity
 import DomainDeviceSecurityInterface
@@ -24,7 +26,6 @@ import DomainProfile
 import DomainProfileInterface
 import DomainPixelReward
 import DomainPixelRewardInterface
-import DomainCatsTesting
 
 @main
 struct HomeExampleApp: App {
@@ -34,6 +35,7 @@ struct HomeExampleApp: App {
     private let relayCatFactory: RelayCatFactory
     private let nativeAdFactory: NativeAdFactory
     private let adsClient: AdsClient
+    private let catsClient: CatsClient
     private let deviceSecurityClient: DeviceSecurityClient
     private let profileClient: ProfileClient
     private let pixelRewardClient: PixelRewardClient
@@ -52,12 +54,21 @@ struct HomeExampleApp: App {
             secureStorageClient: secureStorageClient
         )
 
+        let deviceSecurityClient = DeviceSecurityClient.live(
+            networkClient: networkClient,
+            secureStorageClient: secureStorageClient
+        )
+        let catsClient = CatsClient.live(
+            networkClient: networkClient,
+            deviceSecurityClient: deviceSecurityClient
+        )
+
         self.captureFactory = CaptureFactory.live(
             cameraClient: .live,
             mediaClient: .test
         )
         self.catRegistrationFactory = CatRegistrationFactory.live(
-            catsClient: .test,
+            catsClient: catsClient,
             mediaClient: .test
         )
         self.imageLoaderClient = imageLoaderClient
@@ -67,11 +78,8 @@ struct HomeExampleApp: App {
             adsClient: adsClient
         )
         self.adsClient = adsClient
+        self.catsClient = catsClient
         self.nativeAdFactory = .live
-        let deviceSecurityClient = DeviceSecurityClient.live(
-            networkClient: networkClient,
-            secureStorageClient: secureStorageClient
-        )
         self.deviceSecurityClient = deviceSecurityClient
         self.profileClient = ProfileClient.live(networkClient: networkClient)
         self.pixelRewardClient = PixelRewardClient.live(
@@ -85,9 +93,8 @@ struct HomeExampleApp: App {
             Group {
                 if isAuthenticated {
                     HomeRootView(
-                        catsClient: .test,
+                        catsClient: catsClient,
                         profileClient: profileClient,
-                        mediaClient: .test,
                         adsClient: adsClient,
                         pixelRewardClient: pixelRewardClient
                     )
