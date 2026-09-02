@@ -7,38 +7,34 @@
 
 import Foundation
 
-import CoreNetworkInterface
-
-public enum CatsClientError: Error {
-    case createCatNotImplemented
-    case updateCatProfileNotImplemented
-    case deleteCatNotImplemented
-}
-
 public struct CatsClient: Sendable {
-    public typealias UUID = String
-    public typealias FileName = String
-    public typealias ImageURL = String
-    
-    public let networkClient: NetworkClient?
-    
-    public var fetchCats: @Sendable (UUID) async throws -> [Cat]
-    public var createCat: @Sendable (CreateCatRequestDTO) async throws -> Cat
-    public var updateCatProfile: @Sendable (String, UpdateCatProfileRequestDTO) async throws -> Cat
-    public var fetchCatFeed: @Sendable (UUID) async throws -> CatFeed
-    public var deleteCat: @Sendable (String) async throws -> Void
-    public var fetchPixelCat: @Sendable (FileName) async throws -> ImageURL
+    public var fetchCats: @Sendable () async throws -> [Cat]
+    public var createCat: @Sendable (_ request: CreateCatRequestDTO) async throws -> Cat
+    public var updateCatProfile: @Sendable (
+        _ id: String,
+        _ request: UpdateCatProfileRequestDTO
+    ) async throws -> Cat
+    public var fetchCatFeed: @Sendable (
+        _ id: String,
+        _ cursor: String?
+    ) async throws -> CatFeed
+    public var deleteCat: @Sendable (_ id: String) async throws -> Void
+    public var fetchPixelCat: @Sendable (_ request: PixelCatRequestDTO) async throws -> PixelCat
     
     public init(
-        networkClient: NetworkClient?,
-        fetchCats: @escaping @Sendable (UUID) async throws -> [Cat],
-        createCat: @escaping @Sendable (CreateCatRequestDTO) async throws -> Cat,
-        updateCatProfile: @escaping @Sendable (String, UpdateCatProfileRequestDTO) async throws -> Cat,
-        fetchCatFeed: @escaping @Sendable (UUID) async throws -> CatFeed,
-        deleteCat: @escaping @Sendable (String) async throws -> Void,
-        fetchPixelCat: @escaping @Sendable (FileName) async throws -> ImageURL
+        fetchCats: @escaping @Sendable () async throws -> [Cat],
+        createCat: @escaping @Sendable (_ request: CreateCatRequestDTO) async throws -> Cat,
+        updateCatProfile: @escaping @Sendable (
+            _ id: String,
+            _ request: UpdateCatProfileRequestDTO
+        ) async throws -> Cat,
+        fetchCatFeed: @escaping @Sendable (
+            _ id: String,
+            _ cursor: String?
+        ) async throws -> CatFeed,
+        deleteCat: @escaping @Sendable (_ id: String) async throws -> Void,
+        fetchPixelCat: @escaping @Sendable (_ request: PixelCatRequestDTO) async throws -> PixelCat
     ) {
-        self.networkClient = networkClient
         self.fetchCats = fetchCats
         self.createCat = createCat
         self.updateCatProfile = updateCatProfile

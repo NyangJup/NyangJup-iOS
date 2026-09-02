@@ -10,8 +10,7 @@ import DomainMediaInterface
 
 extension CatsClient {
     public static let test = Self(
-        networkClient: nil,
-        fetchCats: { id in
+        fetchCats: {
             return [
                 Cat(
                     id: "1",
@@ -62,13 +61,15 @@ extension CatsClient {
                 imageURL: imageURL
             )
         },
-        fetchCatFeed: { id in
+        fetchCatFeed: { id, cursor in
             CatFeed(
-                id: "1",
-                name: "꾸꾸",
-                place: "구로구",
-                thumbnailURL: "https://picsum.photos/200/300",
-                feed: [
+                cat: Cat(
+                    id: id,
+                    name: "꾸꾸",
+                    place: "구로구",
+                    imageURL: "https://picsum.photos/200/300"
+                ),
+                items: cursor == nil ? [
                     Media(
                         id: "1",
                         catId: id,
@@ -150,13 +151,17 @@ extension CatsClient {
                         mediaType: .video,
                         mediaURL: "https://media.w3.org/2010/05/bunny/trailer.mp4"
                     )
-                ]
+                ] : [],
+                nextCursor: cursor == nil ? "feed-page-2" : nil
             )
         },
         deleteCat: { _ in
         },
-        fetchPixelCat: { _ in
-            ""
+        fetchPixelCat: { request in
+            PixelCat(
+                fileName: "generated/pixel/cat.png",
+                imageURL: "https://example.com/\(request.fileName)/pixel.png"
+            )
         }
     )
 }
