@@ -34,35 +34,54 @@ struct RelayCatCell: View {
 
     var body: some View {
         ZStack {
-            mediaContent
-            catInfo
+            switch relayCat.mediaType {
+            case .photo:
+                VStack(spacing: 0) {
+                    photoContent
+
+                    catInfo
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+            case .video:
+                ZStack(alignment: .bottomLeading) {
+                    videoContent
+                    catInfo
+                }
+            }
+
             heartButton
         }
         .frame(width: size.width, height: size.height)
     }
 
     @ViewBuilder
-    private var mediaContent: some View {
+    private var photoContent: some View {
         if let url = URL(string: relayCat.mediaURL) {
-            switch relayCat.mediaType {
-            case .photo:
-                NZAsyncImage(
-                    url: url,
-                    targetSize: size
-                ) { image in
-                    image
-                        .resizable()
-                        .scaledToFit()
-                }
-                .frame(maxHeight: .infinity, alignment: .top)
-                .padding(.top, Constant.photoTopPadding)
-
-            case .video:
-                RelayVideo(
-                    url: url,
-                    isActive: isActive
-                )
+            NZAsyncImage(
+                url: url,
+                targetSize: size
+            ) { image, _ in
+                image
+                    .resizable()
+                    .scaledToFit()
             }
+            .frame(
+                maxWidth: .infinity,
+                maxHeight: .infinity,
+                alignment: .center
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var videoContent: some View {
+        if let url = URL(string: relayCat.mediaURL) {
+            RelayVideo(
+                url: url,
+                isActive: isActive
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -71,8 +90,6 @@ struct RelayCatCell: View {
             alignment: .leading,
             spacing: Constant.contentSpacing
         ) {
-            Spacer()
-
             HStack {
                 catAvatar
 
@@ -88,6 +105,17 @@ struct RelayCatCell: View {
                 Spacer()
             }
 
+            if let place = relayCat.place, !place.isEmpty {
+                Label(place, systemImage: Constant.placeImageName)
+                    .font(
+                        .system(
+                            size: Constant.placeFontSize,
+                            weight: .medium
+                        )
+                    )
+                    .foregroundStyle(.white)
+            }
+
             Text(relayCat.comment)
                 .font(
                     .system(
@@ -97,6 +125,7 @@ struct RelayCatCell: View {
                 )
                 .foregroundStyle(.white)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Constant.horizontalPadding)
         .padding(.bottom, Constant.infoBottomPadding)
     }
@@ -109,14 +138,21 @@ struct RelayCatCell: View {
                 targetSize: CGSize(
                     width: Constant.avatarImageSize,
                     height: Constant.avatarImageSize
-                )
-            ) { image in
-                CatAvatarView(
-                    image: image,
-                    backgroundSize: Constant.avatarBackgroundSize,
-                    imageSize: Constant.avatarImageSize
-                )
-            }
+                ), content: { image in
+                       CatAvatarView(
+                           image: image,
+                           backgroundSize: Constant.avatarBackgroundSize,
+                           imageSize: Constant.avatarImageSize
+                       )
+                }, placeholder: {
+                    Circle()
+                        .fill(.gray.opacity(0.8))
+                        .frame(
+                            width: Constant.avatarBackgroundSize,
+                            height: Constant.avatarBackgroundSize
+                        )
+                }
+            )
         }
     }
 
@@ -174,6 +210,8 @@ private extension RelayCatCell {
         static let avatarImageSize: CGFloat = 26
         static let nameFontSize: CGFloat = 15
         static let memoFontSize: CGFloat = 13
+        static let placeFontSize: CGFloat = 12
+        static let placeImageName = "mappin.and.ellipse"
 
         static let likedImageName = "heart.fill"
         static let unlikedImageName = "heart"

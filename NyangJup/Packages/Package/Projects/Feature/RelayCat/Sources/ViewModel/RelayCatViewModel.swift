@@ -408,17 +408,27 @@ final class RelayCatViewModel: NZViewModel {
             return
         }
 
+        guard media.processingStatus == .ready,
+              let catId = media.catId,
+              let thumbnailURL = media.thumbnailURL,
+              let mediaURL = media.mediaURL else {
+            state.isCameraPresented = false
+            state.editingMediaId = nil
+            return
+        }
+
         let previousItem = state.items[index]
         let updatedItem = RelayCat(
             mediaId: media.id,
-            catId: media.catId,
+            catId: catId,
             userId: media.userId,
             comment: media.comment,
-            thumbnailURL: media.thumbnailURL,
+            place: previousItem.place,
+            thumbnailURL: thumbnailURL,
             name: previousItem.name,
             catImageURL: previousItem.catImageURL,
             mediaType: media.mediaType,
-            mediaURL: media.mediaURL,
+            mediaURL: mediaURL,
             isLiked: previousItem.isLiked
         )
 

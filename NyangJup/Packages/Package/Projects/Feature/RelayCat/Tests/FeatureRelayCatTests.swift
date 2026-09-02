@@ -247,7 +247,7 @@ func viewModelFetchesRelayCatsOnAppear() async {
     var mediaClient = MediaClient.test
     mediaClient.fetchRelayCats = { request in
         await recorder.record(request)
-        return FetchRelayCatsResponseDTO(
+        return RelayPage(
             items: [fetchedRelayCat, serverAnchorRelayCat],
             anchorIndex: 1,
             previousCursor: "previous-cursor",
@@ -296,7 +296,7 @@ func viewModelFetchesPreviousAndNextPagesWithoutDuplicates() async {
         await recorder.record(request)
 
         if request.beforeCount == 5, request.afterCount == 0 {
-            return FetchRelayCatsResponseDTO(
+            return RelayPage(
                 items: [previous, first],
                 anchorIndex: 1,
                 previousCursor: nil,
@@ -305,7 +305,7 @@ func viewModelFetchesPreviousAndNextPagesWithoutDuplicates() async {
         }
 
         if request.beforeCount == 0, request.afterCount == 5 {
-            return FetchRelayCatsResponseDTO(
+            return RelayPage(
                 items: [last, next],
                 anchorIndex: 0,
                 previousCursor: "unused",
@@ -313,7 +313,7 @@ func viewModelFetchesPreviousAndNextPagesWithoutDuplicates() async {
             )
         }
 
-        return FetchRelayCatsResponseDTO(
+        return RelayPage(
             items: [first, last],
             anchorIndex: 0,
             previousCursor: "previous-cursor",
@@ -373,7 +373,7 @@ func nativeAdsAreInsertedAfterEveryThirdItemFromAnchor() async {
     let recorder = NativeAdLoadRecorder(batches: [ads])
     var mediaClient = MediaClient.test
     mediaClient.fetchRelayCats = { _ in
-        FetchRelayCatsResponseDTO(
+        RelayPage(
             items: items,
             anchorIndex: 0,
             previousCursor: nil,
@@ -417,7 +417,7 @@ func nextPageBoundaryFiltersDuplicateContentAndDoesNotDuplicateAdSlots() async {
     var mediaClient = MediaClient.test
     mediaClient.fetchRelayCats = { request in
         if request.beforeCount == 0, request.afterCount == 5 {
-            return FetchRelayCatsResponseDTO(
+            return RelayPage(
                 items: nextItems,
                 anchorIndex: 0,
                 previousCursor: nil,
@@ -425,7 +425,7 @@ func nextPageBoundaryFiltersDuplicateContentAndDoesNotDuplicateAdSlots() async {
             )
         }
 
-        return FetchRelayCatsResponseDTO(
+        return RelayPage(
             items: initialItems,
             anchorIndex: 0,
             previousCursor: nil,
@@ -529,7 +529,7 @@ func viewModelPreloadsAdjacentPhotosAfterInitialResponse() async {
     }
     var mediaClient = MediaClient.test
     mediaClient.fetchRelayCats = { _ in
-        FetchRelayCatsResponseDTO(
+        RelayPage(
             items: [previous, anchor, next],
             anchorIndex: 1,
             previousCursor: nil,
@@ -602,7 +602,7 @@ func viewModelDoesNotPreloadAdjacentVideo() async {
     }
     var mediaClient = MediaClient.test
     mediaClient.fetchRelayCats = { _ in
-        FetchRelayCatsResponseDTO(
+        RelayPage(
             items: [],
             anchorIndex: 0,
             previousCursor: nil,
@@ -657,7 +657,7 @@ func viewModelPreloadsPhotosAddedByPreviousAndNextPages() async {
     var mediaClient = MediaClient.test
     mediaClient.fetchRelayCats = { request in
         if request.beforeCount == 5, request.afterCount == 0 {
-            return FetchRelayCatsResponseDTO(
+            return RelayPage(
                 items: [newPrevious, first],
                 anchorIndex: 1,
                 previousCursor: nil,
@@ -666,7 +666,7 @@ func viewModelPreloadsPhotosAddedByPreviousAndNextPages() async {
         }
 
         if request.beforeCount == 0, request.afterCount == 5 {
-            return FetchRelayCatsResponseDTO(
+            return RelayPage(
                 items: [last, newNext],
                 anchorIndex: 0,
                 previousCursor: "unused",
@@ -674,7 +674,7 @@ func viewModelPreloadsPhotosAddedByPreviousAndNextPages() async {
             )
         }
 
-        return FetchRelayCatsResponseDTO(
+        return RelayPage(
             items: [],
             anchorIndex: 0,
             previousCursor: nil,
