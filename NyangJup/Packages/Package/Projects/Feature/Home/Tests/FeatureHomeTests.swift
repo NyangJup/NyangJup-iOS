@@ -172,6 +172,7 @@ private actor PixelRewardRecorder {
     private var balances: [Result<Int64, TestError>]
     private var sessions: [PixelRewardAdSession]
     private var claims: [Result<Int64, TestError>]
+    private var claimErrors: [PixelRewardError]
 
     private(set) var fetchCount = 0
     private(set) var createCount = 0
@@ -180,11 +181,13 @@ private actor PixelRewardRecorder {
     init(
         balances: [Result<Int64, TestError>],
         sessions: [PixelRewardAdSession] = [],
-        claims: [Result<Int64, TestError>] = []
+        claims: [Result<Int64, TestError>] = [],
+        claimErrors: [PixelRewardError] = []
     ) {
         self.balances = balances
         self.sessions = sessions
         self.claims = claims
+        self.claimErrors = claimErrors
     }
 
     nonisolated var client: PixelRewardClient {
@@ -207,6 +210,9 @@ private actor PixelRewardRecorder {
 
     private func claimAdReward(sessionId: String) throws -> PixelRewardBalance {
         claimedSessionIDs.append(sessionId)
+        if !claimErrors.isEmpty {
+            throw claimErrors.removeFirst()
+        }
         return PixelRewardBalance(balance: try claims.removeFirst().get())
     }
 }
@@ -720,6 +726,50 @@ func failedClaimRetriesWithoutShowingRewardAdAgain() async {
     #expect(await adRecorder.showCount == 1)
     #expect(await pixelRewards.createCount == 1)
     #expect(await pixelRewards.claimedSessionIDs == ["claim-session", "claim-session"])
+}
+
+@MainActor
+@Test
+func sessionNotFoundClaimCreatesNewSessionOnNextAttempt() async {
+    let adRecorder = RewardAdRecorder()
+    let pixelRewards = PixelRewardRecorder(
+        balances: [.success(0), .success(0)],
+        sessions: [
+            makeAdSession(id: "missing-session"),
+            makeAdSession(id: "new-session")
+        ],
+        claims: [.success(1)],
+        claimErrors: [.sessionNotFound]
+    )
+    let adsClient = AdsClient(
+        setup: {},
+        loadRewardAds: {},
+        showRewardAds: {
+            await adRecorder.recordShow()
+            return true
+        },
+        loadNativeAds: { _ in [] }
+    )
+    let viewModel = HomeViewModel(
+        catsClient: .test,
+        profileClient: .test,
+        adsClient: adsClient,
+        pixelRewardClient: pixelRewards.client,
+        coordinator: HomeCoordinatorSpy()
+    )
+
+    viewModel.send(.view(.plusButtonTapped))
+    await waitUntil { !viewModel.state.isRewardFlowInProgress }
+
+    #expect(viewModel.state.pendingAdSession == nil)
+    #expect(!viewModel.state.hasEarnedPendingAdReward)
+
+    viewModel.send(.view(.plusButtonTapped))
+    await waitUntil { viewModel.state.isMakeCatPresented }
+
+    #expect(await adRecorder.showCount == 2)
+    #expect(await pixelRewards.createCount == 2)
+    #expect(await pixelRewards.claimedSessionIDs == ["missing-session", "new-session"])
 }
 
 @MainActor

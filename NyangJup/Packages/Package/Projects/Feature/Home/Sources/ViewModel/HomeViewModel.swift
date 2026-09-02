@@ -240,6 +240,8 @@ public final class HomeViewModel: NZViewModel {
 
                 guard claimedBalance.balance > 0 else { return }
                 presentCatRegistration()
+            } catch PixelRewardError.sessionNotFound {
+                clearPendingAdSession()
             } catch {
 
             }
