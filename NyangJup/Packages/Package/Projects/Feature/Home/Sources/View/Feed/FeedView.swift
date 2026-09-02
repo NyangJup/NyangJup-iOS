@@ -238,3 +238,4 @@ private extension FeedView {
         static let bottomButtonBottomPadding: CGFloat = 48
     }
 }
+        .loadingOverlay(isPresented: viewModel.state.isLoading)

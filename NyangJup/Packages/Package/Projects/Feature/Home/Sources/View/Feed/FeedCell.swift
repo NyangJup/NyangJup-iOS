@@ -18,7 +18,7 @@ struct FeedCell: View {
 
     var body: some View {
         Group {
-            if let url = URL(string: media.thumbnailURL) {
+            if let url = media.thumbnailURL.flatMap(URL.init(string:)) {
                 NZAsyncImage(
                     url: url,
                     targetSize: targetSize
