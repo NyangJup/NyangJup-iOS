@@ -130,6 +130,12 @@ private extension GenerateCatViewModel {
                         )
                     )
 
+                    try await mediaClient.uploadToPresignedURL(
+                        urlResponse,
+                        .data(state.photoData),
+                        .photo
+                    )
+
                     let pixelCat = try await catsClient.fetchPixelCat(
                         PixelCatRequestDTO(fileName: urlResponse.fileName)
                     )

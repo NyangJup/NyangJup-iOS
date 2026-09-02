@@ -77,6 +77,14 @@ public struct CaptureView: View {
         } message: {
             Text(Constant.cameraPermissionAlertMessage)
         }
+        .alert(
+            Constant.uploadFailureAlertTitle,
+            isPresented: $viewModel.state.isUploadFailureAlertPresented
+        ) {
+            Button(Constant.confirmTitle, role: .cancel) {}
+        } message: {
+            Text(Constant.uploadFailureAlertMessage)
+        }
         .loadingOverlay(isPresented: viewModel.state.showsLoadingOverlay)
     }
 }
@@ -254,5 +262,8 @@ private extension CaptureView {
         static let cameraPermissionAlertMessage = "사진과 영상을 촬영하려면 설정에서 카메라 권한을 허용해 주세요."
         static let cancelTitle = "취소"
         static let openSettingsTitle = "설정으로 이동"
+        static let uploadFailureAlertTitle = "업로드에 실패했어요"
+        static let uploadFailureAlertMessage = "잠시 후 다시 시도해 주세요."
+        static let confirmTitle = "확인"
     }
 }

@@ -10,6 +10,7 @@ import Testing
 
 import DomainCatsInterface
 import DomainCatsTesting
+import DomainMediaInterface
 import DomainMediaTesting
 @testable import FeatureCatRegistration
 
@@ -17,8 +18,19 @@ import DomainMediaTesting
 @Test
 func generatedPixelFileNameIsUsedToCreateCat() async {
     let recorder = CatRegistrationTestSupport.RequestRecorder()
+    let defaultMediaClient = MediaClient.test
+    var mediaClient = defaultMediaClient
+    mediaClient.fetchUploadURL = { request in
+        await recorder.recordEvent("fetchUploadURL")
+        return try await defaultMediaClient.fetchUploadURL(request)
+    }
+    mediaClient.uploadToPresignedURL = { uploadURL, source, mediaType in
+        await recorder.recordEvent("putOriginal")
+        try await defaultMediaClient.uploadToPresignedURL(uploadURL, source, mediaType)
+    }
     var catsClient = CatsClient.test
     catsClient.fetchPixelCat = { request in
+        await recorder.recordEvent("fetchPixelCat")
         await recorder.recordPixelRequest(request)
         return PixelCat(
             fileName: "generated/pixel/cat.png",
@@ -37,7 +49,7 @@ func generatedPixelFileNameIsUsedToCreateCat() async {
     let viewModel = GenerateCatViewModel(
         photoData: Data(),
         catsClient: catsClient,
-        mediaClient: .test,
+        mediaClient: mediaClient,
         onComplete: { _ in },
         onError: {}
     )
@@ -48,6 +60,7 @@ func generatedPixelFileNameIsUsedToCreateCat() async {
     }
 
     #expect(await recorder.pixelRequest?.fileName == "nyangjup-media-common.jpg")
+    #expect(await recorder.events == ["fetchUploadURL", "putOriginal", "fetchPixelCat"])
     #expect(viewModel.state.pixelImageURL?.absoluteString == "https://example.com/generated-cat.png")
     #expect(viewModel.state.isGenerated)
 
@@ -120,6 +133,11 @@ private enum CatRegistrationTestSupport {
     actor RequestRecorder {
         private(set) var pixelRequest: PixelCatRequestDTO?
         private(set) var createRequest: CreateCatRequestDTO?
+        private(set) var events: [String] = []
+
+        func recordEvent(_ event: String) {
+            events.append(event)
+        }
 
         func recordPixelRequest(_ request: PixelCatRequestDTO) {
             pixelRequest = request
