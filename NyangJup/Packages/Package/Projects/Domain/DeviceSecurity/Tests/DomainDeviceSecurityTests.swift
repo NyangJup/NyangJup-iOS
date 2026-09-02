@@ -70,6 +70,95 @@ func invalidExistingKeyIsReplacedAndRegistered() async throws {
     ])
 }
 
+@Test
+func canonicalClientDataHashMatchesServerContract() {
+    let hash = AppAttestCanonicalizer.clientDataHash(
+        challenge: Data([1, 2, 3]),
+        method: .post,
+        path: "/api/v1/cats/pixel",
+        body: Data(#"{"fileName":"a.jpg"}"#.utf8)
+    )
+
+    #expect(hash.hexString == "e41d5df0114127114183d857ef8709204e1011537d8a99d49bcf6f8d2120a464")
+}
+
+@Test
+func protectedRequestUsesAuthenticatedChallengeAndReturnsAssertion() async throws {
+    let storage = InMemorySecureStorage(values: [.appAttestKeyId: "stored-key"])
+    let network = ProtectedRequestNetworkClient()
+    let provider = RecordingAssertionProvider()
+    let client = DeviceSecurityClient.live(
+        networkClient: NetworkClient(provider: network),
+        secureStorageClient: storage.client,
+        appAttestationProvider: provider.client
+    )
+
+    let sessionAssertion = try await client.generateAssertion(
+        .adSession,
+        AssertionEndpoint(path: "/pixel-rewards/ad-sessions")
+    )
+    let rewardAssertion = try await client.generateAssertion(
+        .adReward,
+        AssertionEndpoint(path: "/pixel-rewards/ad-sessions/session-id/claim")
+    )
+
+    #expect(network.purposes == [.adSession, .adReward])
+    #expect(network.authorizationRequirements == [true, true])
+    #expect(provider.keyIds == ["stored-key", "stored-key"])
+    #expect(sessionAssertion == AppAttestAssertion(
+        keyId: "stored-key",
+        challengeId: "challenge-id",
+        assertion: "Ag=="
+    ))
+    #expect(rewardAssertion.challengeId == "challenge-id")
+    #expect(provider.hashes[0] == AppAttestCanonicalizer.clientDataHash(
+        challenge: Data([251, 255]),
+        method: .post,
+        path: "/api/v1/pixel-rewards/ad-sessions",
+        body: Data()
+    ))
+}
+
+@Test
+func protectedEndpointPreservesRequestAndAddsAssertionHeaders() {
+    let endpoint = AssertionEndpoint(
+        path: "/pixel-rewards/ad-sessions",
+        headers: ["X-Existing": "value"]
+    )
+    let protectedEndpoint = AppAttestProtectedEndpoint(
+        base: endpoint,
+        assertion: AppAttestAssertion(
+            keyId: "key-id",
+            challengeId: "challenge-id",
+            assertion: "assertion"
+        )
+    )
+
+    #expect(protectedEndpoint.baseURL == endpoint.baseURL)
+    #expect(protectedEndpoint.path == endpoint.path)
+    #expect(protectedEndpoint.method == endpoint.method)
+    #expect(protectedEndpoint.query == endpoint.query)
+    #expect(protectedEndpoint.body == nil)
+    #expect(protectedEndpoint.requiresAuthorization == endpoint.requiresAuthorization)
+    #expect(protectedEndpoint.headers == [
+        "X-Existing": "value",
+        "X-App-Attest-Key-Id": "key-id",
+        "X-App-Attest-Challenge-Id": "challenge-id",
+        "X-App-Attest-Assertion": "assertion"
+    ])
+}
+
+private struct AssertionEndpoint: Endpoint {
+    let path: String
+    var headers: [String: String]? = nil
+
+    let baseURL = URL(string: "https://api.nyangjup.store/api/v1")!
+    let method = HTTPMethod.post
+    let query: [URLQueryItem]? = nil
+    let body: Encodable? = nil
+    let requiresAuthorization = true
+}
+
 private final class InMemorySecureStorage: @unchecked Sendable {
     private var values: [String: String]
     private(set) var deletedKeys: [String] = []
@@ -128,6 +217,46 @@ private final class RecordingNetworkClient: NetworkClientProtocol, @unchecked Se
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(T.self, from: Data(json.utf8))
+    }
+}
+
+private final class ProtectedRequestNetworkClient: NetworkClientProtocol, @unchecked Sendable {
+    private(set) var purposes: [AppAttestPurpose] = []
+    private(set) var authorizationRequirements: [Bool] = []
+
+    func request<T: Decodable>(_ endpoint: any Endpoint) async throws -> T {
+        authorizationRequirements.append(endpoint.requiresAuthorization)
+        if let request = endpoint.body as? AppAttestChallengeRequest {
+            purposes.append(request.purpose)
+        }
+        let json = """
+        {"challengeId":"challenge-id","challenge":"-_8","expiresAt":"2026-09-01T00:00:00Z"}
+        """
+        return try JSONDecoder().decode(T.self, from: Data(json.utf8))
+    }
+}
+
+private final class RecordingAssertionProvider: @unchecked Sendable {
+    private(set) var keyIds: [String] = []
+    private(set) var hashes: [Data] = []
+
+    var client: AppAttestationProvider {
+        AppAttestationProvider(
+            isSupported: { true },
+            generateKey: { "unused" },
+            attestKey: { _, _ in Data() },
+            generateAssertion: { [weak self] keyId, hash in
+                self?.keyIds.append(keyId)
+                self?.hashes.append(hash)
+                return Data([2])
+            }
+        )
+    }
+}
+
+private extension Data {
+    var hexString: String {
+        map { String(format: "%02x", $0) }.joined()
     }
 }
 

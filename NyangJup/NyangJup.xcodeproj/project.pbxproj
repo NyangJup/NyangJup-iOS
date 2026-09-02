@@ -17,6 +17,7 @@
 		CA8D00013000000000000001 /* DomainDeviceSecurity in Frameworks */ = {isa = PBXBuildFile; productRef = CA8D00023000000000000001 /* DomainDeviceSecurity */; };
 		CA8D00033000000000000001 /* CoreNetwork in Frameworks */ = {isa = PBXBuildFile; productRef = CA8D00043000000000000001 /* CoreNetwork */; };
 		CA8D00053000000000000001 /* CoreSecureStorage in Frameworks */ = {isa = PBXBuildFile; productRef = CA8D00063000000000000001 /* CoreSecureStorage */; };
+		CA8D00073000000000000001 /* DomainPixelReward in Frameworks */ = {isa = PBXBuildFile; productRef = CA8D00083000000000000001 /* DomainPixelReward */; };
 		CAE6840A2FF3000000F5116A /* FeatureHome in Frameworks */ = {isa = PBXBuildFile; productRef = CAE684092FF3000000F5116A /* FeatureHome */; };
 		CAE6840E2FF3000000F5116A /* SharedDesign in Frameworks */ = {isa = PBXBuildFile; productRef = CAE6840F2FF3000000F5116A /* SharedDesign */; };
 		CAE684112FF3000000F5116A /* CoreImageLoader in Frameworks */ = {isa = PBXBuildFile; productRef = CAE684102FF3000000F5116A /* CoreImageLoader */; };
@@ -85,6 +86,7 @@
 				CAE6840A2FF3000000F5116A /* FeatureHome in Frameworks */,
 				CA6BE53B2FF7A59100458997 /* DomainProfile in Frameworks */,
 				CA8D00013000000000000001 /* DomainDeviceSecurity in Frameworks */,
+				CA8D00073000000000000001 /* DomainPixelReward in Frameworks */,
 				CA8D00033000000000000001 /* CoreNetwork in Frameworks */,
 				CA8D00053000000000000001 /* CoreSecureStorage in Frameworks */,
 				CA6BE53D2FF7A59100458997 /* CoreCamera in Frameworks */,
@@ -194,6 +196,7 @@
 				CA6BE5382FF7A59100458997 /* DomainCats */,
 				CA6BE53A2FF7A59100458997 /* DomainProfile */,
 				CA8D00023000000000000001 /* DomainDeviceSecurity */,
+				CA8D00083000000000000001 /* DomainPixelReward */,
 				CA8D00043000000000000001 /* CoreNetwork */,
 				CA8D00063000000000000001 /* CoreSecureStorage */,
 				CA6BE53C2FF7A59100458997 /* CoreCamera */,
@@ -627,6 +630,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = CAE6840B2FF3000000F5116A /* XCLocalSwiftPackageReference "Packages/Package" */;
 			productName = CoreSecureStorage;
+		};
+		CA8D00083000000000000001 /* DomainPixelReward */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CAE6840B2FF3000000F5116A /* XCLocalSwiftPackageReference "Packages/Package" */;
+			productName = DomainPixelReward;
 		};
 		CAE684092FF3000000F5116A /* FeatureHome */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -1,3 +1,10 @@
+//
+//  DeviceSecurityClient+Live.swift
+//  NJPackage
+//
+//  Created by 정지훈 on 9/1/26.
+//
+
 import CryptoKit
 import Foundation
 
@@ -11,33 +18,49 @@ public extension DeviceSecurityClient {
         secureStorageClient: SecureStorageClient,
         appAttestationProvider: AppAttestationProvider = .live
     ) -> Self {
-        Self {
-            guard appAttestationProvider.isSupported() else {
-                throw DeviceSecurityError.appAttestUnsupported
-            }
+        Self(
+            authenticate: {
+                guard appAttestationProvider.isSupported() else {
+                    throw DeviceSecurityError.appAttestUnsupported
+                }
 
-            let challenge: AppAttestChallengeResponse = try await networkClient.request(
-                DeviceSecurityEndpoint.issueChallenge(
-                    AppAttestChallengeRequest(purpose: .attestation)
+                let challenge: AppAttestChallengeResponse = try await networkClient.request(
+                    DeviceSecurityEndpoint.issueChallenge(
+                        AppAttestChallengeRequest(purpose: .attestation)
+                    )   
                 )
-            )
-            let clientDataHash = Data(try SHA256.hash(data: challenge.challengeData))
+                let challengeData = try AppAttestChallengeDecoder.decode(challenge.challenge)
+                let clientDataHash = Data(SHA256.hash(data: challengeData))
 
-            let response: AttestationRegistrationResponse
-            if let keyId = try secureStorageClient.read(.appAttestKeyId) {
-                do {
-                    let assertion = try await appAttestationProvider.generateAssertion(keyId, clientDataHash)
-                    response = try await networkClient.request(
-                        DeviceSecurityEndpoint.registerCompleted(
-                            CompletedAppAttestationRequest(
-                                challengeId: challenge.challengeId,
-                                keyId: keyId,
-                                assertion: assertion.base64EncodedString()
+                let response: AttestationRegistrationResponse
+                if let keyId = try secureStorageClient.read(.appAttestKeyId) {
+                    do {
+                        let assertion = try await appAttestationProvider.generateAssertion(keyId, clientDataHash)
+                        response = try await networkClient.request(
+                            DeviceSecurityEndpoint.registerCompleted(
+                                CompletedAppAttestationRequest(
+                                    challengeId: challenge.challengeId,
+                                    keyId: keyId,
+                                    assertion: assertion.base64EncodedString()
+                                )
                             )
                         )
-                    )
-                } catch DeviceSecurityError.invalidAppAttestKey {
-                    try secureStorageClient.delete(.appAttestKeyId)
+                    } catch DeviceSecurityError.invalidAppAttestKey {
+                        try secureStorageClient.delete(.appAttestKeyId)
+                        let keyId = try await appAttestationProvider.generateKey()
+                        let attestation = try await appAttestationProvider.attestKey(keyId, clientDataHash)
+                        response = try await networkClient.request(
+                            DeviceSecurityEndpoint.registerNew(
+                                NewAppAttestationRequest(
+                                    challengeId: challenge.challengeId,
+                                    keyId: keyId,
+                                    attestationObject: attestation.base64EncodedString()
+                                )
+                            )
+                        )
+                        try secureStorageClient.save(keyId, .appAttestKeyId)
+                    }
+                } else {
                     let keyId = try await appAttestationProvider.generateKey()
                     let attestation = try await appAttestationProvider.attestKey(keyId, clientDataHash)
                     response = try await networkClient.request(
@@ -51,38 +74,35 @@ public extension DeviceSecurityClient {
                     )
                     try secureStorageClient.save(keyId, .appAttestKeyId)
                 }
-            } else {
-                let keyId = try await appAttestationProvider.generateKey()
-                let attestation = try await appAttestationProvider.attestKey(keyId, clientDataHash)
-                response = try await networkClient.request(
-                    DeviceSecurityEndpoint.registerNew(
-                        NewAppAttestationRequest(
-                            challengeId: challenge.challengeId,
-                            keyId: keyId,
-                            attestationObject: attestation.base64EncodedString()
-                        )
+
+                try secureStorageClient.save(response.accessToken, .accessToken)
+            },
+            generateAssertion: { purpose, endpoint in
+                guard appAttestationProvider.isSupported() else {
+                    throw DeviceSecurityError.appAttestUnsupported
+                }
+                guard let keyId = try secureStorageClient.read(.appAttestKeyId) else {
+                    throw DeviceSecurityError.invalidAppAttestKey
+                }
+
+                let challenge: AppAttestChallengeResponse = try await networkClient.request(
+                    DeviceSecurityEndpoint.issueChallenge(
+                        AppAttestChallengeRequest(purpose: purpose)
                     )
                 )
-                try secureStorageClient.save(keyId, .appAttestKeyId)
+                let challengeData = try AppAttestChallengeDecoder.decode(challenge.challenge)
+                let clientDataHash = try AppAttestCanonicalizer.clientDataHash(
+                    challenge: challengeData,
+                    endpoint: endpoint
+                )
+                let assertion = try await appAttestationProvider.generateAssertion(keyId, clientDataHash)
+
+                return AppAttestAssertion(
+                    keyId: keyId,
+                    challengeId: challenge.challengeId,
+                    assertion: assertion.base64EncodedString()
+                )
             }
-
-            try secureStorageClient.save(response.accessToken, .accessToken)
-        }
-    }
-}
-
-private extension AppAttestChallengeResponse {
-    var challengeData: Data {
-        get throws {
-            let base64 = challenge
-                .replacingOccurrences(of: "-", with: "+")
-                .replacingOccurrences(of: "_", with: "/")
-            let padded = base64 + String(repeating: "=", count: (4 - base64.count % 4) % 4)
-
-            guard let data = Data(base64Encoded: padded) else {
-                throw DeviceSecurityError.invalidChallenge
-            }
-            return data
-        }
+        )
     }
 }

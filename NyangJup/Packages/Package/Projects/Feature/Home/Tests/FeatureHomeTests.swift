@@ -15,6 +15,8 @@ import DomainCatsInterface
 import DomainCatsTesting
 import DomainMediaInterface
 import DomainMediaTesting
+import DomainPixelRewardInterface
+import DomainPixelRewardTesting
 import DomainProfileTesting
 import FeatureCommonInterface
 import FeatureHomeInterface
@@ -102,13 +104,14 @@ private final class CatOutputSpy {
     }
 }
 
-private enum TestError: Error {
+private enum TestError: Error, Sendable {
     case createCatFailed
     case rewardAdFailed
     case fetchFeedsFailed
     case updateCatProfileFailed
     case deleteCatFailed
     case imageLoadingFailed
+    case pixelRewardFailed
 }
 
 private actor RewardAdRecorder {
@@ -116,6 +119,101 @@ private actor RewardAdRecorder {
 
     func recordShow() {
         showCount += 1
+    }
+}
+
+private actor RewardAdSequence {
+    private var results: [Bool]
+    private(set) var showCount = 0
+
+    init(results: [Bool]) {
+        self.results = results
+    }
+
+    func show() -> Bool {
+        showCount += 1
+        return results.removeFirst()
+    }
+}
+
+private actor PixelRewardBalanceGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private(set) var fetchCount = 0
+
+    var isWaiting: Bool {
+        continuation != nil
+    }
+
+    nonisolated var client: PixelRewardClient {
+        PixelRewardClient(
+            fetchBalance: {
+                await self.wait()
+                return PixelRewardBalance(balance: 1)
+            },
+            createAdSession: { makeAdSession(id: "unused") },
+            claimAdReward: { _ in PixelRewardBalance(balance: 1) }
+        )
+    }
+
+    private func wait() async {
+        fetchCount += 1
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func resume() {
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
+private actor PixelRewardRecorder {
+    private var balances: [Result<Int64, TestError>]
+    private var sessions: [PixelRewardAdSession]
+    private var claims: [Result<Int64, TestError>]
+    private var claimErrors: [PixelRewardError]
+
+    private(set) var fetchCount = 0
+    private(set) var createCount = 0
+    private(set) var claimedSessionIDs: [String] = []
+
+    init(
+        balances: [Result<Int64, TestError>],
+        sessions: [PixelRewardAdSession] = [],
+        claims: [Result<Int64, TestError>] = [],
+        claimErrors: [PixelRewardError] = []
+    ) {
+        self.balances = balances
+        self.sessions = sessions
+        self.claims = claims
+        self.claimErrors = claimErrors
+    }
+
+    nonisolated var client: PixelRewardClient {
+        PixelRewardClient(
+            fetchBalance: { try await self.fetchBalance() },
+            createAdSession: { try await self.createAdSession() },
+            claimAdReward: { try await self.claimAdReward(sessionId: $0) }
+        )
+    }
+
+    private func fetchBalance() throws -> PixelRewardBalance {
+        fetchCount += 1
+        return PixelRewardBalance(balance: try balances.removeFirst().get())
+    }
+
+    private func createAdSession() throws -> PixelRewardAdSession {
+        createCount += 1
+        return sessions.removeFirst()
+    }
+
+    private func claimAdReward(sessionId: String) throws -> PixelRewardBalance {
+        claimedSessionIDs.append(sessionId)
+        if !claimErrors.isEmpty {
+            throw claimErrors.removeFirst()
+        }
+        return PixelRewardBalance(balance: try claims.removeFirst().get())
     }
 }
 
@@ -143,6 +241,13 @@ private func makeCats(count: Int) -> [Cat] {
             imageURL: "https://example.com/cats/\(index).png"
         )
     }
+}
+
+private func makeAdSession(
+    id: String,
+    expiresAt: Date = .distantFuture
+) -> PixelRewardAdSession {
+    PixelRewardAdSession(sessionId: id, expiresAt: expiresAt)
 }
 
 @MainActor
@@ -398,6 +503,11 @@ func imageLoadingFailureDoesNotAddCatNode() async {
 func plusButtonPresentsMakeCatAfterRewardAdCompletes() async {
     let coordinator = HomeCoordinatorSpy()
     let recorder = RewardAdRecorder()
+    let pixelRewards = PixelRewardRecorder(
+        balances: [.success(0)],
+        sessions: [makeAdSession(id: "session-id")],
+        claims: [.success(1)]
+    )
     let adsClient = AdsClient(
         setup: {},
         loadRewardAds: {},
@@ -411,6 +521,7 @@ func plusButtonPresentsMakeCatAfterRewardAdCompletes() async {
         catsClient: .test,
         profileClient: .test,
         adsClient: adsClient,
+        pixelRewardClient: pixelRewards.client,
         coordinator: coordinator
     )
     viewModel.state.cats = makeCats(count: 4)
@@ -420,6 +531,8 @@ func plusButtonPresentsMakeCatAfterRewardAdCompletes() async {
     viewModel.send(.view(.plusButtonTapped))
     await waitUntil { viewModel.state.isMakeCatPresented }
     #expect(await recorder.showCount == 1)
+    #expect(await pixelRewards.createCount == 1)
+    #expect(await pixelRewards.claimedSessionIDs == ["session-id"])
     #expect(viewModel.state.isMakeCatPresented == true)
     #expect(viewModel.state.selectedCatId == nil)
 }
@@ -428,6 +541,10 @@ func plusButtonPresentsMakeCatAfterRewardAdCompletes() async {
 @Test
 func failedRewardAdKeepsMakeCatDismissed() async {
     let recorder = RewardAdRecorder()
+    let pixelRewards = PixelRewardRecorder(
+        balances: [.success(0)],
+        sessions: [makeAdSession(id: "session-id")]
+    )
     let adsClient = AdsClient(
         setup: {},
         loadRewardAds: {},
@@ -441,6 +558,7 @@ func failedRewardAdKeepsMakeCatDismissed() async {
         catsClient: .test,
         profileClient: .test,
         adsClient: adsClient,
+        pixelRewardClient: pixelRewards.client,
         coordinator: HomeCoordinatorSpy()
     )
     viewModel.state.cats = makeCats(count: 1)
@@ -450,12 +568,17 @@ func failedRewardAdKeepsMakeCatDismissed() async {
 
     #expect(await recorder.showCount == 1)
     #expect(!viewModel.state.isMakeCatPresented)
+    #expect(viewModel.state.pendingAdSession?.sessionId == "session-id")
 }
 
 @MainActor
 @Test
 func notReadyRewardAdKeepsMakeCatDismissed() async {
     let recorder = RewardAdRecorder()
+    let pixelRewards = PixelRewardRecorder(
+        balances: [.success(0)],
+        sessions: [makeAdSession(id: "session-id")]
+    )
     let adsClient = AdsClient(
         setup: {},
         loadRewardAds: {},
@@ -469,6 +592,7 @@ func notReadyRewardAdKeepsMakeCatDismissed() async {
         catsClient: .test,
         profileClient: .test,
         adsClient: adsClient,
+        pixelRewardClient: pixelRewards.client,
         coordinator: HomeCoordinatorSpy()
     )
     viewModel.state.cats = makeCats(count: 1)
@@ -478,6 +602,291 @@ func notReadyRewardAdKeepsMakeCatDismissed() async {
 
     #expect(await recorder.showCount == 1)
     #expect(!viewModel.state.isMakeCatPresented)
+    #expect(viewModel.state.pendingAdSession?.sessionId == "session-id")
+}
+
+@MainActor
+@Test
+func homeOnAppearFetchesPixelRewardBalance() async {
+    let pixelRewards = PixelRewardRecorder(balances: [.success(3)])
+    let viewModel = HomeViewModel(
+        catsClient: .test,
+        profileClient: .test,
+        adsClient: testAdsClient,
+        pixelRewardClient: pixelRewards.client,
+        coordinator: HomeCoordinatorSpy()
+    )
+
+    viewModel.send(.view(.onAppear))
+    await waitUntil { viewModel.state.pixelRewardBalance == 3 }
+
+    #expect(viewModel.state.pixelRewardBalance == 3)
+    #expect(await pixelRewards.fetchCount == 1)
+}
+
+@MainActor
+@Test
+func availableBalancePresentsMakeCatWithoutRewardAd() async {
+    let adRecorder = RewardAdRecorder()
+    let pixelRewards = PixelRewardRecorder(balances: [.success(1)])
+    let adsClient = AdsClient(
+        setup: {},
+        loadRewardAds: {},
+        showRewardAds: {
+            await adRecorder.recordShow()
+            return true
+        },
+        loadNativeAds: { _ in [] }
+    )
+    let viewModel = HomeViewModel(
+        catsClient: .test,
+        profileClient: .test,
+        adsClient: adsClient,
+        pixelRewardClient: pixelRewards.client,
+        coordinator: HomeCoordinatorSpy()
+    )
+
+    viewModel.send(.view(.plusButtonTapped))
+    await waitUntil { viewModel.state.isMakeCatPresented }
+
+    #expect(await adRecorder.showCount == 0)
+    #expect(await pixelRewards.createCount == 0)
+    #expect(await pixelRewards.claimedSessionIDs.isEmpty)
+}
+
+@MainActor
+@Test
+func dismissedRewardAdReusesSessionOnNextAttempt() async {
+    let ads = RewardAdSequence(results: [false, true])
+    let pixelRewards = PixelRewardRecorder(
+        balances: [.success(0), .success(0)],
+        sessions: [makeAdSession(id: "reused-session")],
+        claims: [.success(1)]
+    )
+    let adsClient = AdsClient(
+        setup: {},
+        loadRewardAds: {},
+        showRewardAds: { await ads.show() },
+        loadNativeAds: { _ in [] }
+    )
+    let viewModel = HomeViewModel(
+        catsClient: .test,
+        profileClient: .test,
+        adsClient: adsClient,
+        pixelRewardClient: pixelRewards.client,
+        coordinator: HomeCoordinatorSpy()
+    )
+
+    viewModel.send(.view(.plusButtonTapped))
+    await waitUntil { !viewModel.state.isRewardFlowInProgress }
+    #expect(viewModel.state.pendingAdSession?.sessionId == "reused-session")
+
+    viewModel.send(.view(.plusButtonTapped))
+    await waitUntil { viewModel.state.isMakeCatPresented }
+
+    #expect(await ads.showCount == 2)
+    #expect(await pixelRewards.createCount == 1)
+    #expect(await pixelRewards.claimedSessionIDs == ["reused-session"])
+}
+
+@MainActor
+@Test
+func failedClaimRetriesWithoutShowingRewardAdAgain() async {
+    let adRecorder = RewardAdRecorder()
+    let pixelRewards = PixelRewardRecorder(
+        balances: [.success(0), .success(0)],
+        sessions: [makeAdSession(id: "claim-session")],
+        claims: [.failure(.pixelRewardFailed), .success(1)]
+    )
+    let adsClient = AdsClient(
+        setup: {},
+        loadRewardAds: {},
+        showRewardAds: {
+            await adRecorder.recordShow()
+            return true
+        },
+        loadNativeAds: { _ in [] }
+    )
+    let viewModel = HomeViewModel(
+        catsClient: .test,
+        profileClient: .test,
+        adsClient: adsClient,
+        pixelRewardClient: pixelRewards.client,
+        coordinator: HomeCoordinatorSpy()
+    )
+
+    viewModel.send(.view(.plusButtonTapped))
+    await waitUntil {
+        !viewModel.state.isRewardFlowInProgress &&
+        viewModel.state.hasEarnedPendingAdReward
+    }
+    viewModel.send(.view(.plusButtonTapped))
+    await waitUntil { viewModel.state.isMakeCatPresented }
+
+    #expect(await adRecorder.showCount == 1)
+    #expect(await pixelRewards.createCount == 1)
+    #expect(await pixelRewards.claimedSessionIDs == ["claim-session", "claim-session"])
+}
+
+@MainActor
+@Test
+func sessionNotFoundClaimCreatesNewSessionOnNextAttempt() async {
+    let adRecorder = RewardAdRecorder()
+    let pixelRewards = PixelRewardRecorder(
+        balances: [.success(0), .success(0)],
+        sessions: [
+            makeAdSession(id: "missing-session"),
+            makeAdSession(id: "new-session")
+        ],
+        claims: [.success(1)],
+        claimErrors: [.sessionNotFound]
+    )
+    let adsClient = AdsClient(
+        setup: {},
+        loadRewardAds: {},
+        showRewardAds: {
+            await adRecorder.recordShow()
+            return true
+        },
+        loadNativeAds: { _ in [] }
+    )
+    let viewModel = HomeViewModel(
+        catsClient: .test,
+        profileClient: .test,
+        adsClient: adsClient,
+        pixelRewardClient: pixelRewards.client,
+        coordinator: HomeCoordinatorSpy()
+    )
+
+    viewModel.send(.view(.plusButtonTapped))
+    await waitUntil { !viewModel.state.isRewardFlowInProgress }
+
+    #expect(viewModel.state.pendingAdSession == nil)
+    #expect(!viewModel.state.hasEarnedPendingAdReward)
+
+    viewModel.send(.view(.plusButtonTapped))
+    await waitUntil { viewModel.state.isMakeCatPresented }
+
+    #expect(await adRecorder.showCount == 2)
+    #expect(await pixelRewards.createCount == 2)
+    #expect(await pixelRewards.claimedSessionIDs == ["missing-session", "new-session"])
+}
+
+@MainActor
+@Test
+func expiredPendingSessionCreatesNewSession() async {
+    let pixelRewards = PixelRewardRecorder(
+        balances: [.success(0)],
+        sessions: [makeAdSession(id: "new-session")]
+    )
+    let adsClient = AdsClient(
+        setup: {},
+        loadRewardAds: {},
+        showRewardAds: { false },
+        loadNativeAds: { _ in [] }
+    )
+    let viewModel = HomeViewModel(
+        catsClient: .test,
+        profileClient: .test,
+        adsClient: adsClient,
+        pixelRewardClient: pixelRewards.client,
+        coordinator: HomeCoordinatorSpy()
+    )
+    viewModel.state.pendingAdSession = makeAdSession(
+        id: "expired-session",
+        expiresAt: .distantPast
+    )
+    viewModel.state.hasEarnedPendingAdReward = true
+
+    viewModel.send(.view(.plusButtonTapped))
+    await waitUntil { !viewModel.state.isRewardFlowInProgress }
+
+    #expect(await pixelRewards.createCount == 1)
+    #expect(viewModel.state.pendingAdSession?.sessionId == "new-session")
+    #expect(!viewModel.state.hasEarnedPendingAdReward)
+}
+
+@MainActor
+@Test
+func successfulBalanceReconcilesAmbiguousClaimFailure() async {
+    let adRecorder = RewardAdRecorder()
+    let pixelRewards = PixelRewardRecorder(
+        balances: [.success(0), .success(1)],
+        sessions: [makeAdSession(id: "ambiguous-session")],
+        claims: [.failure(.pixelRewardFailed)]
+    )
+    let adsClient = AdsClient(
+        setup: {},
+        loadRewardAds: {},
+        showRewardAds: {
+            await adRecorder.recordShow()
+            return true
+        },
+        loadNativeAds: { _ in [] }
+    )
+    let viewModel = HomeViewModel(
+        catsClient: .test,
+        profileClient: .test,
+        adsClient: adsClient,
+        pixelRewardClient: pixelRewards.client,
+        coordinator: HomeCoordinatorSpy()
+    )
+
+    viewModel.send(.view(.plusButtonTapped))
+    await waitUntil {
+        !viewModel.state.isRewardFlowInProgress &&
+        viewModel.state.hasEarnedPendingAdReward
+    }
+    viewModel.send(.view(.plusButtonTapped))
+    await waitUntil { viewModel.state.isMakeCatPresented }
+
+    #expect(await adRecorder.showCount == 1)
+    #expect(await pixelRewards.claimedSessionIDs == ["ambiguous-session"])
+    #expect(viewModel.state.pendingAdSession == nil)
+}
+
+@MainActor
+@Test
+func repeatedPlusTapStartsOnlyOneRewardFlow() async {
+    let gate = PixelRewardBalanceGate()
+    let viewModel = HomeViewModel(
+        catsClient: .test,
+        profileClient: .test,
+        adsClient: testAdsClient,
+        pixelRewardClient: gate.client,
+        coordinator: HomeCoordinatorSpy()
+    )
+
+    viewModel.send(.view(.plusButtonTapped))
+    viewModel.send(.view(.plusButtonTapped))
+    await waitUntilAsync { await gate.isWaiting }
+
+    #expect(await gate.fetchCount == 1)
+    await gate.resume()
+    await waitUntil { viewModel.state.isMakeCatPresented }
+}
+
+@MainActor
+@Test
+func registrationCompletionAndCloseRefreshBalance() async {
+    let pixelRewards = PixelRewardRecorder(
+        balances: [.success(2), .success(1)]
+    )
+    let viewModel = HomeViewModel(
+        catsClient: .test,
+        profileClient: .test,
+        adsClient: testAdsClient,
+        pixelRewardClient: pixelRewards.client,
+        coordinator: HomeCoordinatorSpy()
+    )
+    let cat = makeCats(count: 1)[0]
+
+    viewModel.send(.internal(.catRegistered(cat)))
+    await waitUntil { viewModel.state.pixelRewardBalance == 2 }
+    viewModel.send(.internal(.catRegistrationClosed))
+    await waitUntil { viewModel.state.pixelRewardBalance == 1 }
+
+    #expect(await pixelRewards.fetchCount == 2)
 }
 
 @MainActor
@@ -487,6 +896,7 @@ func plusButtonAtCatLimitPresentsAlert() {
         catsClient: .test,
         profileClient: .test,
         adsClient: testAdsClient,
+        pixelRewardClient: .test,
         coordinator: HomeCoordinatorSpy()
     )
     viewModel.state.cats = makeCats(count: HomeViewModel.maximumCatCount)
@@ -514,6 +924,7 @@ func catTappedSelectsCat() {
         catsClient: .test,
         profileClient: .test,
         adsClient: testAdsClient,
+        pixelRewardClient: .test,
         coordinator: coordinator
     )
     viewModel.state.cats = [selectedCat]
@@ -532,6 +943,7 @@ func selectionClearedClearsSelectedCat() {
         catsClient: .test,
         profileClient: .test,
         adsClient: testAdsClient,
+        pixelRewardClient: .test,
         coordinator: coordinator
     )
     viewModel.state.selectedCatId = "selected-cat"
@@ -549,6 +961,7 @@ func speechBubblePushesSelectedCatFeedRoute() {
         catsClient: .test,
         profileClient: .test,
         adsClient: testAdsClient,
+        pixelRewardClient: .test,
         coordinator: coordinator
     )
     viewModel.state.selectedCatId = "selected-cat"
@@ -577,6 +990,7 @@ func makeCatSubmittedAddsCreatedCatAndDismissesSheet() async {
         catsClient: catsClient,
         profileClient: .test,
         adsClient: testAdsClient,
+        pixelRewardClient: .test,
         coordinator: coordinator
     )
     viewModel.state.cats = makeCats(count: 4)
@@ -612,6 +1026,7 @@ func catRegistrationDelegateActionsUpdatePresentationAndCats() {
         catsClient: .test,
         profileClient: .test,
         adsClient: testAdsClient,
+        pixelRewardClient: .test,
         coordinator: HomeCoordinatorSpy()
     )
     viewModel.state.isMakeCatPresented = true
@@ -646,6 +1061,7 @@ func makeCatSubmittedAtLimitDoesNotCreateCat() async {
         catsClient: catsClient,
         profileClient: .test,
         adsClient: testAdsClient,
+        pixelRewardClient: .test,
         coordinator: HomeCoordinatorSpy()
     )
     viewModel.state.cats = makeCats(count: HomeViewModel.maximumCatCount)
@@ -704,6 +1120,7 @@ func lateFetchKeepsCatCreatedWhileRequestWasInFlight() async {
         catsClient: catsClient,
         profileClient: .test,
         adsClient: testAdsClient,
+        pixelRewardClient: .test,
         coordinator: HomeCoordinatorSpy()
     )
 
@@ -738,6 +1155,7 @@ func makeCatSubmittedFailureKeepsSheetPresented() async {
         catsClient: catsClient,
         profileClient: .test,
         adsClient: testAdsClient,
+        pixelRewardClient: .test,
         coordinator: coordinator
     )
     viewModel.send(.view(.plusButtonTapped))
@@ -781,6 +1199,7 @@ func homeUpdatesAndDeletesCatsLocally() {
         catsClient: .test,
         profileClient: .test,
         adsClient: testAdsClient,
+        pixelRewardClient: .test,
         coordinator: HomeCoordinatorSpy()
     )
     viewModel.state.cats = [originalCat, deletedCat]

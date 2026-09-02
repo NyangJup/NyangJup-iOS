@@ -1,3 +1,10 @@
+//
+//  DeviceSecurityEndpoint.swift
+//  NJPackage
+//
+//  Created by 정지훈 on 9/1/26.
+//
+
 import Foundation
 
 import CoreNetworkInterface
@@ -29,5 +36,12 @@ enum DeviceSecurityEndpoint: Endpoint {
         }
     }
 
-    var requiresAuthorization: Bool { false }
+    var requiresAuthorization: Bool {
+        switch self {
+        case let .issueChallenge(request):
+            request.purpose != .attestation
+        case .registerNew, .registerCompleted:
+            false
+        }
+    }
 }

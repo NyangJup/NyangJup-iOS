@@ -14,15 +14,14 @@ import DomainCatsTesting
 func testClientFetchCatsReturnsSampleCats() async throws {
     let cats = try await CatsClient.test.fetchCats("10")
 
-    #expect(cats.count == 4)
-    #expect(cats.map(\.id) == ["1", "2", "3", "4"])
-    #expect(cats.map(\.name) == ["꾸꾸", "까까", "냥냥", "야르"])
+    #expect(cats.count == 3)
+    #expect(cats.map(\.id) == ["1", "2", "3"])
+    #expect(cats.map(\.name) == ["꾸꾸", "까까", "냥냥"])
     #expect(cats.allSatisfy { $0.place == "구로구" })
     #expect(cats.map(\.imageURL) == [
         "https://picsum.photos/seed/nayngjup-cat-1/200/200",
         "https://picsum.photos/seed/nayngjup-cat-2/200/200",
-        "https://picsum.photos/seed/nayngjup-cat-3/200/200",
-        "https://picsum.photos/seed/nayngjup-cat-4/200/200"
+        "https://picsum.photos/seed/nayngjup-cat-3/200/200"
     ])
 }
 
