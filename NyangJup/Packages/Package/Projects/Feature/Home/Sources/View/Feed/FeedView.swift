@@ -100,6 +100,7 @@ struct FeedView: View {
             .onAppear {
                 viewModel.send(.view(.onAppear))
             }
+            .loadingOverlay(isPresented: viewModel.state.isLoading)
         }
     }
 }
@@ -238,4 +239,3 @@ private extension FeedView {
         static let bottomButtonBottomPadding: CGFloat = 48
     }
 }
-        .loadingOverlay(isPresented: viewModel.state.isLoading)
