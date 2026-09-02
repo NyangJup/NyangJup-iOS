@@ -194,7 +194,6 @@ private let testFeedItems: [Media] = [
 
 extension MediaClient {
     public static let test = Self(
-        networkClient: nil,
         fetchUploadURL: { request in
             let fileExtension = switch request.mediaType {
             case "PHOTO": "jpg"
@@ -203,31 +202,32 @@ extension MediaClient {
             }
             let fileName = "nyangjup-media-\(request.catId ?? "common").\(fileExtension)"
 
-            return UploadURLResponseDTO(
+            return UploadURL(
                 uploadURL: "https://example.com/uploads/\(fileName)",
                 fileName: fileName
             )
         },
+        uploadToPresignedURL: { _, _, _ in },
         uploadMedia: { request in
-            UploadMediaResponseDTO(
+            Media(
+                id: "test-media-id",
                 catId: request.catId,
-                mediaId: "test-media-id",
                 userId: "test-user-id",
-                mediaType: request.mediaType,
-                mediaURL: "https://example.com/media/\(request.fileName)",
+                comment: request.comment,
                 thumbnailURL: "https://example.com/thumbnails/\(request.fileName).jpg",
-                comment: request.comment
+                mediaType: MediaType(rawValue: request.mediaType) ?? .photo,
+                mediaURL: "https://example.com/media/\(request.fileName)"
             )
         },
         updateMedia: { id, request in
-            UploadMediaResponseDTO(
+            Media(
+                id: id,
                 catId: request.catId,
-                mediaId: id,
                 userId: "test-user-id",
-                mediaType: request.mediaType,
-                mediaURL: "https://example.com/media/\(request.fileName)",
+                comment: request.comment,
                 thumbnailURL: "https://example.com/thumbnails/\(request.fileName).jpg",
-                comment: request.comment
+                mediaType: MediaType(rawValue: request.mediaType) ?? .photo,
+                mediaURL: "https://example.com/media/\(request.fileName)"
             )
         },
         fetchMedia: { id in
@@ -238,7 +238,7 @@ extension MediaClient {
             guard let anchorIndex = testFeedItems.firstIndex(where: {
                 $0.id == request.anchorId
             }) else {
-                return FetchRelayCatsResponseDTO(
+                return RelayPage(
                     items: [],
                     anchorIndex: 0,
                     previousCursor: nil,
@@ -257,16 +257,17 @@ extension MediaClient {
                     catId: request.catId,
                     userId: "test-user-id",
                     comment: "오늘도 냥냥한 하루!",
-                    thumbnailURL: media.thumbnailURL,
+                    place: "서울",
+                    thumbnailURL: media.thumbnailURL ?? "",
                     name: "나비",
                     catImageURL: "https://example.com/cat.png",
                     mediaType: media.mediaType,
-                    mediaURL: media.mediaURL,
+                    mediaURL: media.mediaURL ?? "",
                     isLiked: false
                 )
             }
 
-            return FetchRelayCatsResponseDTO(
+            return RelayPage(
                 items: Array(items),
                 anchorIndex: anchorIndex - lowerBound,
                 previousCursor: lowerBound > 0 ? String(lowerBound) : nil,

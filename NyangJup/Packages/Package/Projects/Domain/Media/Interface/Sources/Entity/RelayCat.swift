@@ -10,6 +10,7 @@ public struct RelayCat: Hashable, Sendable {
     public let catId: String
     public let userId: String
     public let comment: String
+    public let place: String?
     public let thumbnailURL: String
     public let name: String
     public let catImageURL: String
@@ -22,6 +23,7 @@ public struct RelayCat: Hashable, Sendable {
         catId: String,
         userId: String,
         comment: String,
+        place: String? = nil,
         thumbnailURL: String,
         name: String,
         catImageURL: String,
@@ -33,6 +35,7 @@ public struct RelayCat: Hashable, Sendable {
         self.catId = catId
         self.userId = userId
         self.comment = comment
+        self.place = place
         self.thumbnailURL = thumbnailURL
         self.name = name
         self.catImageURL = catImageURL

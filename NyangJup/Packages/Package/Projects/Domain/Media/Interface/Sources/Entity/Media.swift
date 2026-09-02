@@ -9,21 +9,23 @@ import Foundation
 
 public struct Media: Sendable {
     public let id: String
-    public let catId: String
+    public let catId: String?
     public let userId: String
     public let comment: String
-    public let thumbnailURL: String
+    public let thumbnailURL: String?
     public let mediaType: MediaType
-    public let mediaURL: String
+    public let mediaURL: String?
+    public let processingStatus: ProcessingStatus
     
     public init(
         id: String,
-        catId: String,
+        catId: String?,
         userId: String,
         comment: String,
-        thumbnailURL: String,
+        thumbnailURL: String?,
         mediaType: MediaType,
-        mediaURL: String
+        mediaURL: String?,
+        processingStatus: ProcessingStatus = .ready
     ) {
         self.id = id
         self.catId = catId
@@ -32,5 +34,6 @@ public struct Media: Sendable {
         self.thumbnailURL = thumbnailURL
         self.mediaType = mediaType
         self.mediaURL = mediaURL
+        self.processingStatus = processingStatus
     }
 }
