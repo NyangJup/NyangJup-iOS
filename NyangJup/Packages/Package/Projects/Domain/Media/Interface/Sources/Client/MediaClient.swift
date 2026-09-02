@@ -11,8 +11,6 @@ import CoreNetworkInterface
 
 public struct MediaClient: Sendable {
     public typealias ID = String
-    public typealias Cursor = String
-    
     public let networkClient: NetworkClient?
     
     public var fetchUploadURL: @Sendable (FetchUploadURLRequestDTO) async throws -> UploadURLResponseDTO
@@ -22,7 +20,6 @@ public struct MediaClient: Sendable {
     public var updateIsLiked: @Sendable (ID, Bool) async throws -> Void
     public var fetchRelayCats: @Sendable (FetchRelayCatsRequestDTO) async throws -> FetchRelayCatsResponseDTO
     public var deleteMedia: @Sendable (ID) async throws -> Media
-    public var fetchFeeds: @Sendable (ID, Cursor?) async throws -> (FeedPage)
     
     public init(
         networkClient: NetworkClient?,
@@ -32,8 +29,7 @@ public struct MediaClient: Sendable {
         fetchMedia: @escaping @Sendable (ID) async throws -> Media,
         updateIsLiked: @escaping @Sendable (ID, Bool) async throws -> Void,
         fetchRelayCats: @escaping @Sendable (FetchRelayCatsRequestDTO) async throws -> FetchRelayCatsResponseDTO,
-        deleteMedia: @escaping @Sendable (ID) async throws -> Media,
-        fetchFeeds: @escaping @Sendable (ID, Cursor?) async throws -> FeedPage
+        deleteMedia: @escaping @Sendable (ID) async throws -> Media
     ) {
         self.networkClient = networkClient
         self.fetchUploadURL = fetchUploadURL
@@ -43,7 +39,6 @@ public struct MediaClient: Sendable {
         self.updateIsLiked = updateIsLiked
         self.fetchRelayCats = fetchRelayCats
         self.deleteMedia = deleteMedia
-        self.fetchFeeds = fetchFeeds
     }
     
 }

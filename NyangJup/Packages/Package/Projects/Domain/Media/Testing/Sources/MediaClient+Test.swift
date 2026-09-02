@@ -192,25 +192,6 @@ private let testFeedItems: [Media] = [
     )
 ]
 
-private func testFeedPage(cursor: String?) -> FeedPage {
-    switch cursor {
-    case nil:
-        FeedPage(
-            items: Array(testFeedItems.prefix(10)),
-            nextCursor: "feed-page-2"
-        )
-
-    case "feed-page-2":
-        FeedPage(
-            items: Array(testFeedItems.dropFirst(10)),
-            nextCursor: nil
-        )
-
-    default:
-        FeedPage(items: [], nextCursor: nil)
-    }
-}
-
 extension MediaClient {
     public static let test = Self(
         networkClient: nil,
@@ -302,9 +283,6 @@ extension MediaClient {
                 mediaType: .photo,
                 mediaURL: "https://picsum.photos/200/300"
             )
-        },
-        fetchFeeds: { _, cursor in
-            testFeedPage(cursor: cursor)
         }
     )
 }
