@@ -16,6 +16,7 @@ public struct Media: Sendable {
     public let mediaType: MediaType
     public let mediaURL: String?
     public let processingStatus: ProcessingStatus
+    public let isLiked: Bool
     
     public init(
         id: String,
@@ -25,7 +26,8 @@ public struct Media: Sendable {
         thumbnailURL: String?,
         mediaType: MediaType,
         mediaURL: String?,
-        processingStatus: ProcessingStatus = .ready
+        processingStatus: ProcessingStatus = .ready,
+        isLiked: Bool = false
     ) {
         self.id = id
         self.catId = catId
@@ -35,5 +37,6 @@ public struct Media: Sendable {
         self.mediaType = mediaType
         self.mediaURL = mediaURL
         self.processingStatus = processingStatus
+        self.isLiked = isLiked
     }
 }

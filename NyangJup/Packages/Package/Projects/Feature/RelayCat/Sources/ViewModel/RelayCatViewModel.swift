@@ -98,18 +98,21 @@ final class RelayCatViewModel: NZViewModel {
     private let mediaClient: MediaClient
     private let imageLoaderClient: ImageLoaderClient
     private let adsClient: AdsClient
+    private let delegate: RelayCatDelegate?
     private var imagePreloadTask: Task<Void, Never>?
 
     init(
         configuration: RelayCatConfiguration,
         mediaClient: MediaClient,
         imageLoaderClient: ImageLoaderClient,
-        adsClient: AdsClient
+        adsClient: AdsClient,
+        delegate: RelayCatDelegate? = nil
     ) {
         self.state = State(configuration: configuration)
         self.mediaClient = mediaClient
         self.imageLoaderClient = imageLoaderClient
         self.adsClient = adsClient
+        self.delegate = delegate
     }
 
     func send(_ action: Action) {
@@ -358,6 +361,7 @@ final class RelayCatViewModel: NZViewModel {
         Task {
             do {
                 try await mediaClient.updateIsLiked(id, isLiked)
+                delegate?.send(.likeUpdated(mediaId: id, isLiked: isLiked))
             } catch {
                 guard let index = state.items.firstIndex(where: { $0.mediaId == id }),
                       state.items[index].isLiked == isLiked else {
@@ -390,6 +394,7 @@ final class RelayCatViewModel: NZViewModel {
                 }
 
                 state.items.remove(at: index)
+                delegate?.send(.mediaDeleted(mediaId: id))
                 if state.currentItemId == id {
                     state.currentItemId = nextItemId
                 }
@@ -433,6 +438,7 @@ final class RelayCatViewModel: NZViewModel {
         )
 
         state.items[index] = updatedItem
+        delegate?.send(.mediaUpdated(media))
         state.isCameraPresented = false
         state.editingMediaId = nil
         preloadAdjacentImages()
