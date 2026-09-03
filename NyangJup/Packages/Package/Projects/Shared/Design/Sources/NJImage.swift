@@ -23,6 +23,7 @@ public struct NJImageAsset: Sendable {
 
 public enum NJImage {
     public static let cherryBlossomTree = NJImageAsset(resource: .Images.cherryBlossomTree)
+    public static let feedEmptyCat = NJImageAsset(resource: .Images.feedEmptyCat)
     public static let fenceSegment = NJImageAsset(resource: .Images.fenceSegment)
     public static let flowerPatch = NJImageAsset(resource: .Images.flowerPatch)
     public static let flowerPlanter = NJImageAsset(resource: .Images.flowerPlanter)

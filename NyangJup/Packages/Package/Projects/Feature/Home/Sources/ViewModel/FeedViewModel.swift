@@ -24,6 +24,7 @@ public final class FeedViewModel: NZViewModel {
         var cat: Cat
         var items: [Media] = []
         var nextCursor: String?
+        var hasLoadedInitialFeed: Bool = false
         var isLoading: Bool = false
         var isCameraPresented: Bool = false
         var showsEditAlert: Bool = false
@@ -110,7 +111,7 @@ public final class FeedViewModel: NZViewModel {
     private func handleViewAction(_ action: Action.View) {
         switch action {
         case .onAppear:
-            guard state.items.isEmpty else { return }
+            guard state.items.isEmpty, !state.hasLoadedInitialFeed else { return }
             send(.network(.fetchFeed(cursor: nil)))
 
         case .loadNextPage:
@@ -280,6 +281,7 @@ public final class FeedViewModel: NZViewModel {
 
                     if cursor == nil {
                         state.items = page.items
+                        state.hasLoadedInitialFeed = true
                     } else {
                         state.items.append(contentsOf: page.items)
                     }

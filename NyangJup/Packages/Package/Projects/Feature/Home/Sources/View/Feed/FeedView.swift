@@ -25,16 +25,21 @@ struct FeedView: View {
                         profileHeader
                         Divider()
                         feedHeader
-                        FeedList(
-                            items: viewModel.state.items,
-                            availableWidth: proxy.size.width - Constant.horizontalPadding * 2,
-                            onTap: { media in
-                                viewModel.send(.view(.feedContentTapped(media)))
-                            },
-                            onLoadNextPage: {
-                                viewModel.send(.view(.loadNextPage))
-                            }
-                        )
+                        if viewModel.state.hasLoadedInitialFeed,
+                           viewModel.state.items.isEmpty {
+                            emptyFeedView
+                        } else {
+                            FeedList(
+                                items: viewModel.state.items,
+                                availableWidth: proxy.size.width - Constant.horizontalPadding * 2,
+                                onTap: { media in
+                                    viewModel.send(.view(.feedContentTapped(media)))
+                                },
+                                onLoadNextPage: {
+                                    viewModel.send(.view(.loadNextPage))
+                                }
+                            )
+                        }
                         Spacer()
                     }
                     .padding(.horizontal, Constant.horizontalPadding)
@@ -174,6 +179,26 @@ private extension FeedView {
             Spacer()
         }
     }
+
+    var emptyFeedView: some View {
+        VStack(spacing: Constant.emptyFeedSpacing) {
+            NJImage.feedEmptyCat.image
+                .resizable()
+                .scaledToFit()
+                .frame(
+                    width: Constant.emptyFeedImageSize,
+                    height: Constant.emptyFeedImageSize
+                )
+
+            Text(Constant.emptyFeedTitle)
+                .font(.system(size: Constant.emptyFeedTitleFontSize, weight: .heavy))
+        }
+        .frame(
+            maxWidth: .infinity,
+            maxHeight: .infinity,
+            alignment: .center
+        )
+    }
     
     var plusButton: some View {
         CircleButton(
@@ -202,6 +227,7 @@ private extension FeedView {
         static let bottomButtonImage: String = "plus"
         static let closeImageName: String = "xmark"
         static let feedTitle: String = "피드"
+        static let emptyFeedTitle: String = "첫 번째 게시물을 업로드하세요"
         static let scrollTopID: String = "feed-scroll-top"
         static let editButtonTitle = "수정"
         static let deleteButtonTitle = "삭제"
@@ -232,6 +258,9 @@ private extension FeedView {
         static let nameFontSize: CGFloat = 30
         static let placeFontSize: CGFloat = 15
         static let feedTitleFontSize: CGFloat = 24
+        static let emptyFeedTitleFontSize: CGFloat = 24
+        static let emptyFeedImageSize: CGFloat = 230
+        static let emptyFeedSpacing: CGFloat = -20
         
         static let bottomButtonImageSize: CGFloat = 24
         static let bottomButtonSize: CGFloat = 60

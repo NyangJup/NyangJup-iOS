@@ -1106,6 +1106,63 @@ func feedOnAppearLoadsFirstPage() async {
 
 @MainActor
 @Test
+func feedOnAppearRecordsAnEmptyFirstPageAsLoaded() async {
+    let cat = Cat(
+        id: "empty-feed-cat",
+        name: "나비",
+        place: "집",
+        imageURL: "https://example.com/cats/cat-1.png"
+    )
+    var catsClient = CatsClient.test
+    catsClient.fetchCatFeed = { _, _ in
+        CatFeed(cat: cat, items: [], nextCursor: nil)
+    }
+    let viewModel = FeedViewModel(
+        cat: cat,
+        catsClient: catsClient,
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
+    )
+
+    viewModel.send(.view(.onAppear))
+    await waitUntil { !viewModel.state.isLoading }
+
+    #expect(viewModel.state.items.isEmpty)
+    #expect(viewModel.state.hasLoadedInitialFeed)
+}
+
+@MainActor
+@Test
+func feedOnAppearDoesNotReloadAnEmptyFeed() async {
+    let recorder = FeedRequestRecorder()
+    let cat = Cat(
+        id: "empty-feed-cat",
+        name: "나비",
+        place: "집",
+        imageURL: "https://example.com/cats/cat-1.png"
+    )
+    var catsClient = CatsClient.test
+    catsClient.fetchCatFeed = { _, cursor in
+        await recorder.record(cursor: cursor)
+        return CatFeed(cat: cat, items: [], nextCursor: nil)
+    }
+    let viewModel = FeedViewModel(
+        cat: cat,
+        catsClient: catsClient,
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
+    )
+
+    viewModel.send(.view(.onAppear))
+    await waitUntil { !viewModel.state.isLoading }
+    viewModel.send(.view(.onAppear))
+    await Task.yield()
+
+    #expect(await recorder.cursors == [nil])
+}
+
+@MainActor
+@Test
 func feedPlusButtonPresentsAndDismissesCamera() {
     let viewModel = FeedViewModel(
         cat: Cat(
