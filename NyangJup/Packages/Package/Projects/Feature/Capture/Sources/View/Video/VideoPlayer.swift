@@ -34,7 +34,7 @@ public struct VideoPlayer: View {
     public var body: some View {
         PlayerLayerView(
             player: player,
-            videoGravity: .resizeAspectFill
+            videoGravity: .resizeAspect
         )
             .onTapGesture {
                 toggleVideoPlayback()
