@@ -19,7 +19,7 @@ func catsClientBuildsEndpointsAndMapsEntities() async throws {
         Data(#"[{"id":"cat-1","name":"나비","place":null,"imageURL":"https://example.com/cat-1.png"}]"#.utf8),
         Data(#"{"id":"cat-2","name":"치즈","place":"공원","imageURL":"https://example.com/cat-2.png"}"#.utf8),
         Data(#"{"id":"cat-2","name":"치즈냥","place":"집","imageURL":"https://example.com/cat-2.png"}"#.utf8),
-        Data(#"{"catId":"cat-2","name":"치즈냥","place":"집","thumbnailURL":"https://example.com/cat-2.png","feed":[{"mediaId":"media-1","catId":"cat-2","userId":"user-1","comment":"낮잠","thumbnailURL":"https://example.com/thumb.jpg","mediaType":"VIDEO","mediaURL":"https://example.com/video.mp4"}],"nextCursor":null}"#.utf8),
+        Data(#"{"catId":"cat-2","name":"치즈냥","place":"집","thumbnailURL":"https://example.com/cat-2.png","feed":[{"mediaId":"media-1","catId":"cat-2","userId":"user-1","comment":"낮잠","thumbnailURL":"https://example.com/thumb.jpg","mediaType":"VIDEO","mediaURL":"https://example.com/video.mp4","isLiked":true}],"nextCursor":null}"#.utf8),
         Data(),
         Data(#"{"fileName":"generated/pixel/cat.png","imageURL":"https://example.com/pixel.png"}"#.utf8)
     ])
@@ -58,6 +58,7 @@ func catsClientBuildsEndpointsAndMapsEntities() async throws {
     #expect(feed.items.map(\.id) == ["media-1"])
     #expect(feed.items.map(\.catId) == ["cat-2"])
     #expect(feed.items.first?.mediaType == .video)
+    #expect(feed.items.first?.isLiked == true)
     #expect(feed.nextCursor == nil)
     #expect(pixelCat == PixelCat(
         fileName: "generated/pixel/cat.png",
@@ -99,7 +100,7 @@ func catsClientBuildsEndpointsAndMapsEntities() async throws {
 @Test
 func catFeedRejectsUnsupportedMediaType() async throws {
     let network = CatsClientTestSupport.RecordingNetworkClient(responses: [
-        Data(#"{"catId":"cat-1","name":"나비","place":null,"thumbnailURL":"https://example.com/cat.png","feed":[{"mediaId":"media-1","catId":"cat-1","userId":"user-1","comment":"","thumbnailURL":"https://example.com/thumb","mediaType":"AUDIO","mediaURL":"https://example.com/media"}],"nextCursor":"cursor-2"}"#.utf8)
+        Data(#"{"catId":"cat-1","name":"나비","place":null,"thumbnailURL":"https://example.com/cat.png","feed":[{"mediaId":"media-1","catId":"cat-1","userId":"user-1","comment":"","thumbnailURL":"https://example.com/thumb","mediaType":"AUDIO","mediaURL":"https://example.com/media","isLiked":false}],"nextCursor":"cursor-2"}"#.utf8)
     ])
     let security = CatsClientTestSupport.RecordingSecurityClient()
     let client = CatsClient.live(

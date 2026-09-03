@@ -1574,6 +1574,68 @@ func feedDeleteFailureDoesNotSendOutputOrPopCoordinator() async {
 }
 
 @MainActor
+@Test
+func relayCatDelegateUpdatesOnlyAffectedFeedItemAndKeepsPagination() {
+    let cat = Cat(
+        id: "feed-cat",
+        name: "나비",
+        place: "집",
+        imageURL: "https://example.com/cat.png"
+    )
+    let first = Media(
+        id: "first",
+        catId: cat.id,
+        userId: "user",
+        comment: "수정 전",
+        thumbnailURL: "https://example.com/first.jpg",
+        mediaType: .photo,
+        mediaURL: "https://example.com/first.jpg"
+    )
+    let second = Media(
+        id: "second",
+        catId: cat.id,
+        userId: "user",
+        comment: "유지",
+        thumbnailURL: "https://example.com/second.jpg",
+        mediaType: .photo,
+        mediaURL: "https://example.com/second.jpg"
+    )
+    let viewModel = FeedViewModel(
+        cat: cat,
+        catsClient: .test,
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
+    )
+    viewModel.state.items = [first, second]
+    viewModel.state.nextCursor = "next-cursor"
+    let delegate = viewModel.makeRelayCatDelegate()
+
+    delegate.send(.likeUpdated(mediaId: first.id, isLiked: true))
+    #expect(viewModel.state.items[0].isLiked)
+    #expect(viewModel.state.items[1].comment == second.comment)
+    #expect(viewModel.state.nextCursor == "next-cursor")
+
+    let updated = Media(
+        id: first.id,
+        catId: cat.id,
+        userId: "user",
+        comment: "수정 후",
+        thumbnailURL: "https://example.com/updated.jpg",
+        mediaType: .video,
+        mediaURL: "https://example.com/updated.m3u8"
+    )
+    delegate.send(.mediaUpdated(updated))
+    #expect(viewModel.state.items[0].comment == updated.comment)
+    #expect(viewModel.state.items[0].mediaType == .video)
+    #expect(viewModel.state.items[0].isLiked)
+    #expect(viewModel.state.nextCursor == "next-cursor")
+
+    delegate.send(.mediaDeleted(mediaId: first.id))
+    #expect(viewModel.state.items.map(\.id) == [second.id])
+    #expect(viewModel.state.nextCursor == "next-cursor")
+}
+
+@MainActor
 private func waitUntil(_ condition: () -> Bool) async {
     for _ in 0..<100 {
         if condition() { return }

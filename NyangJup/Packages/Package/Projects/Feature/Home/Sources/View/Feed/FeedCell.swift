@@ -45,6 +45,14 @@ struct FeedCell: View {
                     .padding(Constant.playImagePadding)
             }
         }
+        .overlay(alignment: .bottomTrailing) {
+            if media.isLiked {
+                Image(systemName: Constant.likedImageName)
+                    .font(.system(size: Constant.heartImageSize, weight: .semibold))
+                    .foregroundStyle(.red)
+                    .padding(Constant.heartImagePadding)
+            }
+        }
         .clipShape(.rect(cornerRadius: Constant.cornerRadius))
         .onTapGesture { onTap(media) }
     }
@@ -62,5 +70,8 @@ private extension FeedCell {
         static let playImageName: String = "play.square.fill"
         static let playImageSize: CGFloat = 16
         static let playImagePadding: CGFloat = 12
+        static let likedImageName = "heart.fill"
+        static let heartImageSize: CGFloat = 18
+        static let heartImagePadding: CGFloat = 12
     }
 }

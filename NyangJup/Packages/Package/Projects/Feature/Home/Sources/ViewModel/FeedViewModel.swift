@@ -11,6 +11,7 @@ import DomainMediaInterface
 import DomainCatsInterface
 import FeatureCommonInterface
 import FeatureHomeInterface
+import FeatureRelayCatInterface
 
 @MainActor
 @Observable
@@ -67,7 +68,9 @@ public final class FeedViewModel: NZViewModel {
         }
 
         public enum Internal {
-
+            case relayCatLikeUpdated(mediaId: String, isLiked: Bool)
+            case relayCatMediaUpdated(Media)
+            case relayCatMediaDeleted(mediaId: String)
         }
     }
 
@@ -121,7 +124,7 @@ public final class FeedViewModel: NZViewModel {
                   let mediaURL = media.mediaURL else {
                 return
             }
-            coordinator?.push(to: .relayCat(
+            let route = HomeRoute.relayCat(
                 RelayCat(
                     mediaId: media.id,
                     catId: catId,
@@ -133,9 +136,15 @@ public final class FeedViewModel: NZViewModel {
                     catImageURL: state.cat.imageURL,
                     mediaType: media.mediaType,
                     mediaURL: mediaURL,
-                    isLiked: false
+                    isLiked: media.isLiked
                 )
-            ))
+            )
+
+            if let coordinator = coordinator as? HomeCoordinator {
+                coordinator.push(to: route, relayCatDelegate: makeRelayCatDelegate())
+            } else {
+                coordinator?.push(to: route)
+            }
             
         case .plusButtonTapped:
             state.isCameraPresented = true
@@ -199,8 +208,56 @@ public final class FeedViewModel: NZViewModel {
 
     private func handleInternalAction(_ action: Action.Internal) {
         switch action {
+        case let .relayCatLikeUpdated(mediaId, isLiked):
+            guard let index = state.items.firstIndex(where: { $0.id == mediaId }) else {
+                return
+            }
+            state.items[index] = media(from: state.items[index], isLiked: isLiked)
 
+        case let .relayCatMediaUpdated(updatedMedia):
+            guard let index = state.items.firstIndex(where: { $0.id == updatedMedia.id }) else {
+                return
+            }
+            state.items[index] = media(
+                from: updatedMedia,
+                isLiked: state.items[index].isLiked
+            )
+
+        case let .relayCatMediaDeleted(mediaId):
+            state.items.removeAll { $0.id == mediaId }
         }
+    }
+
+    func makeRelayCatDelegate() -> RelayCatDelegate {
+        RelayCatDelegate { [weak self] action in
+            guard let self else { return }
+
+            switch action {
+            case let .likeUpdated(mediaId, isLiked):
+                self.send(.internal(.relayCatLikeUpdated(
+                    mediaId: mediaId,
+                    isLiked: isLiked
+                )))
+            case let .mediaUpdated(media):
+                self.send(.internal(.relayCatMediaUpdated(media)))
+            case let .mediaDeleted(mediaId):
+                self.send(.internal(.relayCatMediaDeleted(mediaId: mediaId)))
+            }
+        }
+    }
+
+    private func media(from media: Media, isLiked: Bool) -> Media {
+        Media(
+            id: media.id,
+            catId: media.catId,
+            userId: media.userId,
+            comment: media.comment,
+            thumbnailURL: media.thumbnailURL,
+            mediaType: media.mediaType,
+            mediaURL: media.mediaURL,
+            processingStatus: media.processingStatus,
+            isLiked: isLiked
+        )
     }
 
     private func handleNetworkAction(_ action: Action.Network) {

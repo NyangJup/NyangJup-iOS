@@ -129,6 +129,7 @@ func liveFactoryCreatesViewWithRelayCatConfiguration() {
 func heartTapOptimisticallyUpdatesItemAndCallsClient() async {
     let relayCat = makeRelayCat(id: "relay-cat")
     let recorder = LikeUpdateRequestRecorder()
+    var delegateValues: [Bool] = []
     var mediaClient = MediaClient.test
     mediaClient.updateIsLiked = { id, isLiked in
         await recorder.record(id: id, isLiked: isLiked)
@@ -139,7 +140,12 @@ func heartTapOptimisticallyUpdatesItemAndCallsClient() async {
         ),
         mediaClient: mediaClient,
         imageLoaderClient: testImageLoaderClient,
-        adsClient: testAdsClient
+        adsClient: testAdsClient,
+        delegate: RelayCatDelegate { action in
+            if case let .likeUpdated(_, isLiked) = action {
+                delegateValues.append(isLiked)
+            }
+        }
     )
 
     viewModel.send(
@@ -153,12 +159,14 @@ func heartTapOptimisticallyUpdatesItemAndCallsClient() async {
 
     #expect(viewModel.state.items.first?.isLiked == true)
     await waitForLikeRequests(recorder, count: 1)
+    await waitUntil { delegateValues == [true] }
     let requests = await recorder.requests
     #expect(
         requests == [
             LikeUpdateRequest(id: relayCat.mediaId, isLiked: true)
         ]
     )
+    #expect(delegateValues == [true])
 }
 
 @MainActor
@@ -166,6 +174,7 @@ func heartTapOptimisticallyUpdatesItemAndCallsClient() async {
 func failedHeartUpdateRestoresPreviousValue() async {
     let relayCat = makeRelayCat(id: "relay-cat")
     let recorder = LikeUpdateRequestRecorder()
+    var delegateValues: [Bool] = []
     var mediaClient = MediaClient.test
     mediaClient.updateIsLiked = { id, isLiked in
         await recorder.record(id: id, isLiked: isLiked)
@@ -177,7 +186,12 @@ func failedHeartUpdateRestoresPreviousValue() async {
         ),
         mediaClient: mediaClient,
         imageLoaderClient: testImageLoaderClient,
-        adsClient: testAdsClient
+        adsClient: testAdsClient,
+        delegate: RelayCatDelegate { action in
+            if case let .likeUpdated(_, isLiked) = action {
+                delegateValues.append(isLiked)
+            }
+        }
     )
 
     viewModel.send(
@@ -202,6 +216,7 @@ func failedHeartUpdateRestoresPreviousValue() async {
         ]
     )
     #expect(viewModel.state.items.first?.isLiked == false)
+    #expect(delegateValues.isEmpty)
 }
 
 @MainActor

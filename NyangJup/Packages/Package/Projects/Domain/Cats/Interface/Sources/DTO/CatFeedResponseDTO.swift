@@ -40,6 +40,7 @@ public struct CatFeedMediaResponseDTO: Decodable, Sendable {
     public let thumbnailURL: String
     public let mediaType: String
     public let mediaURL: String
+    public let isLiked: Bool
 
     public func toEntity() throws -> Media {
         guard let mediaType = MediaType(rawValue: mediaType) else {
@@ -53,7 +54,8 @@ public struct CatFeedMediaResponseDTO: Decodable, Sendable {
             comment: comment,
             thumbnailURL: thumbnailURL,
             mediaType: mediaType,
-            mediaURL: mediaURL
+            mediaURL: mediaURL,
+            isLiked: isLiked
         )
     }
 }

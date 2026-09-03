@@ -75,7 +75,7 @@ public struct HomeRootView: View {
                         RelayCatConfiguration(
                             relayCat: relayCat
                         ),
-                        nil
+                        coordinator.relayCatDelegate(for: relayCat.mediaId)
                     )
                 }
             }
