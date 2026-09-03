@@ -115,17 +115,24 @@ public final class FeedViewModel: NZViewModel {
             send(.network(.fetchFeed(cursor: nextCursor)))
 
         case let .feedContentTapped(media):
+            guard media.processingStatus == .ready,
+                  let catId = media.catId,
+                  let thumbnailURL = media.thumbnailURL,
+                  let mediaURL = media.mediaURL else {
+                return
+            }
             coordinator?.push(to: .relayCat(
                 RelayCat(
                     mediaId: media.id,
-                    catId: media.catId,
+                    catId: catId,
                     userId: media.userId,
                     comment: media.comment,
-                    thumbnailURL: media.thumbnailURL,
+                    place: state.cat.place,
+                    thumbnailURL: thumbnailURL,
                     name: state.cat.name,
                     catImageURL: state.cat.imageURL,
                     mediaType: media.mediaType,
-                    mediaURL: media.mediaURL,
+                    mediaURL: mediaURL,
                     isLiked: false
                 )
             ))
@@ -135,7 +142,9 @@ public final class FeedViewModel: NZViewModel {
 
         case let .cameraCompleted(media):
             state.isCameraPresented = false
-            state.items.insert(media, at: 0)
+            if media.processingStatus == .ready {
+                state.items.insert(media, at: 0)
+            }
 
         case .cameraDismissed:
             state.isCameraPresented = false

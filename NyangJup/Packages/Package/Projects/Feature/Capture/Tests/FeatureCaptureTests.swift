@@ -8,6 +8,7 @@
 import AVFoundation
 import Foundation
 import Testing
+import UIKit
 @testable import FeatureCapture
 import CoreCameraInterface
 import CoreCameraTesting
@@ -33,12 +34,12 @@ private final class CaptureOutputSpy {
 private actor UploadFlowStub {
     private(set) var fetchRequests: [FetchUploadURLRequestDTO] = []
     private(set) var uploadRequests: [UploadMediaRequestDTO] = []
-    private var fetchContinuation: CheckedContinuation<UploadURLResponseDTO, Error>?
-    private var uploadContinuation: CheckedContinuation<UploadMediaResponseDTO, Error>?
+    private var fetchContinuation: CheckedContinuation<UploadURL, Error>?
+    private var uploadContinuation: CheckedContinuation<Media, Error>?
 
     func fetchUploadURL(
         _ request: FetchUploadURLRequestDTO
-    ) async throws -> UploadURLResponseDTO {
+    ) async throws -> UploadURL {
         fetchRequests.append(request)
         return try await withCheckedThrowingContinuation {
             fetchContinuation = $0
@@ -47,19 +48,19 @@ private actor UploadFlowStub {
 
     func uploadMedia(
         _ request: UploadMediaRequestDTO
-    ) async throws -> UploadMediaResponseDTO {
+    ) async throws -> Media {
         uploadRequests.append(request)
         return try await withCheckedThrowingContinuation {
             uploadContinuation = $0
         }
     }
 
-    func resumeFetch(with response: UploadURLResponseDTO) {
+    func resumeFetch(with response: UploadURL) {
         fetchContinuation?.resume(returning: response)
         fetchContinuation = nil
     }
 
-    func resumeUpload(with response: UploadMediaResponseDTO) {
+    func resumeUpload(with response: Media) {
         uploadContinuation?.resume(returning: response)
         uploadContinuation = nil
     }
@@ -395,7 +396,7 @@ func completingPhotoWaitsForBothUploadRequests() async {
     #expect(await uploadFlow.fetchRequests.count == 1)
 
     await uploadFlow.resumeFetch(
-        with: UploadURLResponseDTO(
+        with: UploadURL(
             uploadURL: "https://example.com/upload",
             fileName: "photo.jpg"
         )
@@ -411,14 +412,14 @@ func completingPhotoWaitsForBothUploadRequests() async {
     #expect(uploadRequest?.comment == "귀여워")
 
     await uploadFlow.resumeUpload(
-        with: UploadMediaResponseDTO(
+        with: Media(
+            id: "uploaded-media",
             catId: cat.id,
-            mediaId: "uploaded-media",
             userId: "test-user-id",
-            mediaType: "PHOTO",
-            mediaURL: "https://example.com/media/photo.jpg",
+            comment: "귀여워",
             thumbnailURL: "https://example.com/thumbnail/photo.jpg",
-            comment: "귀여워"
+            mediaType: .photo,
+            mediaURL: "https://example.com/media/photo.jpg"
         )
     )
     await waitUntil { outputSpy.completionCount == 1 }
@@ -437,21 +438,21 @@ func editingCaptureUsesUpdateMediaAndKeepsMediaId() async {
     let recorder = UpdateMediaRecorder()
     var mediaClient = MediaClient.test
     mediaClient.fetchUploadURL = { _ in
-        UploadURLResponseDTO(
+        UploadURL(
             uploadURL: "https://example.com/upload",
             fileName: "updated-photo.jpg"
         )
     }
     mediaClient.updateMedia = { mediaId, request in
         await recorder.record(mediaId: mediaId, request: request)
-        return UploadMediaResponseDTO(
+        return Media(
+            id: mediaId,
             catId: request.catId,
-            mediaId: mediaId,
             userId: "current-user",
-            mediaType: request.mediaType,
-            mediaURL: "https://example.com/media/updated-photo.jpg",
+            comment: request.comment,
             thumbnailURL: "https://example.com/thumbnail/updated-photo.jpg",
-            comment: request.comment
+            mediaType: MediaType(rawValue: request.mediaType) ?? .photo,
+            mediaURL: "https://example.com/media/updated-photo.jpg"
         )
     }
     let viewModel = CaptureViewModel(
@@ -581,6 +582,120 @@ func videoCaptureCanStopManuallyBeforeSixtySeconds() async {
     #expect(controller.recordedDuration == 12.5)
     #expect(viewModel.state.isRecording == false)
     #expect(viewModel.state.capturedMedia?.mode == .video)
+}
+
+@MainActor
+@Test
+func photoUploadSourceNormalizesImageDataToJPEG() throws {
+    let image = UIGraphicsImageRenderer(size: CGSize(width: 2, height: 2)).image { context in
+        UIColor.systemBlue.setFill()
+        context.cgContext.fill(CGRect(x: 0, y: 0, width: 2, height: 2))
+    }
+    let pngData = try #require(image.pngData())
+    let outputSpy = CaptureOutputSpy()
+    let viewModel = CaptureViewModel(
+        cameraClient: .test,
+        mediaClient: .test,
+        videoTrimClient: VideoTrimClient(),
+        configuration: .init(
+            usage: .catRegistration,
+            showsModePicker: false
+        ),
+        onComplete: { outputSpy.complete(capturedMedia: $0, uploadedMedia: $1) },
+        onClose: {}
+    )
+
+    viewModel.send(.internal(.captureCompleted(
+        CapturedMedia(data: pngData, mode: .photo)
+    )))
+    viewModel.send(.view(.useButtonTapped))
+    let data = try #require(outputSpy.completedMedia?.data)
+
+    #expect(Array(data.prefix(3)) == [0xFF, 0xD8, 0xFF])
+}
+
+@MainActor
+@Test
+func presignedUploadFailurePresentsAlertAndKeepsCaptureResult() async {
+    let outputSpy = CaptureOutputSpy()
+    var mediaClient = MediaClient.test
+    mediaClient.uploadToPresignedURL = { _, _, _ in
+        throw CancellationError()
+    }
+    let viewModel = CaptureViewModel(
+        cameraClient: .test,
+        mediaClient: mediaClient,
+        videoTrimClient: VideoTrimClient(),
+        configuration: .init(
+            showsModePicker: true,
+            cat: Cat(id: "cat-1", name: "나비", place: "서울숲", imageURL: "")
+        ),
+        onComplete: { outputSpy.complete(capturedMedia: $0, uploadedMedia: $1) },
+        onClose: {}
+    )
+    let media = CapturedMedia(data: Data([1, 2, 3]), mode: .photo)
+    viewModel.send(.internal(.captureCompleted(media)))
+    viewModel.send(.view(.useButtonTapped))
+    viewModel.send(.view(.completeButtonTapped))
+
+    await waitUntil { viewModel.state.isUploadFailureAlertPresented }
+
+    #expect(viewModel.state.capturedMedia == media)
+    #expect(!viewModel.state.showsLoadingOverlay)
+    #expect(outputSpy.completionCount == 0)
+}
+
+@MainActor
+@Test
+func processingVideoCompletesAfterReadyHLSURLIsFetched() async {
+    let outputSpy = CaptureOutputSpy()
+    var mediaClient = MediaClient.test
+    mediaClient.uploadMedia = { request in
+        Media(
+            id: "video-1",
+            catId: request.catId,
+            userId: "user-1",
+            comment: request.comment,
+            thumbnailURL: nil,
+            mediaType: .video,
+            mediaURL: nil,
+            processingStatus: .processing
+        )
+    }
+    mediaClient.fetchMedia = { id in
+        Media(
+            id: id,
+            catId: "cat-1",
+            userId: "user-1",
+            comment: "",
+            thumbnailURL: "https://cdn.example.com/video.jpg",
+            mediaType: .video,
+            mediaURL: "https://cdn.example.com/video.m3u8",
+            processingStatus: .ready
+        )
+    }
+    let viewModel = CaptureViewModel(
+        cameraClient: .test,
+        mediaClient: mediaClient,
+        videoTrimClient: VideoTrimClient(),
+        configuration: .init(
+            showsModePicker: true,
+            cat: Cat(id: "cat-1", name: "나비", place: "서울숲", imageURL: "")
+        ),
+        onComplete: { outputSpy.complete(capturedMedia: $0, uploadedMedia: $1) },
+        onClose: {}
+    )
+    let media = CapturedMedia(
+        url: FileManager.default.temporaryDirectory.appendingPathComponent("video.mp4"),
+        mode: .video
+    )
+    viewModel.send(.internal(.videoTrimExported(media)))
+
+    await waitUntil { outputSpy.completionCount == 1 }
+
+    #expect(outputSpy.uploadedMedia?.processingStatus == .ready)
+    #expect(outputSpy.uploadedMedia?.mediaURL == "https://cdn.example.com/video.m3u8")
+    #expect(!viewModel.state.showsLoadingOverlay)
 }
 
 @MainActor

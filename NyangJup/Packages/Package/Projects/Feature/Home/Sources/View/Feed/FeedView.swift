@@ -100,6 +100,7 @@ struct FeedView: View {
             .onAppear {
                 viewModel.send(.view(.onAppear))
             }
+            .loadingOverlay(isPresented: viewModel.state.isLoading)
         }
     }
 }

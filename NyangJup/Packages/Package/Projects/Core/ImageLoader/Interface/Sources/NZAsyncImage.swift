@@ -19,7 +19,7 @@ public struct NZAsyncImage<Content: View, Placeholder: View>: View {
     private let url: URL
     private let targetSize: CGSize
     private let options: ImageLoaderClient.CacheOptions
-    private let content: (Image) -> Content
+    private let content: (Image, CGSize) -> Content
     private let placeholder: () -> Placeholder
 
     @Environment(\.displayScale) private var displayScale
@@ -46,6 +46,20 @@ public struct NZAsyncImage<Content: View, Placeholder: View>: View {
         self.url = url
         self.targetSize = targetSize
         self.options = options
+        self.content = { image, _ in content(image) }
+        self.placeholder = placeholder
+    }
+
+    public init(
+        url: URL,
+        targetSize: CGSize,
+        options: ImageLoaderClient.CacheOptions = [.memory, .disk, .network],
+        @ViewBuilder content: @escaping (Image, CGSize) -> Content,
+        @ViewBuilder placeholder: @escaping () -> Placeholder
+    ) {
+        self.url = url
+        self.targetSize = targetSize
+        self.options = options
         self.content = content
         self.placeholder = placeholder
     }
@@ -65,17 +79,30 @@ public struct NZAsyncImage<Content: View, Placeholder: View>: View {
         )
     }
 
+    public init(
+        url: URL,
+        targetSize: CGSize,
+        options: ImageLoaderClient.CacheOptions = [.memory, .disk, .network],
+        @ViewBuilder content: @escaping (Image, CGSize) -> Content
+    ) where Placeholder == EmptyView {
+        self.init(
+            url: url,
+            targetSize: targetSize,
+            options: options,
+            content: content,
+            placeholder: { EmptyView() }
+        )
+    }
+
     public var body: some View {
         ZStack {
             if let image {
-                content(Image(uiImage: image))
+                content(Image(uiImage: image), image.size)
             } else {
                 placeholder()
             }
         }
         .task(id: loadID) {
-            image = nil
-
             let loadedImage = try? await imageLoaderClient.loadImage(
                 url,
                 targetSize,

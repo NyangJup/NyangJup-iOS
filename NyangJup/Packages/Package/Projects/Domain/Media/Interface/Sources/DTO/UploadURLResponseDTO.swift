@@ -18,4 +18,11 @@ public struct UploadURLResponseDTO: Decodable, Sendable {
         self.uploadURL = uploadURL
         self.fileName = fileName
     }
+
+    public func toEntity() -> UploadURL {
+        UploadURL(
+            uploadURL: uploadURL,
+            fileName: fileName
+        )
+    }
 }

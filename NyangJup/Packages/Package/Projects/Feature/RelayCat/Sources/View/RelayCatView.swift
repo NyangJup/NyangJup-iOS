@@ -8,6 +8,7 @@
 import SwiftUI
 
 import CoreAdsInterface
+import DomainCatsInterface
 import FeatureCaptureInterface
 
 struct RelayCatView: View {
@@ -68,7 +69,12 @@ struct RelayCatView: View {
                 captureFactory.makeView(
                     CaptureConfiguration(
                         showsModePicker: true,
-                        catId: editingItem.catId,
+                        cat: Cat(
+                            id: editingItem.catId,
+                            name: editingItem.name,
+                            place: editingItem.place,
+                            imageURL: editingItem.catImageURL
+                        ),
                         editingMediaId: editingItem.mediaId,
                         mediaComment: editingItem.comment
                     ),

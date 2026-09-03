@@ -69,7 +69,7 @@ public struct VideoTrimClient: Sendable {
         
         exportSession.timeRange = trimmedRange
         
-        try await exportSession.export(to: outputURL, as: .mov)
+        try await exportSession.export(to: outputURL, as: .mp4)
         
         return outputURL
     }

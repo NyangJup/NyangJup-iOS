@@ -244,6 +244,7 @@ let package = Package(
         .target(
             name: "FeatureRelayCat",
             dependencies: [
+                .domain(module: .cats, target: .interface),
                 .domain(module: .media, target: .interface),
                 .core(module: .ads, target: .interface),
                 .core(module: .imageLoader, target: .interface),
@@ -384,7 +385,8 @@ let package = Package(
         .target(
             name: "DomainMedia",
             dependencies: [
-                .domain(module: .media, target: .interface)
+                .domain(module: .media, target: .interface),
+                .core(module: .network, target: .interface)
             ],
             path: "Projects/Domain/Media/Sources"
         ),
@@ -398,6 +400,8 @@ let package = Package(
         .testTarget(
             name: "DomainMediaTests",
             dependencies: [
+                .core(module: .network, target: .interface),
+                .domain(module: .media, target: .feature),
                 .domain(module: .media, target: .interface),
                 .domain(module: .media, target: .testing),
                 .product(name: "Testing", package: "swift-testing")

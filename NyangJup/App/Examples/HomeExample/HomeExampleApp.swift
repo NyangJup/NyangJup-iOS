@@ -19,7 +19,8 @@ import FeatureRelayCat
 import FeatureRelayCatInterface
 import DomainCats
 import DomainCatsInterface
-import DomainMediaTesting
+import DomainMedia
+import DomainMediaInterface
 import DomainDeviceSecurity
 import DomainDeviceSecurityInterface
 import DomainProfile
@@ -62,18 +63,19 @@ struct HomeExampleApp: App {
             networkClient: networkClient,
             deviceSecurityClient: deviceSecurityClient
         )
+        let mediaClient = MediaClient.live(networkClient: networkClient)
 
         self.captureFactory = CaptureFactory.live(
             cameraClient: .live,
-            mediaClient: .test
+            mediaClient: mediaClient
         )
         self.catRegistrationFactory = CatRegistrationFactory.live(
             catsClient: catsClient,
-            mediaClient: .test
+            mediaClient: mediaClient
         )
         self.imageLoaderClient = imageLoaderClient
         self.relayCatFactory = RelayCatFactory.live(
-            mediaClient: .test,
+            mediaClient: mediaClient,
             imageLoaderClient: imageLoaderClient,
             adsClient: adsClient
         )

@@ -1186,6 +1186,38 @@ func feedCameraCompletionPrependsItemAndKeepsExistingPagination() {
 
 @MainActor
 @Test
+func feedCameraCompletionDismissesProcessingVideoWithoutInsertingIt() {
+    let viewModel = FeedViewModel(
+        cat: Cat(
+            id: "feed-cat",
+            name: "나비",
+            place: "집",
+            imageURL: "https://example.com/cats/cat-1.png"
+        ),
+        catsClient: .test,
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
+    )
+    viewModel.state.isCameraPresented = true
+    let processingVideo = Media(
+        id: "processing-video",
+        catId: "feed-cat",
+        userId: "test-user-id",
+        comment: "처리 중",
+        thumbnailURL: nil,
+        mediaType: .video,
+        mediaURL: nil,
+        processingStatus: .processing
+    )
+
+    viewModel.send(.view(.cameraCompleted(processingVideo)))
+
+    #expect(viewModel.state.items.isEmpty)
+    #expect(!viewModel.state.isCameraPresented)
+}
+
+@MainActor
+@Test
 func feedOnAppearDoesNotReloadExistingItems() async {
     let recorder = FeedRequestRecorder()
     var catsClient = CatsClient.test

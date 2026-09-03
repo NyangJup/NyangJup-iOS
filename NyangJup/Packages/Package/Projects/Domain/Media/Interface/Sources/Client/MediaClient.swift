@@ -7,32 +7,48 @@
 
 import Foundation
 
-import CoreNetworkInterface
-
 public struct MediaClient: Sendable {
-    public typealias ID = String
-    public let networkClient: NetworkClient?
-    
-    public var fetchUploadURL: @Sendable (FetchUploadURLRequestDTO) async throws -> UploadURLResponseDTO
-    public var uploadMedia: @Sendable (UploadMediaRequestDTO) async throws -> UploadMediaResponseDTO
-    public var updateMedia: @Sendable (ID, UploadMediaRequestDTO) async throws -> UploadMediaResponseDTO
-    public var fetchMedia: @Sendable (ID) async throws -> Media
-    public var updateIsLiked: @Sendable (ID, Bool) async throws -> Void
-    public var fetchRelayCats: @Sendable (FetchRelayCatsRequestDTO) async throws -> FetchRelayCatsResponseDTO
-    public var deleteMedia: @Sendable (ID) async throws -> Media
+    public var fetchUploadURL: @Sendable (_ request: FetchUploadURLRequestDTO) async throws -> UploadURL
+    public var uploadToPresignedURL: @Sendable (
+        _ uploadURL: UploadURL,
+        _ source: PresignedUploadSource,
+        _ mediaType: MediaType
+    ) async throws -> Void
+    public var uploadMedia: @Sendable (_ request: UploadMediaRequestDTO) async throws -> Media
+    public var updateMedia: @Sendable (
+        _ id: String,
+        _ request: UploadMediaRequestDTO
+    ) async throws -> Media
+    public var fetchMedia: @Sendable (_ id: String) async throws -> Media
+    public var updateIsLiked: @Sendable (
+        _ id: String,
+        _ isLiked: Bool
+    ) async throws -> Void
+    public var fetchRelayCats: @Sendable (_ request: FetchRelayCatsRequestDTO) async throws -> RelayPage
+    public var deleteMedia: @Sendable (_ id: String) async throws -> Media
     
     public init(
-        networkClient: NetworkClient?,
-        fetchUploadURL: @escaping @Sendable (FetchUploadURLRequestDTO) async throws -> UploadURLResponseDTO,
-        uploadMedia: @escaping @Sendable (UploadMediaRequestDTO) async throws -> UploadMediaResponseDTO,
-        updateMedia: @escaping @Sendable (ID, UploadMediaRequestDTO) async throws -> UploadMediaResponseDTO,
-        fetchMedia: @escaping @Sendable (ID) async throws -> Media,
-        updateIsLiked: @escaping @Sendable (ID, Bool) async throws -> Void,
-        fetchRelayCats: @escaping @Sendable (FetchRelayCatsRequestDTO) async throws -> FetchRelayCatsResponseDTO,
-        deleteMedia: @escaping @Sendable (ID) async throws -> Media
+        fetchUploadURL: @escaping @Sendable (_ request: FetchUploadURLRequestDTO) async throws -> UploadURL,
+        uploadToPresignedURL: @escaping @Sendable (
+            _ uploadURL: UploadURL,
+            _ source: PresignedUploadSource,
+            _ mediaType: MediaType
+        ) async throws -> Void,
+        uploadMedia: @escaping @Sendable (_ request: UploadMediaRequestDTO) async throws -> Media,
+        updateMedia: @escaping @Sendable (
+            _ id: String,
+            _ request: UploadMediaRequestDTO
+        ) async throws -> Media,
+        fetchMedia: @escaping @Sendable (_ id: String) async throws -> Media,
+        updateIsLiked: @escaping @Sendable (
+            _ id: String,
+            _ isLiked: Bool
+        ) async throws -> Void,
+        fetchRelayCats: @escaping @Sendable (_ request: FetchRelayCatsRequestDTO) async throws -> RelayPage,
+        deleteMedia: @escaping @Sendable (_ id: String) async throws -> Media
     ) {
-        self.networkClient = networkClient
         self.fetchUploadURL = fetchUploadURL
+        self.uploadToPresignedURL = uploadToPresignedURL
         self.uploadMedia = uploadMedia
         self.updateMedia = updateMedia
         self.fetchMedia = fetchMedia

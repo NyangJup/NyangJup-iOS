@@ -9,6 +9,7 @@ func relayCatStoresDetailFields() {
         catId: "cat-1",
         userId: "user-1",
         comment: "낮잠 중",
+        place: "서울숲",
         thumbnailURL: "https://example.com/thumbnail.jpg",
         name: "나비",
         catImageURL: "https://example.com/cat.png",
@@ -21,6 +22,7 @@ func relayCatStoresDetailFields() {
     #expect(relayCat.catId == "cat-1")
     #expect(relayCat.userId == "user-1")
     #expect(relayCat.comment == "낮잠 중")
+    #expect(relayCat.place == "서울숲")
     #expect(relayCat.thumbnailURL == "https://example.com/thumbnail.jpg")
     #expect(relayCat.name == "나비")
     #expect(relayCat.catImageURL == "https://example.com/cat.png")
@@ -86,8 +88,8 @@ func testClientUploadCompletes() async throws {
     let response = try await MediaClient.test.uploadMedia(request)
 
     #expect(response.catId == request.catId)
-    #expect(response.mediaId == "test-media-id")
-    #expect(response.mediaType == request.mediaType)
+    #expect(response.id == "test-media-id")
+    #expect(response.mediaType.rawValue == request.mediaType)
     #expect(response.mediaURL == "https://example.com/media/\(request.fileName)")
     #expect(response.thumbnailURL == "https://example.com/thumbnails/\(request.fileName).jpg")
     #expect(response.comment == request.comment)
