@@ -25,8 +25,14 @@ public final class CaptureViewModel: NZViewModel {
         case timedOut
     }
 
-    nonisolated private static let processingPollAttemptCount = 60
-    nonisolated private static let processingPollInterval: Duration = .seconds(2)
+    private struct PendingRegistration {
+        let media: CapturedMedia
+        let request: UploadMediaRequestDTO
+        var registeredMedia: Media?
+    }
+
+    nonisolated private static let processingPollAttemptCount = 240
+    nonisolated private static let processingPollInterval: Duration = .milliseconds(500)
 
     public struct State {
         public var mode: CaptureMode = .photo
@@ -89,6 +95,7 @@ public final class CaptureViewModel: NZViewModel {
             case durationEndTimeChanged(Double)
             case currentTimeChanged(Double)
             case completeButtonTapped
+            case retryUploadButtonTapped
             case closeButtonTapped
         }
 
@@ -97,7 +104,6 @@ public final class CaptureViewModel: NZViewModel {
             
             case videoTrimLoaded(VideoTrimState)
             case videoTrimChanged(VideoTrimState)
-            case videoTrimExported(CapturedMedia)
         }
     }
 
@@ -110,6 +116,8 @@ public final class CaptureViewModel: NZViewModel {
     private let requestCameraAccess: @Sendable () async -> Bool
     private let onComplete: @MainActor @Sendable (CapturedMedia, Media?) -> Void
     private let onClose: @MainActor @Sendable () -> Void
+    private var uploadTask: Task<Void, Never>?
+    private var pendingRegistration: PendingRegistration?
     
     public init(
         cameraClient: CameraClient,
@@ -154,6 +162,7 @@ private extension CaptureViewModel {
             prepareCamera()
             
         case .onDisappear:
+            cancelUploadAndCleanUp()
             cameraClient.stop()
             
         case let .modeChanged(mode):
@@ -177,6 +186,7 @@ private extension CaptureViewModel {
             capture()
             
         case .retakeButtonTapped:
+            cancelUploadAndCleanUp()
             state.capturedMedia = nil
             state.videoTrimState = nil
             state.isRecording = nil
@@ -214,6 +224,9 @@ private extension CaptureViewModel {
             
         case .completeButtonTapped:
             completeCapture()
+
+        case .retryUploadButtonTapped:
+            retryUpload()
 
         case .closeButtonTapped:
             onClose()
@@ -268,7 +281,9 @@ private extension CaptureViewModel {
                 state.isPreparingMedia = true
                 
                 Task {
-                    defer { state.isPreparingMedia = false }
+                    defer {
+                        state.isPreparingMedia = false
+                    }
 
                     do {
                         let duration = try await videoTrimClient.loadDuration(from: url)
@@ -295,9 +310,6 @@ private extension CaptureViewModel {
         case let .videoTrimChanged(trimState):
             state.videoTrimState = trimState // 2
 
-        case let .videoTrimExported(media):
-            state.capturedMedia = media
-            uploadMedia(media)
         }
     }
 
@@ -339,90 +351,190 @@ private extension CaptureViewModel {
         state.showsConfirmSheet = false
         state.isUploading = true
 
-        guard media.mode == .video else {
-            uploadMedia(media)
-            return
+        uploadTask = Task { [weak self] in
+            guard let self else { return }
+            await performUpload(for: media)
         }
+    }
 
-        guard let sourceURL = media.url,
-              let trimState = state.videoTrimState else {
-            state.isUploading = false
-            return
-        }
+    func performUpload(for media: CapturedMedia) async {
+        var preparedMedia = media
+        var thumbnailData: Data?
+        var shouldCleanPreparedVideo = false
 
-        let videoTrimClient = videoTrimClient
-        Task {
-            do {
+        do {
+            if media.mode == .video {
+                guard let sourceURL = media.url,
+                      let trimState = state.videoTrimState else {
+                    throw CancellationError()
+                }
+
                 let outputURL = try await videoTrimClient.exportTrimmedVideo(
                     sourceURL: sourceURL,
                     startTime: trimState.startTime,
                     endTime: trimState.endTime
                 )
-                send(.internal(.videoTrimExported(CapturedMedia(url: outputURL, mode: .video))))
-            } catch {
-                state.isUploading = false
+                preparedMedia = CapturedMedia(url: outputURL, mode: .video)
+                shouldCleanPreparedVideo = true
+
+                thumbnailData = try await videoTrimClient.generateUploadThumbnail(
+                    from: sourceURL,
+                    at: trimState.startTime
+                )
             }
+
+            try Task.checkCancellation()
+            let uploadedMedia = try await uploadMedia(preparedMedia, thumbnailData: thumbnailData)
+            pendingRegistration = nil
+            finishUpload(success: true)
+            onComplete(preparedMedia, uploadedMedia)
+            if shouldCleanPreparedVideo {
+                removeTemporaryFile(for: preparedMedia)
+            }
+        } catch is CancellationError {
+            if shouldCleanPreparedVideo, pendingRegistration == nil {
+                removeTemporaryFile(for: preparedMedia)
+            }
+            finishUpload(success: false, showFailure: false)
+        } catch {
+            if shouldCleanPreparedVideo, pendingRegistration == nil {
+                removeTemporaryFile(for: preparedMedia)
+            }
+            finishUpload(success: false, showFailure: true)
         }
     }
 
-    func uploadMedia(_ media: CapturedMedia) {
+    func uploadMedia(
+        _ media: CapturedMedia,
+        thumbnailData: Data?
+    ) async throws -> Media {
         let mediaType: MediaType = switch media.mode {
         case .photo: .photo
         case .video: .video
         }
-        let mediaClient = mediaClient
         let cat = state.cat
         let catId = state.catId
         let editingMediaId = state.editingMediaId
         let comment = state.commentText
+        let uploadURLResponse = try await mediaClient.fetchUploadURL(
+            FetchUploadURLRequestDTO(
+                catId: catId,
+                mediaType: mediaType.rawValue
+            )
+        )
+        guard let uploadSource = uploadSource(for: media) else {
+            throw CancellationError()
+        }
+        try await mediaClient.uploadToPresignedURL(
+            uploadURLResponse,
+            uploadSource,
+            mediaType
+        )
 
-        Task {
-            defer { state.isUploading = false }
+        if mediaType == .video {
+            guard let thumbnailData,
+                  let thumbnailUploadURL = uploadURLResponse.thumbnailUploadURL,
+                  let thumbnailFileName = uploadURLResponse.thumbnailFileName else {
+                throw VideoTrimError.thumbnailEncodingFailed
+            }
+            let thumbnailGrant = UploadURL(
+                uploadURL: thumbnailUploadURL,
+                fileName: thumbnailFileName
+            )
+            try await mediaClient.uploadToPresignedURL(
+                thumbnailGrant,
+                .data(thumbnailData),
+                .photo
+            )
+        }
 
+        let request = UploadMediaRequestDTO(
+            catId: catId,
+            fileName: uploadURLResponse.fileName,
+            thumbnailFileName: uploadURLResponse.thumbnailFileName,
+            mediaType: mediaType.rawValue,
+            place: cat?.place,
+            comment: comment
+        )
+        pendingRegistration = PendingRegistration(
+            media: media,
+            request: request,
+            registeredMedia: nil
+        )
+        let uploadedMedia = try await registerMedia(
+            request: request,
+            editingMediaId: editingMediaId
+        )
+        pendingRegistration?.registeredMedia = uploadedMedia
+        return try await waitUntilMediaIsReady(uploadedMedia)
+    }
+
+    func registerMedia(
+        request: UploadMediaRequestDTO,
+        editingMediaId: String?
+    ) async throws -> Media {
+        if let editingMediaId {
+            try await mediaClient.updateMedia(editingMediaId, request)
+        } else {
+            try await mediaClient.uploadMedia(request)
+        }
+    }
+
+    func retryUpload() {
+        guard !state.isUploading else { return }
+        state.isUploadFailureAlertPresented = false
+
+        guard let pendingRegistration else {
+            completeCapture()
+            return
+        }
+
+        state.isUploading = true
+        uploadTask = Task { [weak self] in
+            guard let self else { return }
             do {
-                let uploadURLResponse = try await mediaClient.fetchUploadURL(
-                    FetchUploadURLRequestDTO(
-                        catId: catId,
-                        mediaType: mediaType.rawValue
-                    )
-                )
-                guard let uploadSource = uploadSource(for: media) else {
-                    state.isUploadFailureAlertPresented = true
-                    return
-                }
-                try await mediaClient.uploadToPresignedURL(
-                    uploadURLResponse,
-                    uploadSource,
-                    mediaType
-                )
-                let request = UploadMediaRequestDTO(
-                    catId: catId,
-                    fileName: uploadURLResponse.fileName,
-                    mediaType: mediaType.rawValue,
-                    place: cat?.place,
-                    comment: comment
-                )
-                let uploadedMedia = if let editingMediaId {
-                    try await mediaClient.updateMedia(editingMediaId, request)
+                let uploadedMedia: Media
+                if let registeredMedia = pendingRegistration.registeredMedia {
+                    uploadedMedia = registeredMedia
                 } else {
-                    try await mediaClient.uploadMedia(request)
+                    uploadedMedia = try await registerMedia(
+                        request: pendingRegistration.request,
+                        editingMediaId: state.editingMediaId
+                    )
+                    self.pendingRegistration?.registeredMedia = uploadedMedia
                 }
-
                 let readyMedia = try await waitUntilMediaIsReady(uploadedMedia)
-                onComplete(media, readyMedia)
+                self.pendingRegistration = nil
+                finishUpload(success: true)
+                onComplete(pendingRegistration.media, readyMedia)
+                removeTemporaryFile(for: pendingRegistration.media)
+            } catch is CancellationError {
+                finishUpload(success: false, showFailure: false)
             } catch {
-                state.isUploadFailureAlertPresented = true
+                finishUpload(success: false, showFailure: true)
             }
         }
     }
 
-    func uploadSource(for media: CapturedMedia) -> PresignedUploadSource? {
-        switch media.mode {
-        case .photo:
-            normalizedMedia(from: media).data.map(PresignedUploadSource.data)
-        case .video:
-            media.url.map(PresignedUploadSource.file)
+    func finishUpload(success: Bool, showFailure: Bool = false) {
+        state.isUploading = false
+        state.isUploadFailureAlertPresented = showFailure
+        uploadTask = nil
+    }
+
+    func cancelUploadAndCleanUp() {
+        uploadTask?.cancel()
+        uploadTask = nil
+        if let pendingRegistration {
+            removeTemporaryFile(for: pendingRegistration.media)
+            self.pendingRegistration = nil
         }
+        state.isUploading = false
+    }
+
+    func removeTemporaryFile(for media: CapturedMedia) {
+        guard media.mode == .video, let url = media.url else { return }
+        try? FileManager.default.removeItem(at: url)
     }
 
     func waitUntilMediaIsReady(_ media: Media) async throws -> Media {
@@ -436,6 +548,7 @@ private extension CaptureViewModel {
         }
 
         for attempt in 0..<Self.processingPollAttemptCount {
+            try Task.checkCancellation()
             let fetchedMedia = try await mediaClient.fetchMedia(media.id)
 
             switch fetchedMedia.processingStatus {
@@ -444,14 +557,21 @@ private extension CaptureViewModel {
             case .failed:
                 throw MediaProcessingError.failed
             case .processing:
-                guard attempt < Self.processingPollAttemptCount - 1 else {
-                    break
-                }
+                guard attempt < Self.processingPollAttemptCount - 1 else { break }
                 try await Task.sleep(for: Self.processingPollInterval)
             }
         }
 
         throw MediaProcessingError.timedOut
+    }
+
+    func uploadSource(for media: CapturedMedia) -> PresignedUploadSource? {
+        switch media.mode {
+        case .photo:
+            normalizedMedia(from: media).data.map(PresignedUploadSource.data)
+        case .video:
+            media.url.map(PresignedUploadSource.file)
+        }
     }
 
     func normalizedMedia(from media: CapturedMedia) -> CapturedMedia {

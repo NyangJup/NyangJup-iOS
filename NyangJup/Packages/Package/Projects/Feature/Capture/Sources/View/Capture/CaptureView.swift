@@ -81,7 +81,10 @@ public struct CaptureView: View {
             Constant.uploadFailureAlertTitle,
             isPresented: $viewModel.state.isUploadFailureAlertPresented
         ) {
-            Button(Constant.confirmTitle, role: .cancel) {}
+            Button(Constant.cancelTitle, role: .cancel) {}
+            Button("다시 시도") {
+                viewModel.send(.view(.retryUploadButtonTapped))
+            }
         } message: {
             Text(Constant.uploadFailureAlertMessage)
         }

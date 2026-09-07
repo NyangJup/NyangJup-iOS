@@ -79,6 +79,30 @@ private actor UpdateMediaRecorder {
     }
 }
 
+private actor MediaFetchRecorder {
+    private(set) var mediaIds: [String] = []
+
+    func record(_ mediaId: String) {
+        mediaIds.append(mediaId)
+    }
+}
+
+@Test
+func videoExportTargetsSixMegabitsAtSixtyFramesPerSecond() throws {
+    let settings = VideoTrimClient.videoOutputSettings(
+        renderSize: CGSize(width: 1920, height: 1080),
+        frameRate: 60
+    )
+    let compressionProperties = try #require(
+        settings[AVVideoCompressionPropertiesKey] as? [String: Any]
+    )
+
+    #expect(settings[AVVideoCodecKey] as? AVVideoCodecType == .h264)
+    #expect(compressionProperties[AVVideoAverageBitRateKey] as? Int == 6_000_000)
+    #expect(compressionProperties[AVVideoExpectedSourceFrameRateKey] as? Int == 60)
+    #expect(compressionProperties[AVVideoMaxKeyFrameIntervalDurationKey] as? Int == 1)
+}
+
 @MainActor
 private final class RecordingCameraController: CameraSessionControlling {
     let session = AVCaptureSession()
@@ -345,6 +369,7 @@ func catRegistrationUseCompletesWithCapturedMediaWithoutPresentingConfirmation()
 func completingPhotoWaitsForBothUploadRequests() async {
     let outputSpy = CaptureOutputSpy()
     let uploadFlow = UploadFlowStub()
+    let mediaFetchRecorder = MediaFetchRecorder()
     let cat = Cat(
         id: "cat-id",
         name: "나비",
@@ -357,6 +382,19 @@ func completingPhotoWaitsForBothUploadRequests() async {
     }
     mediaClient.uploadMedia = {
         try await uploadFlow.uploadMedia($0)
+    }
+    mediaClient.fetchMedia = { mediaId in
+        await mediaFetchRecorder.record(mediaId)
+        return Media(
+            id: mediaId,
+            catId: "cat-id",
+            userId: "test-user-id",
+            comment: "귀여워",
+            thumbnailURL: "https://example.com/thumbnail/photo.jpg",
+            mediaType: .photo,
+            mediaURL: "https://example.com/media/photo.jpg",
+            processingStatus: .ready
+        )
     }
     let viewModel = CaptureViewModel(
         cameraClient: .test,
@@ -419,7 +457,8 @@ func completingPhotoWaitsForBothUploadRequests() async {
             comment: "귀여워",
             thumbnailURL: "https://example.com/thumbnail/photo.jpg",
             mediaType: .photo,
-            mediaURL: "https://example.com/media/photo.jpg"
+            mediaURL: "https://example.com/media/photo.jpg",
+            processingStatus: .processing
         )
     )
     await waitUntil { outputSpy.completionCount == 1 }
@@ -427,6 +466,7 @@ func completingPhotoWaitsForBothUploadRequests() async {
     #expect(outputSpy.completedMedia == media)
     #expect(outputSpy.uploadedMedia?.id == "uploaded-media")
     #expect(outputSpy.uploadedMedia?.mediaType == .photo)
+    #expect(await mediaFetchRecorder.mediaIds == ["uploaded-media"])
     #expect(viewModel.state.isUploading == false)
     #expect(viewModel.state.showsLoadingOverlay == false)
 }
@@ -643,59 +683,6 @@ func presignedUploadFailurePresentsAlertAndKeepsCaptureResult() async {
     #expect(viewModel.state.capturedMedia == media)
     #expect(!viewModel.state.showsLoadingOverlay)
     #expect(outputSpy.completionCount == 0)
-}
-
-@MainActor
-@Test
-func processingVideoCompletesAfterReadyHLSURLIsFetched() async {
-    let outputSpy = CaptureOutputSpy()
-    var mediaClient = MediaClient.test
-    mediaClient.uploadMedia = { request in
-        Media(
-            id: "video-1",
-            catId: request.catId,
-            userId: "user-1",
-            comment: request.comment,
-            thumbnailURL: nil,
-            mediaType: .video,
-            mediaURL: nil,
-            processingStatus: .processing
-        )
-    }
-    mediaClient.fetchMedia = { id in
-        Media(
-            id: id,
-            catId: "cat-1",
-            userId: "user-1",
-            comment: "",
-            thumbnailURL: "https://cdn.example.com/video.jpg",
-            mediaType: .video,
-            mediaURL: "https://cdn.example.com/video.m3u8",
-            processingStatus: .ready
-        )
-    }
-    let viewModel = CaptureViewModel(
-        cameraClient: .test,
-        mediaClient: mediaClient,
-        videoTrimClient: VideoTrimClient(),
-        configuration: .init(
-            showsModePicker: true,
-            cat: Cat(id: "cat-1", name: "나비", place: "서울숲", imageURL: "")
-        ),
-        onComplete: { outputSpy.complete(capturedMedia: $0, uploadedMedia: $1) },
-        onClose: {}
-    )
-    let media = CapturedMedia(
-        url: FileManager.default.temporaryDirectory.appendingPathComponent("video.mp4"),
-        mode: .video
-    )
-    viewModel.send(.internal(.videoTrimExported(media)))
-
-    await waitUntil { outputSpy.completionCount == 1 }
-
-    #expect(outputSpy.uploadedMedia?.processingStatus == .ready)
-    #expect(outputSpy.uploadedMedia?.mediaURL == "https://cdn.example.com/video.m3u8")
-    #expect(!viewModel.state.showsLoadingOverlay)
 }
 
 @MainActor
