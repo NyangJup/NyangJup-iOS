@@ -31,9 +31,10 @@ final class RelayCatViewModel: NZViewModel {
         var isLoadingPrevious = false
         var isLoadingNext = false
         var isDeleting = false
-        var isCameraPresented: Bool = false
-        var editingMediaId: String?
         var isDeleteAlertPresented: Bool = false
+        var isEditCommentAlertPresented = false
+        var editComment = ""
+        var isUpdatingComment = false
         
         /// 아직 배치되지 않은 광고 재고
         var ads: [NativeAdItem] = []
@@ -53,6 +54,10 @@ final class RelayCatViewModel: NZViewModel {
 
         var currentItem: RelayCat? {
             items.first { $0.mediaId == currentItemId }
+        }
+
+        var canUpdateComment: Bool {
+            !isUpdatingComment && editComment != currentItem?.comment
         }
 
         var displayItems: [RelayCatFeedItem] {
@@ -78,10 +83,9 @@ final class RelayCatViewModel: NZViewModel {
             case onAppear(CGFloat)
             case itemAppeared(id: String, size: CGSize)
             case editButtonTapped
+            case updateCommentAlertTapped
             case deleteMenuButtonTapped
             case deleteButtonTapped
-            case cameraCompleted(Media)
-            case cameraDismissed
         }
         
         enum Network {  
@@ -145,12 +149,14 @@ final class RelayCatViewModel: NZViewModel {
             }
 
         case .editButtonTapped:
-            // 광고 페이지에서는 currentItem이 nil이라 자연히 막힌다
             guard let currentItem = state.currentItem else {
                 return
             }
-            state.editingMediaId = currentItem.mediaId
-            state.isCameraPresented = true
+            state.editComment = currentItem.comment
+            state.isEditCommentAlertPresented = true
+
+        case .updateCommentAlertTapped:
+            updateComment()
             
         case .deleteMenuButtonTapped:
             state.isDeleteAlertPresented = true
@@ -161,12 +167,6 @@ final class RelayCatViewModel: NZViewModel {
             }
             send(.network(.deleteMedia(id: currentItem.mediaId)))
 
-        case let .cameraCompleted(media):
-            replaceEditedItem(with: media)
-
-        case .cameraDismissed:
-            state.isCameraPresented = false
-            state.editingMediaId = nil
         }
     }
     
@@ -405,20 +405,33 @@ final class RelayCatViewModel: NZViewModel {
         }
     }
 
-    private func replaceEditedItem(with media: Media) {
-        guard let editingMediaId = state.editingMediaId,
-              let index = state.items.firstIndex(where: {
-                  $0.mediaId == editingMediaId
-              }) else {
+    private func updateComment() {
+        guard let currentItem = state.currentItem,
+              state.canUpdateComment else {
             return
         }
 
-        guard media.processingStatus == .ready,
-              let catId = media.catId,
-              let thumbnailURL = media.thumbnailURL,
-              let mediaURL = media.mediaURL else {
-            state.isCameraPresented = false
-            state.editingMediaId = nil
+        state.isUpdatingComment = true
+
+        Task {
+            defer { state.isUpdatingComment = false }
+
+            do {
+                let media = try await mediaClient.updateComment(
+                    currentItem.mediaId,
+                    state.editComment
+                )
+                replaceItem(id: currentItem.mediaId, with: media)
+                state.isEditCommentAlertPresented = false
+            } catch {
+
+            }
+        }
+    }
+
+    private func replaceItem(id: String, with media: Media) {
+        guard let index = state.items.firstIndex(where: { $0.mediaId == id }),
+              let catId = media.catId else {
             return
         }
 
@@ -429,18 +442,16 @@ final class RelayCatViewModel: NZViewModel {
             userId: media.userId,
             comment: media.comment,
             place: previousItem.place,
-            thumbnailURL: thumbnailURL,
+            thumbnailURL: media.thumbnailURL,
             name: previousItem.name,
             catImageURL: previousItem.catImageURL,
             mediaType: media.mediaType,
-            mediaURL: mediaURL,
+            mediaURL: media.mediaURL,
             isLiked: previousItem.isLiked
         )
 
         state.items[index] = updatedItem
         delegate?.send(.mediaUpdated(media))
-        state.isCameraPresented = false
-        state.editingMediaId = nil
         preloadAdjacentImages()
     }
 

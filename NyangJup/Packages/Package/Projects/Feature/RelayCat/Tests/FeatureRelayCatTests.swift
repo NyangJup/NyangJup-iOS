@@ -66,6 +66,16 @@ private actor DeletedMediaRecorder {
     }
 }
 
+private actor MediaUpdateRecorder {
+    private(set) var id: String?
+    private(set) var comment: String?
+
+    func record(id: String, comment: String) {
+        self.id = id
+        self.comment = comment
+    }
+}
+
 private actor NativeAdLoadRecorder {
     private(set) var requestedCounts: [Int] = []
     private var batches: [[NativeAdItem]]
@@ -508,8 +518,7 @@ func adSelectionHasNoMenuItemAndIgnoresEditAndDelete() async {
     viewModel.send(.view(.deleteButtonTapped))
     await Task.yield()
 
-    #expect(!viewModel.state.isCameraPresented)
-    #expect(viewModel.state.editingMediaId == nil)
+    #expect(!viewModel.state.isEditCommentAlertPresented)
     #expect(await deleteRecorder.ids.isEmpty)
 }
 
@@ -526,7 +535,7 @@ func viewModelPreloadsAdjacentPhotosAfterInitialResponse() async {
         name: "나비",
         catImageURL: "https://example.com/cat.png",
         mediaType: .video,
-        mediaURL: "https://example.com/anchor.m3u8",
+        mediaURL: "https://example.com/anchor.mp4",
         isLiked: false
     )
     let next = makeRelayCat(id: "next")
@@ -600,7 +609,7 @@ func viewModelDoesNotPreloadAdjacentVideo() async {
         name: "나비",
         catImageURL: "https://example.com/cat.png",
         mediaType: .video,
-        mediaURL: "https://example.com/next-video.m3u8",
+        mediaURL: "https://example.com/next-video.mp4",
         isLiked: false
     )
     let recorder = ImageLoadRequestRecorder()
@@ -744,41 +753,48 @@ func viewModelPreloadsPhotosAddedByPreviousAndNextPages() async {
 
 @MainActor
 @Test
-func editingCurrentItemWithCaptureResultReplacesIt() {
+func editingCurrentItemUpdatesOnlyItsComment() async {
     let relayCat = makeOwnedRelayCat(id: "owned", userId: "current-user")
+    let recorder = MediaUpdateRecorder()
+    var mediaClient = MediaClient.test
+    mediaClient.updateComment = { id, comment in
+        await recorder.record(id: id, comment: comment)
+        return Media(
+            id: id,
+            catId: relayCat.catId,
+            userId: relayCat.userId,
+            comment: comment,
+            thumbnailURL: relayCat.thumbnailURL,
+            mediaType: relayCat.mediaType,
+            mediaURL: relayCat.mediaURL
+        )
+    }
     let viewModel = RelayCatViewModel(
         configuration: RelayCatConfiguration(
             relayCat: relayCat
         ),
-        mediaClient: .test,
+        mediaClient: mediaClient,
         imageLoaderClient: testImageLoaderClient,
         adsClient: testAdsClient
     )
     viewModel.send(.view(.editButtonTapped))
 
-    #expect(viewModel.state.isCameraPresented)
-    #expect(viewModel.state.editingMediaId == relayCat.mediaId)
+    #expect(viewModel.state.isEditCommentAlertPresented)
+    #expect(viewModel.state.editComment == relayCat.comment)
 
-    viewModel.send(.view(.cameraCompleted(
-        Media(
-            id: relayCat.mediaId,
-            catId: relayCat.catId,
-            userId: relayCat.userId,
-            comment: "수정된 메모",
-            thumbnailURL: "https://example.com/updated-thumbnail.jpg",
-            mediaType: .video,
-            mediaURL: "https://example.com/updated.mp4"
-        )
-    )))
+    viewModel.state.editComment = "수정된 메모"
+    viewModel.send(.view(.updateCommentAlertTapped))
+    await waitUntil { !viewModel.state.isUpdatingComment }
 
+    #expect(await recorder.id == relayCat.mediaId)
+    #expect(await recorder.comment == "수정된 메모")
     #expect(viewModel.state.items.count == 1)
     #expect(viewModel.state.currentItem?.comment == "수정된 메모")
-    #expect(viewModel.state.currentItem?.mediaType == .video)
-    #expect(viewModel.state.currentItem?.mediaURL == "https://example.com/updated.mp4")
+    #expect(viewModel.state.currentItem?.mediaType == relayCat.mediaType)
+    #expect(viewModel.state.currentItem?.mediaURL == relayCat.mediaURL)
     #expect(viewModel.state.currentItem?.catImageURL == relayCat.catImageURL)
     #expect(viewModel.state.currentItemId == relayCat.mediaId)
-    #expect(!viewModel.state.isCameraPresented)
-    #expect(viewModel.state.editingMediaId == nil)
+    #expect(!viewModel.state.isEditCommentAlertPresented)
 }
 
 @MainActor
@@ -961,7 +977,7 @@ private func makeVideoRelayCat(id: String) -> RelayCat {
         name: "나비",
         catImageURL: "https://example.com/\(id)-cat.png",
         mediaType: .video,
-        mediaURL: "https://example.com/\(id).m3u8",
+        mediaURL: "https://example.com/\(id).mp4",
         isLiked: false
     )
 }

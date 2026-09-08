@@ -8,11 +8,8 @@
 import SwiftUI
 
 import CoreAdsInterface
-import DomainCatsInterface
-import FeatureCaptureInterface
 
 struct RelayCatView: View {
-    @Environment(\.captureFactory) private var captureFactory
     @Environment(\.nativeAdFactory) private var nativeAdFactory
     @Environment(\.displayScale) private var displayScale
 
@@ -64,32 +61,6 @@ struct RelayCatView: View {
             .scrollTargetBehavior(.paging)
             .scrollPosition(id: $viewModel.state.currentItemId)
         }
-        .fullScreenCover(isPresented: $viewModel.state.isCameraPresented) {
-            if let editingItem = viewModel.state.currentItem {
-                captureFactory.makeView(
-                    CaptureConfiguration(
-                        showsModePicker: true,
-                        cat: Cat(
-                            id: editingItem.catId,
-                            name: editingItem.name,
-                            place: editingItem.place,
-                            imageURL: editingItem.catImageURL
-                        ),
-                        editingMediaId: editingItem.mediaId,
-                        mediaComment: editingItem.comment
-                    ),
-                    CaptureDelegate(send: { action in
-                        switch action {
-                        case let .complete(media):
-                            viewModel.send(.view(.cameraCompleted(media)))
-                        case .close:
-                            viewModel.send(.view(.cameraDismissed))
-                        case .register: break
-                        }
-                    })
-                )
-            }
-        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 // 광고 페이지에서는 수정/삭제 메뉴를 숨긴다
@@ -115,6 +86,21 @@ struct RelayCatView: View {
             }
             
             Button("아니요", role: .cancel) {}
+        }
+        .alert(
+            "코멘트 수정",
+            isPresented: $viewModel.state.isEditCommentAlertPresented
+        ) {
+            TextField("코멘트", text: $viewModel.state.editComment)
+
+            Button("저장") {
+                viewModel.send(.view(.updateCommentAlertTapped))
+            }
+            .disabled(!viewModel.state.canUpdateComment)
+
+            Button("취소", role: .cancel) { }
+        } message: {
+            Text("코멘트만 수정할 수 있어요.")
         }
         .background(.black)
         .onAppear { viewModel.send(.view(.onAppear(displayScale))) }
