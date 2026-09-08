@@ -15,51 +15,62 @@ struct RelayCatView: View {
 
     @State private var viewModel: RelayCatViewModel
     @State private var isDeleteAlertPresented = false
+    @State private var didPositionInitialItem = false
 
     init(viewModel: RelayCatViewModel) {
         self._viewModel = State(initialValue: viewModel)
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(viewModel.state.displayItems) { feedItem in
-                        switch feedItem {
-                        case let .relay(item):
-                            RelayCatCell(
-                                relayCat: item,
-                                size: proxy.size,
-                                isActive: viewModel.state.currentItemId == item.mediaId,
-                                onHeartTapped: { isLiked in
-                                    viewModel.send(.network(.updateIsLiked(
+        ScrollViewReader { scrollProxy in
+            GeometryReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(viewModel.state.displayItems) { feedItem in
+                            switch feedItem {
+                            case let .relay(item):
+                                RelayCatCell(
+                                    relayCat: item,
+                                    size: proxy.size,
+                                    isActive: viewModel.state.currentItemId == item.mediaId,
+                                    onHeartTapped: { isLiked in
+                                        viewModel.send(.network(.updateIsLiked(
+                                            id: item.mediaId,
+                                            isLiked: isLiked
+                                        )))
+                                    }
+                                )
+                                .id(item.mediaId)
+                                .onAppear {
+                                    viewModel.send(.view(.itemAppeared(
                                         id: item.mediaId,
-                                        isLiked: isLiked
+                                        size: proxy.size
                                     )))
                                 }
-                            )
-                            .id(item.mediaId)
-                            .onAppear {
-                                viewModel.send(.view(.itemAppeared(
-                                    id: item.mediaId,
-                                    size: proxy.size
-                                )))
-                            }
 
-                        case let .ad(adItem):
-                            nativeAdFactory.makeView(adItem)
-                                .frame(
-                                    width: proxy.size.width,
-                                    height: proxy.size.height
-                                )
-                                .id(feedItem.id)
+                            case let .ad(adItem):
+                                nativeAdFactory.makeView(adItem)
+                                    .frame(
+                                        width: proxy.size.width,
+                                        height: proxy.size.height
+                                    )
+                                    .id(feedItem.id)
+                            }
                         }
                     }
+                    .scrollTargetLayout()
                 }
-                .scrollTargetLayout()
+                .scrollTargetBehavior(.paging)
+                .scrollPosition(id: $viewModel.state.currentItemId)
             }
-            .scrollTargetBehavior(.paging)
-            .scrollPosition(id: $viewModel.state.currentItemId)
+            .onChange(of: viewModel.state.hasLoadedInitialRelay) { _, hasLoaded in
+                guard hasLoaded, !didPositionInitialItem else { return }
+
+                didPositionInitialItem = true
+                DispatchQueue.main.async {
+                    scrollProxy.scrollTo(viewModel.state.anchorId, anchor: .top)
+                }
+            }
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

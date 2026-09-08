@@ -25,6 +25,7 @@ final class RelayCatViewModel: NZViewModel {
         let catId: String
         var items: [RelayCat]
         var currentItemId: String?
+        var hasLoadedInitialRelay = false
         var previousCursor: String?
         var nextCursor: String?
         var isLoading = false
@@ -265,6 +266,7 @@ final class RelayCatViewModel: NZViewModel {
                 if response.items.indices.contains(response.anchorIndex) {
                     state.currentItemId = response.items[response.anchorIndex].mediaId
                 }
+                state.hasLoadedInitialRelay = true
 
                 assignAdSlots()
                 loadNativeAdsIfNeeded()

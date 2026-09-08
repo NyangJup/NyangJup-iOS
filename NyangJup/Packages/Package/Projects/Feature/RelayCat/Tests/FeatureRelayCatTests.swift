@@ -291,6 +291,7 @@ func viewModelFetchesRelayCatsOnAppear() async {
     #expect(viewModel.state.catId == "cat-id")
     #expect(viewModel.state.items == [relayCat])
     #expect(viewModel.state.currentItemId == relayCat.mediaId)
+    #expect(viewModel.state.hasLoadedInitialRelay == false)
 
     viewModel.state.currentItemId = nil
 
@@ -304,6 +305,7 @@ func viewModelFetchesRelayCatsOnAppear() async {
     #expect(request?.afterCount == 5)
     #expect(viewModel.state.items == [fetchedRelayCat, serverAnchorRelayCat])
     #expect(viewModel.state.currentItemId == relayCat.mediaId)
+    #expect(viewModel.state.hasLoadedInitialRelay == true)
     #expect(viewModel.state.previousCursor == "previous-cursor")
     #expect(viewModel.state.nextCursor == "next-cursor")
 }
