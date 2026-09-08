@@ -14,6 +14,7 @@ struct RelayCatView: View {
     @Environment(\.displayScale) private var displayScale
 
     @State private var viewModel: RelayCatViewModel
+    @State private var videoPlayerPool = RelayVideoPlayerPool()
     @State private var isDeleteAlertPresented = false
     @State private var didPositionInitialItem = false
 
@@ -33,6 +34,7 @@ struct RelayCatView: View {
                                     relayCat: item,
                                     size: proxy.size,
                                     isActive: viewModel.state.currentItemId == item.mediaId,
+                                    videoPlayer: videoPlayerPool.player(for: item.mediaId),
                                     onHeartTapped: { isLiked in
                                         viewModel.send(.network(.updateIsLiked(
                                             id: item.mediaId,
@@ -70,6 +72,18 @@ struct RelayCatView: View {
                 DispatchQueue.main.async {
                     scrollProxy.scrollTo(viewModel.state.anchorId, anchor: .top)
                 }
+            }
+            .onChange(of: viewModel.state.currentItemId, initial: true) { _, currentItemId in
+                videoPlayerPool.preload(
+                    items: viewModel.state.items,
+                    currentItemId: currentItemId
+                )
+            }
+            .onChange(of: viewModel.state.items.map(\.mediaId)) { _, _ in
+                videoPlayerPool.preload(
+                    items: viewModel.state.items,
+                    currentItemId: viewModel.state.currentItemId
+                )
             }
         }
         .toolbar {
