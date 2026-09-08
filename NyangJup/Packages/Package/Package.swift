@@ -67,7 +67,7 @@ let package = Package(
         ),
         .library(
             name: "CoreVideo",
-            targets: ["CoreVideoInterface"]
+            targets: ["CoreVideoClient", "CoreVideoInterface"]
         ),
         .library(
             name: "CoreAds",
@@ -165,6 +165,7 @@ let package = Package(
                 .domain(module: .pixelReward, target: .interface),
                 .core(module: .imageLoader, target: .interface),
                 .core(module: .ads, target: .interface),
+                .core(module: .video, target: .interface),
                 .shared(module: .design, target: .feature),
                 .feature(module: .common, target: .interface),
                 .feature(module: .home, target: .interface),
@@ -185,6 +186,7 @@ let package = Package(
                 .feature(module: .home, target: .feature),
                 .core(module: .ads, target: .interface),
                 .core(module: .imageLoader, target: .interface),
+                .core(module: .video, target: .interface),
                 .domain(module: .cats, target: .testing),
                 .domain(module: .media, target: .testing),
                 .domain(module: .profile, target: .testing),
@@ -228,6 +230,7 @@ let package = Package(
             dependencies: [
                 .feature(module: .capture, target: .feature),
                 .core(module: .camera, target: .testing),
+                .core(module: .video, target: .feature),
                 .domain(module: .media, target: .testing),
                 .product(name: "Testing", package: "swift-testing")
             ],
@@ -564,6 +567,13 @@ let package = Package(
             path: "Projects/Core/Video/Interface/Sources"
         ),
         .target(
+            name: "CoreVideoClient",
+            dependencies: [
+                .core(module: .video, target: .interface)
+            ],
+            path: "Projects/Core/Video/Sources"
+        ),
+        .target(
             name: "CoreAdsInterface",
             dependencies: [],
             path: "Projects/Core/Ads/Interface/Sources"
@@ -665,7 +675,10 @@ extension Target.Dependency {
     }
 
     static func core(module: Module.Core, target: Module.Target) -> Self {
-        .target(name: "Core\(module.rawValue)\(target.rawValue)")
+        if module == .video, target == .feature {
+            return .target(name: "CoreVideoClient")
+        }
+        return .target(name: "Core\(module.rawValue)\(target.rawValue)")
     }
 
     static func shared(module: Module.Shared, target: Module.Target) -> Self {

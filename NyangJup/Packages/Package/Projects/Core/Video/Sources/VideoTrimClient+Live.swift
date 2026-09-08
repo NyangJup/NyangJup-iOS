@@ -5,23 +5,37 @@
 //  Created by 정지훈 on 7/8/26.
 //
 
-import UIKit
 import AVFoundation
+import Foundation
+import UIKit
 
-public enum VideoTrimError: Error {
-    case cannotCreateExportSession
-    case exportFailed
-    case thumbnailEncodingFailed
-}
+import CoreVideoInterface
 
-public struct VideoTrimClient: Sendable {
-    func loadDuration(from url: URL) async throws -> Double {
+public extension VideoTrimClient {
+    static var live: Self {
+        Self(
+            loadDuration: { try await Self.loadDuration(from: $0) },
+            generateThumbnails: { try await Self.generateThumbnails(from: $0, count: $1) },
+            exportTrimmedVideo: {
+                try await Self.exportTrimmedVideo(
+                    sourceURL: $0,
+                    startTime: $1,
+                    endTime: $2
+                )
+            },
+            generateUploadThumbnail: {
+                try await Self.generateUploadThumbnail(from: $0, at: $1)
+            }
+        )
+    }
+
+    private static func loadDuration(from url: URL) async throws -> Double {
         let asset = AVURLAsset(url: url)
         let duration = try await asset.load(.duration)
         return duration.seconds
     }
     
-    func generateThumbnails(
+    private static func generateThumbnails(
         from url: URL,
         count: Int
     ) async throws -> [UIImage] {
@@ -46,7 +60,7 @@ public struct VideoTrimClient: Sendable {
         return images
     }
     
-    func exportTrimmedVideo(
+    private static func exportTrimmedVideo(
         sourceURL: URL,
         startTime: Double,
         endTime: Double
@@ -66,7 +80,7 @@ public struct VideoTrimClient: Sendable {
         }
     }
 
-    func generateUploadThumbnail(
+    private static func generateUploadThumbnail(
         from url: URL,
         at seconds: Double
     ) async throws -> Data {

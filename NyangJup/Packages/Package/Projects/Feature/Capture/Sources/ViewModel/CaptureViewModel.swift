@@ -12,6 +12,7 @@ import UIKit
 import UniformTypeIdentifiers
 
 import CoreCameraInterface
+import CoreVideoInterface
 import DomainCatsInterface
 import DomainMediaInterface
 import FeatureCommonInterface
@@ -114,6 +115,7 @@ public final class CaptureViewModel: NZViewModel {
     let videoTrimClient: VideoTrimClient
     private let cameraAuthorizationStatus: @Sendable () -> AVAuthorizationStatus
     private let requestCameraAccess: @Sendable () async -> Bool
+    private let onUpload: @MainActor @Sendable (VideoUploadRequest) -> Void
     private let onComplete: @MainActor @Sendable (CapturedMedia, Media?) -> Void
     private let onClose: @MainActor @Sendable () -> Void
     private var uploadTask: Task<Void, Never>?
@@ -124,6 +126,7 @@ public final class CaptureViewModel: NZViewModel {
         mediaClient: MediaClient,
         videoTrimClient: VideoTrimClient,
         configuration: CaptureConfiguration,
+        onUpload: @escaping @MainActor @Sendable (VideoUploadRequest) -> Void = { _ in },
         onComplete: @escaping @MainActor @Sendable (CapturedMedia, Media?) -> Void,
         onClose: @escaping @MainActor @Sendable () -> Void,
     ) {
@@ -133,6 +136,7 @@ public final class CaptureViewModel: NZViewModel {
         self.mediaClient = mediaClient
         self.videoTrimClient = videoTrimClient
         self.state = State(configuration: configuration)
+        self.onUpload = onUpload
         self.onComplete = onComplete
         self.onClose = onClose
     }
@@ -349,6 +353,12 @@ private extension CaptureViewModel {
         }
 
         state.showsConfirmSheet = false
+
+        if let request = makeVideoUploadRequest(for: media) {
+            onUpload(request)
+            return
+        }
+
         state.isUploading = true
 
         uploadTask = Task { [weak self] in
@@ -357,61 +367,42 @@ private extension CaptureViewModel {
         }
     }
 
+    func makeVideoUploadRequest(for media: CapturedMedia) -> VideoUploadRequest? {
+        guard state.usage == .media,
+              media.mode == .video,
+              let sourceURL = media.url,
+              let trimState = state.videoTrimState else {
+            return nil
+        }
+
+        return VideoUploadRequest(
+            sourceURL: sourceURL,
+            trimStartTime: trimState.startTime,
+            trimEndTime: trimState.endTime,
+            catID: state.catId,
+            place: state.cat?.place,
+            comment: state.commentText
+        )
+    }
+
     func performUpload(for media: CapturedMedia) async {
-        var preparedMedia = media
-        var thumbnailData: Data?
-        var shouldCleanPreparedVideo = false
-
         do {
-            if media.mode == .video {
-                guard let sourceURL = media.url,
-                      let trimState = state.videoTrimState else {
-                    throw CancellationError()
-                }
-
-                let outputURL = try await videoTrimClient.exportTrimmedVideo(
-                    sourceURL: sourceURL,
-                    startTime: trimState.startTime,
-                    endTime: trimState.endTime
-                )
-                preparedMedia = CapturedMedia(url: outputURL, mode: .video)
-                shouldCleanPreparedVideo = true
-
-                thumbnailData = try await videoTrimClient.generateUploadThumbnail(
-                    from: sourceURL,
-                    at: trimState.startTime
-                )
-            }
-
             try Task.checkCancellation()
-            let uploadedMedia = try await uploadMedia(preparedMedia, thumbnailData: thumbnailData)
+            let uploadedMedia = try await uploadMedia(media)
             pendingRegistration = nil
             finishUpload(success: true)
-            onComplete(preparedMedia, uploadedMedia)
-            if shouldCleanPreparedVideo {
-                removeTemporaryFile(for: preparedMedia)
-            }
+            onComplete(media, uploadedMedia)
         } catch is CancellationError {
-            if shouldCleanPreparedVideo, pendingRegistration == nil {
-                removeTemporaryFile(for: preparedMedia)
-            }
             finishUpload(success: false, showFailure: false)
         } catch {
-            if shouldCleanPreparedVideo, pendingRegistration == nil {
-                removeTemporaryFile(for: preparedMedia)
-            }
             finishUpload(success: false, showFailure: true)
         }
     }
 
-    func uploadMedia(
-        _ media: CapturedMedia,
-        thumbnailData: Data?
-    ) async throws -> Media {
-        let mediaType: MediaType = switch media.mode {
-        case .photo: .photo
-        case .video: .video
-        }
+    func uploadMedia(_ media: CapturedMedia) async throws -> Media {
+        guard media.mode == .photo else { throw CancellationError() }
+
+        let mediaType: MediaType = .photo
         let cat = state.cat
         let catId = state.catId
         let editingMediaId = state.editingMediaId
@@ -430,23 +421,6 @@ private extension CaptureViewModel {
             uploadSource,
             mediaType
         )
-
-        if mediaType == .video {
-            guard let thumbnailData,
-                  let thumbnailUploadURL = uploadURLResponse.thumbnailUploadURL,
-                  let thumbnailFileName = uploadURLResponse.thumbnailFileName else {
-                throw VideoTrimError.thumbnailEncodingFailed
-            }
-            let thumbnailGrant = UploadURL(
-                uploadURL: thumbnailUploadURL,
-                fileName: thumbnailFileName
-            )
-            try await mediaClient.uploadToPresignedURL(
-                thumbnailGrant,
-                .data(thumbnailData),
-                .photo
-            )
-        }
 
         let request = UploadMediaRequestDTO(
             catId: catId,
@@ -476,7 +450,7 @@ private extension CaptureViewModel {
         if let editingMediaId {
             try await mediaClient.updateMedia(editingMediaId, request)
         } else {
-            try await mediaClient.uploadMedia(request)
+            try await mediaClient.registerMedia(request)
         }
     }
 
@@ -507,7 +481,6 @@ private extension CaptureViewModel {
                 self.pendingRegistration = nil
                 finishUpload(success: true)
                 onComplete(pendingRegistration.media, readyMedia)
-                removeTemporaryFile(for: pendingRegistration.media)
             } catch is CancellationError {
                 finishUpload(success: false, showFailure: false)
             } catch {
@@ -525,16 +498,8 @@ private extension CaptureViewModel {
     func cancelUploadAndCleanUp() {
         uploadTask?.cancel()
         uploadTask = nil
-        if let pendingRegistration {
-            removeTemporaryFile(for: pendingRegistration.media)
-            self.pendingRegistration = nil
-        }
+        pendingRegistration = nil
         state.isUploading = false
-    }
-
-    func removeTemporaryFile(for media: CapturedMedia) {
-        guard media.mode == .video, let url = media.url else { return }
-        try? FileManager.default.removeItem(at: url)
     }
 
     func waitUntilMediaIsReady(_ media: Media) async throws -> Media {
@@ -566,12 +531,7 @@ private extension CaptureViewModel {
     }
 
     func uploadSource(for media: CapturedMedia) -> PresignedUploadSource? {
-        switch media.mode {
-        case .photo:
-            normalizedMedia(from: media).data.map(PresignedUploadSource.data)
-        case .video:
-            media.url.map(PresignedUploadSource.file)
-        }
+        normalizedMedia(from: media).data.map(PresignedUploadSource.data)
     }
 
     func normalizedMedia(from media: CapturedMedia) -> CapturedMedia {

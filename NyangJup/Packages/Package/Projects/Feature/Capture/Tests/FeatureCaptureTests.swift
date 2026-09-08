@@ -12,6 +12,8 @@ import UIKit
 @testable import FeatureCapture
 import CoreCameraInterface
 import CoreCameraTesting
+import CoreVideoClient
+import CoreVideoInterface
 import DomainCatsInterface
 import DomainMediaInterface
 import DomainMediaTesting
@@ -21,6 +23,7 @@ import FeatureCaptureInterface
 private final class CaptureOutputSpy {
     var completedMedia: CapturedMedia?
     var uploadedMedia: Media?
+    var videoUploadRequests: [VideoUploadRequest] = []
     var completionCount = 0
     var didClose = false
 
@@ -28,6 +31,10 @@ private final class CaptureOutputSpy {
         self.completedMedia = capturedMedia
         self.uploadedMedia = uploadedMedia
         completionCount += 1
+    }
+
+    func upload(_ request: VideoUploadRequest) {
+        videoUploadRequests.append(request)
     }
 }
 
@@ -88,6 +95,7 @@ private actor MediaFetchRecorder {
 }
 
 @Test
+@MainActor
 func videoExportTargetsSixMegabitsAtSixtyFramesPerSecond() throws {
     let settings = VideoTrimClient.videoOutputSettings(
         renderSize: CGSize(width: 1920, height: 1080),
@@ -380,7 +388,7 @@ func completingPhotoWaitsForBothUploadRequests() async {
     mediaClient.fetchUploadURL = {
         try await uploadFlow.fetchUploadURL($0)
     }
-    mediaClient.uploadMedia = {
+    mediaClient.registerMedia = {
         try await uploadFlow.uploadMedia($0)
     }
     mediaClient.fetchMedia = { mediaId in
@@ -559,6 +567,45 @@ func capturedVideoSynchronizesModeAndPreparingState() async {
     await waitUntil { viewModel.state.isPreparingMedia == false }
     #expect(viewModel.state.showsLoadingOverlay == false)
     #expect(outputSpy.completionCount == 0)
+}
+
+@MainActor
+@Test
+func newVideoCaptureSubmitsUploadJobOnlyOnce() {
+    let outputSpy = CaptureOutputSpy()
+    let sourceURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("background-upload.mov")
+    let viewModel = CaptureViewModel(
+        cameraClient: .test,
+        mediaClient: .test,
+        videoTrimClient: VideoTrimClient(),
+        configuration: .init(
+            showsModePicker: true,
+            cat: Cat(id: "cat-1", name: "나비", place: "서울숲", imageURL: "")
+        ),
+        onUpload: outputSpy.upload,
+        onComplete: { outputSpy.complete(capturedMedia: $0, uploadedMedia: $1) },
+        onClose: {}
+    )
+    viewModel.state.capturedMedia = CapturedMedia(url: sourceURL, mode: .video)
+    viewModel.state.videoTrimState = VideoTrimState(
+        duration: 10,
+        startTime: 1,
+        endTime: 8,
+        currentTime: 1,
+        thumbnails: []
+    )
+
+    viewModel.send(.view(.completeButtonTapped))
+    viewModel.send(.view(.completeButtonTapped))
+
+    #expect(outputSpy.videoUploadRequests.count == 1)
+    #expect(outputSpy.videoUploadRequests.first?.sourceURL == sourceURL)
+    #expect(outputSpy.videoUploadRequests.first?.trimStartTime == 1)
+    #expect(outputSpy.videoUploadRequests.first?.trimEndTime == 8)
+    #expect(outputSpy.completionCount == 0)
+    #expect(!viewModel.state.isUploading)
+    #expect(!viewModel.state.showsConfirmSheet)
 }
 
 @MainActor
