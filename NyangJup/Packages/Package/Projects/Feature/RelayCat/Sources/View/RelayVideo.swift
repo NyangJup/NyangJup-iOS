@@ -44,7 +44,11 @@ struct RelayVideo: View {
         ) { _ in
             handlePlaybackEnded()
         }
-        .onDisappear(perform: stopProgressObservation)
+        .onDisappear {
+            stopProgressObservation()
+            player.pause()
+            player.replaceCurrentItem(with: nil)
+        }
     }
 
     private var videoContent: some View {
