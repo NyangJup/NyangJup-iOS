@@ -42,6 +42,8 @@ struct CatRegistrationRootView: View {
                         onClose()
                     case .complete:
                         break
+                    case .upload:
+                        break
                     case let .register(media):
                         guard let data = media.data else { return }
                         coordinator.push(to: .generateCat(data))
