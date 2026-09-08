@@ -16,7 +16,7 @@ struct FeedList: View {
         GridItem(.flexible(), spacing: Constant.columnSpacing)
     ]
 
-    let items: [Media]
+    let items: [FeedItem]
     let availableWidth: CGFloat
     let onTap: (Media) -> Void
     let onLoadNextPage: () -> Void
@@ -25,11 +25,18 @@ struct FeedList: View {
         VStack {
             LazyVGrid(columns: columns, spacing: Constant.rowSpacing) {
                 ForEach(Array(items.enumerated()), id: \.element.id) { (index, item) in
-                    FeedCell(
-                        media: item,
-                        targetSize: cellSize,
-                        onTap: onTap
-                    )
+                    Group {
+                        switch item {
+                        case let .media(media):
+                            FeedCell(
+                                media: media,
+                                targetSize: cellSize,
+                                onTap: onTap
+                            )
+                        case .uploading:
+                            UploadingFeedCell(targetSize: cellSize)
+                        }
+                    }
                     .onAppear {
                         if index == loadNextPageIndex {
                             onLoadNextPage()

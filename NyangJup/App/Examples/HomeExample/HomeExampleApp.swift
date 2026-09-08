@@ -6,6 +6,8 @@ import CoreNetwork
 import CoreNetworkInterface
 import CoreSecureStorage
 import CoreSecureStorageInterface
+import CoreVideoClient
+import CoreVideoInterface
 import CoreImageLoader
 import CoreImageLoaderInterface
 import CoreAds
@@ -40,6 +42,8 @@ struct HomeExampleApp: App {
     private let deviceSecurityClient: DeviceSecurityClient
     private let profileClient: ProfileClient
     private let pixelRewardClient: PixelRewardClient
+    private let mediaClient: MediaClient
+    private let videoTrimClient: VideoTrimClient
 
     @State private var isAuthenticated = false
     @State private var authenticationFailed = false
@@ -64,10 +68,12 @@ struct HomeExampleApp: App {
             deviceSecurityClient: deviceSecurityClient
         )
         let mediaClient = MediaClient.live(networkClient: networkClient)
+        let videoTrimClient = VideoTrimClient.live
 
         self.captureFactory = CaptureFactory.live(
             cameraClient: .live,
-            mediaClient: mediaClient
+            mediaClient: mediaClient,
+            videoTrimClient: videoTrimClient
         )
         self.catRegistrationFactory = CatRegistrationFactory.live(
             catsClient: catsClient,
@@ -88,6 +94,8 @@ struct HomeExampleApp: App {
             networkClient: networkClient,
             deviceSecurityClient: deviceSecurityClient
         )
+        self.mediaClient = mediaClient
+        self.videoTrimClient = videoTrimClient
     }
 
     var body: some Scene {
@@ -96,6 +104,8 @@ struct HomeExampleApp: App {
                 if isAuthenticated {
                     HomeRootView(
                         catsClient: catsClient,
+                        mediaClient: mediaClient,
+                        videoTrimClient: videoTrimClient,
                         profileClient: profileClient,
                         adsClient: adsClient,
                         pixelRewardClient: pixelRewardClient

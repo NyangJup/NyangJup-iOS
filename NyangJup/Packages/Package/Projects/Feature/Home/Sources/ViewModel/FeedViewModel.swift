@@ -9,6 +9,8 @@ import Foundation
 
 import DomainMediaInterface
 import DomainCatsInterface
+import CoreVideoInterface
+import FeatureCaptureInterface
 import FeatureCommonInterface
 import FeatureHomeInterface
 import FeatureRelayCatInterface
@@ -16,19 +18,19 @@ import FeatureRelayCatInterface
 @MainActor
 @Observable
 public final class FeedViewModel: NZViewModel {
-
     nonisolated static let nameMaxLength = 5
     nonisolated static let placeMaxLength = 20
 
     public struct State {
         var cat: Cat
-        var items: [Media] = []
+        var items: [FeedItem] = []
         var nextCursor: String?
         var hasLoadedInitialFeed: Bool = false
         var isLoading: Bool = false
         var isCameraPresented: Bool = false
         var showsEditAlert: Bool = false
         var showsDeleteAlert: Bool = false
+        var showsUploadFailureAlert: Bool = false
         var editName: String = ""
         var editPlace: String = ""
 
@@ -57,6 +59,7 @@ public final class FeedViewModel: NZViewModel {
             case feedContentTapped(Media)
             case plusButtonTapped
             case cameraCompleted(Media)
+            case videoUploadRequested(VideoUploadRequest)
             case cameraDismissed
             case editButtonTapped
             case updateProfileAlertTapped
@@ -72,24 +75,32 @@ public final class FeedViewModel: NZViewModel {
             case relayCatLikeUpdated(mediaId: String, isLiked: Bool)
             case relayCatMediaUpdated(Media)
             case relayCatMediaDeleted(mediaId: String)
+            case videoUploadCompleted(id: UUID, media: Media)
+            case videoUploadFailed(id: UUID)
         }
     }
 
     public var state: State
     weak var coordinator: (any Coordinator<HomeRoute>)?
     let catsClient: CatsClient
+    let mediaClient: MediaClient
+    let videoTrimClient: VideoTrimClient
     private let onCatDeleted: @MainActor @Sendable (String) -> Void
     private let onCatUpdated: @MainActor @Sendable (Cat) -> Void
 
     public init(
         cat: Cat,
         catsClient: CatsClient,
+        mediaClient: MediaClient,
+        videoTrimClient: VideoTrimClient,
         onCatDeleted: @escaping @MainActor @Sendable (String) -> Void,
         onCatUpdated: @escaping @MainActor @Sendable (Cat) -> Void,
         coordinator: (any Coordinator<HomeRoute>)? = nil
     ) {
         self.state = State(cat: cat)
         self.catsClient = catsClient
+        self.mediaClient = mediaClient
+        self.videoTrimClient = videoTrimClient
         self.onCatDeleted = onCatDeleted
         self.onCatUpdated = onCatUpdated
         self.coordinator = coordinator
@@ -119,10 +130,7 @@ public final class FeedViewModel: NZViewModel {
             send(.network(.fetchFeed(cursor: nextCursor)))
 
         case let .feedContentTapped(media):
-            guard media.processingStatus == .ready,
-                  let catId = media.catId,
-                  let thumbnailURL = media.thumbnailURL,
-                  let mediaURL = media.mediaURL else {
+            guard let catId = media.catId else {
                 return
             }
             let route = HomeRoute.relayCat(
@@ -132,11 +140,11 @@ public final class FeedViewModel: NZViewModel {
                     userId: media.userId,
                     comment: media.comment,
                     place: state.cat.place,
-                    thumbnailURL: thumbnailURL,
+                    thumbnailURL: media.thumbnailURL,
                     name: state.cat.name,
                     catImageURL: state.cat.imageURL,
                     mediaType: media.mediaType,
-                    mediaURL: mediaURL,
+                    mediaURL: media.mediaURL,
                     isLiked: media.isLiked
                 )
             )
@@ -152,8 +160,29 @@ public final class FeedViewModel: NZViewModel {
 
         case let .cameraCompleted(media):
             state.isCameraPresented = false
-            if media.processingStatus == .ready {
-                state.items.insert(media, at: 0)
+            state.items.insert(.media(media), at: 0)
+
+        case let .videoUploadRequested(request):
+            let uploadID = UUID()
+            let mediaClient = mediaClient
+            let videoTrimClient = videoTrimClient
+            state.isCameraPresented = false
+            state.items.insert(.uploading(uploadID), at: 0)
+
+            Task { [weak self] in
+                do {
+                    let media = try await Self.uploadVideo(
+                        request,
+                        mediaClient: mediaClient,
+                        videoTrimClient: videoTrimClient
+                    )
+                    self?.send(.internal(.videoUploadCompleted(
+                        id: uploadID,
+                        media: media
+                    )))
+                } catch {
+                    self?.send(.internal(.videoUploadFailed(id: uploadID)))
+                }
             }
 
         case .cameraDismissed:
@@ -210,22 +239,37 @@ public final class FeedViewModel: NZViewModel {
     private func handleInternalAction(_ action: Action.Internal) {
         switch action {
         case let .relayCatLikeUpdated(mediaId, isLiked):
-            guard let index = state.items.firstIndex(where: { $0.id == mediaId }) else {
+            guard let index = state.items.firstIndex(where: { $0.media?.id == mediaId }),
+                  let media = state.items[index].media else {
                 return
             }
-            state.items[index] = media(from: state.items[index], isLiked: isLiked)
+            state.items[index] = .media(copyMedia(from: media, isLiked: isLiked))
 
         case let .relayCatMediaUpdated(updatedMedia):
-            guard let index = state.items.firstIndex(where: { $0.id == updatedMedia.id }) else {
+            guard let index = state.items.firstIndex(where: { $0.media?.id == updatedMedia.id }),
+                  let media = state.items[index].media else {
                 return
             }
-            state.items[index] = media(
+            state.items[index] = .media(copyMedia(
                 from: updatedMedia,
-                isLiked: state.items[index].isLiked
-            )
+                isLiked: media.isLiked
+            ))
 
         case let .relayCatMediaDeleted(mediaId):
-            state.items.removeAll { $0.id == mediaId }
+            state.items.removeAll { $0.media?.id == mediaId }
+
+        case let .videoUploadCompleted(id, media):
+            guard let index = state.items.firstIndex(where: { $0.uploadID == id }) else {
+                return
+            }
+            state.items[index] = .media(media)
+
+        case let .videoUploadFailed(id):
+            guard state.items.contains(where: { $0.uploadID == id }) else {
+                return
+            }
+            state.items.removeAll { $0.uploadID == id }
+            state.showsUploadFailureAlert = true
         }
     }
 
@@ -247,7 +291,7 @@ public final class FeedViewModel: NZViewModel {
         }
     }
 
-    private func media(from media: Media, isLiked: Bool) -> Media {
+    private func copyMedia(from media: Media, isLiked: Bool) -> Media {
         Media(
             id: media.id,
             catId: media.catId,
@@ -256,8 +300,40 @@ public final class FeedViewModel: NZViewModel {
             thumbnailURL: media.thumbnailURL,
             mediaType: media.mediaType,
             mediaURL: media.mediaURL,
-            processingStatus: media.processingStatus,
             isLiked: isLiked
+        )
+    }
+
+    private static func uploadVideo(
+        _ request: VideoUploadRequest,
+        mediaClient: MediaClient,
+        videoTrimClient: VideoTrimClient
+    ) async throws -> Media {
+        var outputURL: URL?
+        defer {
+            if let outputURL {
+                try? FileManager.default.removeItem(at: outputURL)
+            }
+        }
+
+        let trimmedURL = try await videoTrimClient.exportTrimmedVideo(
+            sourceURL: request.sourceURL,
+            startTime: request.trimStartTime,
+            endTime: request.trimEndTime
+        )
+        outputURL = trimmedURL
+        let thumbnailData = try await videoTrimClient.generateUploadThumbnail(
+            from: request.sourceURL,
+            at: request.trimStartTime
+        )
+        return try await mediaClient.uploadVideo(
+            PreparedVideoUpload(
+                videoURL: trimmedURL,
+                thumbnailData: thumbnailData,
+                catID: request.catID,
+                place: request.place,
+                comment: request.comment
+            )
         )
     }
 
@@ -280,10 +356,10 @@ public final class FeedViewModel: NZViewModel {
                     onCatUpdated(page.cat)
 
                     if cursor == nil {
-                        state.items = page.items
+                        state.items = page.items.map(FeedItem.media)
                         state.hasLoadedInitialFeed = true
                     } else {
-                        state.items.append(contentsOf: page.items)
+                        state.items.append(contentsOf: page.items.map(FeedItem.media))
                     }
                     state.nextCursor = page.nextCursor
                 } catch {

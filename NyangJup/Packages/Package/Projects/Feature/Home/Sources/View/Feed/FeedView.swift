@@ -56,23 +56,31 @@ struct FeedView: View {
             .alert(Constant.editAlertTitle, isPresented: $viewModel.state.showsEditAlert) {
                 editNameField
                 editPlaceField
-
+                
                 Button(Constant.saveButtonTitle) {
                     viewModel.send(.view(.updateProfileAlertTapped))
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(!viewModel.state.canUpdateProfile)
-
+                
                 Button(Constant.cancelButtonTitle, role: .cancel) { }
             }
             .alert(Constant.deleteAlertTitle, isPresented: $viewModel.state.showsDeleteAlert) {
                 Button(Constant.deleteConfirmButtonTitle, role: .destructive) {
                     viewModel.send(.view(.deleteAlertTapped))
                 }
-
+                
                 Button(Constant.deleteCancelButtonTitle, role: .cancel) { }
             } message: {
                 Text(Constant.deleteAlertMessage)
+            }
+            .alert(
+                Constant.uploadFailureAlertTitle,
+                isPresented: $viewModel.state.showsUploadFailureAlert
+            ) {
+                Button(Constant.confirmButtonTitle, role: .cancel) { }
+            } message: {
+                Text(Constant.uploadFailureAlertMessage)
             }
             .overlay(alignment: .bottomTrailing) {
                 plusButton
@@ -95,6 +103,9 @@ struct FeedView: View {
                         case let .complete(media):
                             viewModel.send(.view(.cameraCompleted(media)))
                             scrollProxy.scrollTo(Constant.scrollTopID, anchor: .top)
+                        case let .upload(request):
+                            viewModel.send(.view(.videoUploadRequested(request)))
+                            scrollProxy.scrollTo(Constant.scrollTopID, anchor: .top)
                         case .close:
                             viewModel.send(.view(.cameraDismissed))
                         case .register: break
@@ -107,6 +118,7 @@ struct FeedView: View {
             }
             .loadingOverlay(isPresented: viewModel.state.isLoading)
         }
+        .loadingOverlay(isPresented: viewModel.state.isLoading)
     }
 }
 
@@ -241,6 +253,9 @@ private extension FeedView {
         static let deleteConfirmButtonTitle = "네"
         static let deleteCancelButtonTitle = "아니요"
         static let deleteAlertMessage = "피드 콘텐츠도 전부 사라져요."
+        static let uploadFailureAlertTitle = "업로드에 실패했어요"
+        static let uploadFailureAlertMessage = "잠시 후 다시 시도해 주세요."
+        static let confirmButtonTitle = "확인"
 
         static let menuImageRotationDegrees: Double = 90
         static let nameFieldTrailingPadding: CGFloat = 32
@@ -253,7 +268,7 @@ private extension FeedView {
         static let profileTopPadding: CGFloat = 60
         static let profileBottomPadding: CGFloat = 20
         static let avatarBackgroundSize: CGFloat = 96
-        static let catImageSize: CGFloat = 64
+        static let catImageSize: CGFloat = 80
         static let informationSpacing: CGFloat = 8
         static let nameFontSize: CGFloat = 30
         static let placeFontSize: CGFloat = 15
