@@ -208,7 +208,7 @@ extension MediaClient {
             )
         },
         uploadToPresignedURL: { _, _, _ in },
-        uploadMedia: { request in
+        registerMedia: { request in
             Media(
                 id: "test-media-id",
                 catId: request.catId,
@@ -217,6 +217,17 @@ extension MediaClient {
                 thumbnailURL: "https://example.com/thumbnails/\(request.fileName).jpg",
                 mediaType: MediaType(rawValue: request.mediaType) ?? .photo,
                 mediaURL: "https://example.com/media/\(request.fileName)"
+            )
+        },
+        uploadVideo: { upload in
+            Media(
+                id: "test-video-media-id",
+                catId: upload.catID,
+                userId: "test-user-id",
+                comment: upload.comment,
+                thumbnailURL: "https://example.com/thumbnails/video.jpg",
+                mediaType: .video,
+                mediaURL: "https://example.com/media/video.mp4"
             )
         },
         updateMedia: { id, request in
@@ -228,6 +239,17 @@ extension MediaClient {
                 thumbnailURL: "https://example.com/thumbnails/\(request.fileName).jpg",
                 mediaType: MediaType(rawValue: request.mediaType) ?? .photo,
                 mediaURL: "https://example.com/media/\(request.fileName)"
+            )
+        },
+        updateComment: { id, comment in
+            Media(
+                id: id,
+                catId: "cat-1",
+                userId: "test-user-id",
+                comment: comment,
+                thumbnailURL: "https://example.com/thumbnail.jpg",
+                mediaType: .photo,
+                mediaURL: "https://example.com/media.jpg"
             )
         },
         fetchMedia: { id in

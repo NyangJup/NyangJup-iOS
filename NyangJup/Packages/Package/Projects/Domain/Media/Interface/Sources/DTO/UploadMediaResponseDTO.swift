@@ -14,9 +14,9 @@ public struct UploadMediaResponseDTO: Decodable, Sendable {
     public let mediaId: String
     public let userId: String
     public let mediaType: String
+    public let mediaURL: String
+    public let thumbnailURL: String
     public let processingStatus: String
-    public let mediaURL: String?
-    public let thumbnailURL: String?
     public let comment: String
 
     public init(
@@ -24,18 +24,18 @@ public struct UploadMediaResponseDTO: Decodable, Sendable {
         mediaId: String,
         userId: String,
         mediaType: String,
+        mediaURL: String,
+        thumbnailURL: String,
         processingStatus: String,
-        mediaURL: String?,
-        thumbnailURL: String?,
         comment: String
     ) {
         self.catId = catId
         self.mediaId = mediaId
         self.userId = userId
         self.mediaType = mediaType
-        self.processingStatus = processingStatus
         self.mediaURL = mediaURL
         self.thumbnailURL = thumbnailURL
+        self.processingStatus = processingStatus
         self.comment = comment
     }
 

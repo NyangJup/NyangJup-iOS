@@ -18,12 +18,12 @@ struct MediaClientLiveTests {
     func liveClientBuildsEndpointsAndMapsEntities() async throws {
         let network = RecordingNetworkClient(responses: [
             Data(#"{"uploadURL":"https://upload.example/photo","fileName":"photo.jpg"}"#.utf8),
-            Data(#"{"catId":"cat-1","mediaId":"media-1","userId":"user-1","mediaType":"PHOTO","processingStatus":"READY","mediaURL":"https://media.example/photo.jpg","thumbnailURL":"https://media.example/thumb.jpg","comment":"사진"}"#.utf8),
-            Data(#"{"catId":"cat-1","mediaId":"media-1","userId":"user-1","mediaType":"VIDEO","processingStatus":"PROCESSING","mediaURL":null,"thumbnailURL":null,"comment":"영상"}"#.utf8),
-            Data(#"{"id":"media-1","catId":"cat-1","userId":"user-1","comment":"영상","thumbnailURL":null,"mediaType":"VIDEO","mediaURL":null,"processingStatus":"FAILED"}"#.utf8),
+            Data(#"{"catId":"cat-1","mediaId":"media-1","userId":"user-1","mediaType":"PHOTO","mediaURL":"https://media.example/photo.jpg","thumbnailURL":"https://media.example/thumb.jpg","processingStatus":"READY","comment":"사진"}"#.utf8),
+            Data(#"{"catId":"cat-1","mediaId":"media-1","userId":"user-1","mediaType":"VIDEO","mediaURL":"https://media.example/video.mp4","thumbnailURL":"https://media.example/video.jpg","processingStatus":"PROCESSING","comment":"영상"}"#.utf8),
+            Data(#"{"id":"media-1","catId":"cat-1","userId":"user-1","comment":"영상","thumbnailURL":"https://media.example/video.jpg","mediaType":"VIDEO","mediaURL":"https://media.example/video.m3u8","processingStatus":"READY"}"#.utf8),
             Data(),
-            Data(#"{"items":[{"mediaId":"media-1","catId":"cat-1","userId":"user-1","comment":"영상","place":"서울숲","thumbnailURL":"https://media.example/thumb.jpg","name":"나비","catImageURL":"https://media.example/cat.jpg","mediaType":"VIDEO","mediaURL":"https://media.example/master.m3u8","isLiked":true}],"anchorIndex":0,"previousCursor":"before","nextCursor":"after"}"#.utf8),
-            Data(#"{"id":"media-1","catId":"cat-1","userId":"user-1","comment":"영상","thumbnailURL":"https://media.example/thumb.jpg","mediaType":"VIDEO","mediaURL":"https://media.example/master.m3u8","processingStatus":"READY"}"#.utf8)
+            Data(#"{"items":[{"mediaId":"media-1","catId":"cat-1","userId":"user-1","comment":"영상","place":"서울숲","thumbnailURL":"https://media.example/thumb.jpg","name":"나비","catImageURL":"https://media.example/cat.jpg","mediaType":"VIDEO","mediaURL":"https://media.example/video.m3u8","isLiked":true}],"anchorIndex":0,"previousCursor":"before","nextCursor":"after"}"#.utf8),
+            Data(#"{"id":"media-1","catId":"cat-1","userId":"user-1","comment":"영상","thumbnailURL":"https://media.example/thumb.jpg","mediaType":"VIDEO","mediaURL":"https://media.example/video.m3u8","processingStatus":"READY"}"#.utf8)
         ])
         let client = MediaClient.live(
             networkClient: NetworkClient(provider: network)
@@ -39,7 +39,7 @@ struct MediaClientLiveTests {
         let uploadURL = try await client.fetchUploadURL(
             FetchUploadURLRequestDTO(catId: "cat-1", mediaType: "PHOTO")
         )
-        let uploaded = try await client.uploadMedia(uploadRequest)
+        let uploaded = try await client.registerMedia(uploadRequest)
         let updated = try await client.updateMedia("media-1", uploadRequest)
         let fetched = try await client.fetchMedia("media-1")
         try await client.updateIsLiked("media-1", true)
@@ -54,15 +54,17 @@ struct MediaClientLiveTests {
         let deleted = try await client.deleteMedia("media-1")
 
         #expect(uploadURL.fileName == "photo.jpg")
+        #expect(uploaded.mediaURL == "https://media.example/photo.jpg")
         #expect(uploaded.processingStatus == .ready)
+        #expect(updated.mediaURL == "https://media.example/video.mp4")
         #expect(updated.processingStatus == .processing)
-        #expect(updated.mediaURL == nil)
-        #expect(fetched.processingStatus == .failed)
+        #expect(fetched.mediaURL == "https://media.example/video.m3u8")
+        #expect(fetched.processingStatus == .ready)
         #expect(relay.items.first?.place == "서울숲")
-        #expect(relay.items.first?.mediaURL == "https://media.example/master.m3u8")
+        #expect(relay.items.first?.mediaURL == "https://media.example/video.m3u8")
         #expect(relay.previousCursor == "before")
         #expect(relay.nextCursor == "after")
-        #expect(deleted.processingStatus == .ready)
+        #expect(deleted.mediaURL == "https://media.example/video.m3u8")
         #expect(network.paths == [
             "/media/upload-urls",
             "/media",
@@ -111,7 +113,64 @@ struct MediaClientLiveTests {
             JSONSerialization.jsonObject(with: mediaData) as? [String: Any]
         )
         #expect(mediaJSON["catId"] is NSNull)
+        #expect(mediaJSON["thumbnailFileName"] is NSNull)
         #expect(mediaJSON["place"] is NSNull)
+    }
+
+    @Test
+    func videoUploadURLDecodesPairedThumbnailGrant() throws {
+        let data = Data(#"{"uploadURL":"https://upload.example/video","fileName":"video.mp4","thumbnailUploadURL":"https://upload.example/thumbnail","thumbnailFileName":"thumbnail.jpg"}"#.utf8)
+
+        let uploadURL = try JSONDecoder().decode(UploadURLResponseDTO.self, from: data).toEntity()
+
+        #expect(uploadURL.fileName == "video.mp4")
+        #expect(uploadURL.thumbnailFileName == "thumbnail.jpg")
+        #expect(uploadURL.thumbnailUploadURL == "https://upload.example/thumbnail")
+    }
+
+    @Test
+    func videoUploadUploadsBothAssetsRegistersMediaAndWaitsUntilReady() async throws {
+        let network = RecordingNetworkClient(responses: [
+            Data(#"{"uploadURL":"https://upload.example/video","fileName":"video.mp4","thumbnailUploadURL":"https://upload.example/thumbnail","thumbnailFileName":"thumbnail.jpg"}"#.utf8),
+            Data(#"{"catId":"cat-1","mediaId":"media-1","userId":"user-1","mediaType":"VIDEO","mediaURL":"https://media.example/video.mp4","thumbnailURL":"https://media.example/video.jpg","processingStatus":"PROCESSING","comment":"영상"}"#.utf8),
+            Data(#"{"id":"media-1","catId":"cat-1","userId":"user-1","comment":"영상","thumbnailURL":"https://media.example/video.jpg","mediaType":"VIDEO","mediaURL":"https://media.example/video.m3u8","processingStatus":"READY"}"#.utf8)
+        ])
+        let recorder = URLRequestRecorder()
+        URLProtocolStub.recorder = recorder
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [URLProtocolStub.self]
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("mp4")
+        try Data([1, 2, 3]).write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let client = MediaClient.live(
+            networkClient: NetworkClient(provider: network),
+            uploadSession: URLSession(configuration: configuration)
+        )
+        let media = try await client.uploadVideo(
+            PreparedVideoUpload(
+                videoURL: fileURL,
+                thumbnailData: Data([4, 5, 6]),
+                catID: "cat-1",
+                place: "서울숲",
+                comment: "영상"
+            )
+        )
+
+        #expect(media.processingStatus == .ready)
+        #expect(media.mediaURL == "https://media.example/video.m3u8")
+        #expect(network.paths == [
+            "/media/upload-urls",
+            "/media",
+            "/media/media-1"
+        ])
+        #expect(network.methods == ["POST", "POST", "GET"])
+        #expect(recorder.requests.map { $0.value(forHTTPHeaderField: "Content-Type") } == [
+            "video/mp4",
+            "image/jpeg"
+        ])
     }
 
     @Test

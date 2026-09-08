@@ -14,9 +14,9 @@ public struct MediaResponseDTO: Decodable, Sendable {
     public let catId: String?
     public let userId: String
     public let comment: String
-    public let thumbnailURL: String?
+    public let thumbnailURL: String
     public let mediaType: String
-    public let mediaURL: String?
+    public let mediaURL: String
     public let processingStatus: String
 
     public func toEntity() throws -> Media {

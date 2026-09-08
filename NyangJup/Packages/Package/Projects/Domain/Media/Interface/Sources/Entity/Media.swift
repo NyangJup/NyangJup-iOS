@@ -12,9 +12,9 @@ public struct Media: Sendable {
     public let catId: String?
     public let userId: String
     public let comment: String
-    public let thumbnailURL: String?
+    public let thumbnailURL: String
     public let mediaType: MediaType
-    public let mediaURL: String?
+    public let mediaURL: String
     public let processingStatus: ProcessingStatus
     public let isLiked: Bool
     
@@ -23,9 +23,9 @@ public struct Media: Sendable {
         catId: String?,
         userId: String,
         comment: String,
-        thumbnailURL: String?,
+        thumbnailURL: String,
         mediaType: MediaType,
-        mediaURL: String?,
+        mediaURL: String,
         processingStatus: ProcessingStatus = .ready,
         isLiked: Bool = false
     ) {

@@ -14,11 +14,13 @@ public struct MediaClient: Sendable {
         _ source: PresignedUploadSource,
         _ mediaType: MediaType
     ) async throws -> Void
-    public var uploadMedia: @Sendable (_ request: UploadMediaRequestDTO) async throws -> Media
+    public var registerMedia: @Sendable (_ request: UploadMediaRequestDTO) async throws -> Media
+    public var uploadVideo: @Sendable (_ upload: PreparedVideoUpload) async throws -> Media
     public var updateMedia: @Sendable (
         _ id: String,
         _ request: UploadMediaRequestDTO
     ) async throws -> Media
+    public var updateComment: @Sendable (_ id: String, _ comment: String) async throws -> Media
     public var fetchMedia: @Sendable (_ id: String) async throws -> Media
     public var updateIsLiked: @Sendable (
         _ id: String,
@@ -32,13 +34,15 @@ public struct MediaClient: Sendable {
         uploadToPresignedURL: @escaping @Sendable (
             _ uploadURL: UploadURL,
             _ source: PresignedUploadSource,
-            _ mediaType: MediaType
+        _ mediaType: MediaType
         ) async throws -> Void,
-        uploadMedia: @escaping @Sendable (_ request: UploadMediaRequestDTO) async throws -> Media,
+        registerMedia: @escaping @Sendable (_ request: UploadMediaRequestDTO) async throws -> Media,
+        uploadVideo: @escaping @Sendable (_ upload: PreparedVideoUpload) async throws -> Media,
         updateMedia: @escaping @Sendable (
             _ id: String,
             _ request: UploadMediaRequestDTO
         ) async throws -> Media,
+        updateComment: @escaping @Sendable (_ id: String, _ comment: String) async throws -> Media,
         fetchMedia: @escaping @Sendable (_ id: String) async throws -> Media,
         updateIsLiked: @escaping @Sendable (
             _ id: String,
@@ -49,8 +53,10 @@ public struct MediaClient: Sendable {
     ) {
         self.fetchUploadURL = fetchUploadURL
         self.uploadToPresignedURL = uploadToPresignedURL
-        self.uploadMedia = uploadMedia
+        self.registerMedia = registerMedia
+        self.uploadVideo = uploadVideo
         self.updateMedia = updateMedia
+        self.updateComment = updateComment
         self.fetchMedia = fetchMedia
         self.updateIsLiked = updateIsLiked
         self.fetchRelayCats = fetchRelayCats
