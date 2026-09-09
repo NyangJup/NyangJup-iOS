@@ -150,11 +150,11 @@ struct RelayCatCell: View {
                        )
                 }, placeholder: {
                     Circle()
-                        .fill(.gray.opacity(0.8))
                         .frame(
                             width: Constant.avatarBackgroundSize,
                             height: Constant.avatarBackgroundSize
                         )
+                        .skeleton()
                 }
             )
         }

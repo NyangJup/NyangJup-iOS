@@ -31,6 +31,8 @@ struct FeedView: View {
                         } else {
                             FeedList(
                                 items: viewModel.state.items,
+                                isInitialLoading: viewModel.state.isLoading
+                                    && !viewModel.state.hasLoadedInitialFeed,
                                 availableWidth: proxy.size.width - Constant.horizontalPadding * 2,
                                 onTap: { media in
                                     viewModel.send(.view(.feedContentTapped(media)))
@@ -116,9 +118,7 @@ struct FeedView: View {
             .onAppear {
                 viewModel.send(.view(.onAppear))
             }
-            .loadingOverlay(isPresented: viewModel.state.isLoading)
         }
-        .loadingOverlay(isPresented: viewModel.state.isLoading)
     }
 }
 

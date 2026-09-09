@@ -9,6 +9,7 @@ import SwiftUI
 
 import CoreImageLoaderInterface
 import DomainMediaInterface
+import SharedDesign
 
 struct FeedCell: View {
     let media: Media
@@ -59,7 +60,7 @@ struct FeedCell: View {
 
     private var placeholder: some View {
         Rectangle()
-            .fill(.gray.opacity(0.8))
+            .skeleton()
     }
 }
 

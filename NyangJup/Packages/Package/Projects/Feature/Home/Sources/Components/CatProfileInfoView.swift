@@ -71,8 +71,8 @@ private extension CatProfileInfoView {
                     )
                 }, placeholder: {
                     Circle()
-                        .fill(.gray.opacity(0.8))
                         .frame(width: imageBackgroundSize, height: imageBackgroundSize)
+                        .skeleton()
                 }
             )
         }

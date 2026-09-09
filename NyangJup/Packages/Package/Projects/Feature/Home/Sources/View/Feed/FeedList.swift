@@ -8,6 +8,7 @@
 import SwiftUI
 
 import DomainMediaInterface
+import SharedDesign
 
 struct FeedList: View {
     private let columns: [GridItem] = [
@@ -17,6 +18,7 @@ struct FeedList: View {
     ]
 
     let items: [FeedItem]
+    let isInitialLoading: Bool
     let availableWidth: CGFloat
     let onTap: (Media) -> Void
     let onLoadNextPage: () -> Void
@@ -24,22 +26,34 @@ struct FeedList: View {
     var body: some View {
         VStack {
             LazyVGrid(columns: columns, spacing: Constant.rowSpacing) {
-                ForEach(Array(items.enumerated()), id: \.element.id) { (index, item) in
-                    Group {
-                        switch item {
-                        case let .media(media):
-                            FeedCell(
-                                media: media,
-                                targetSize: cellSize,
-                                onTap: onTap
+                if isInitialLoading {
+                    ForEach(0..<Constant.initialSkeletonCount, id: \.self) { _ in
+                        Rectangle()
+                            .frame(
+                                width: cellSize.width,
+                                height: cellSize.height
                             )
-                        case .uploading:
-                            UploadingFeedCell(targetSize: cellSize)
-                        }
+                            .clipShape(.rect(cornerRadius: Constant.cornerRadius))
+                            .skeleton()
                     }
-                    .onAppear {
-                        if index == loadNextPageIndex {
-                            onLoadNextPage()
+                } else {
+                    ForEach(Array(items.enumerated()), id: \.element.id) { (index, item) in
+                        Group {
+                            switch item {
+                            case let .media(media):
+                                FeedCell(
+                                    media: media,
+                                    targetSize: cellSize,
+                                    onTap: onTap
+                                )
+                            case .uploading:
+                                UploadingFeedCell(targetSize: cellSize)
+                            }
+                        }
+                        .onAppear {
+                            if index == loadNextPageIndex {
+                                onLoadNextPage()
+                            }
                         }
                     }
                 }
@@ -54,6 +68,8 @@ private extension FeedList {
         static let rowSpacing: CGFloat = 16
         static let aspectRatio: CGFloat = 3 / 4
         static let prefetchItemCount: Int = 6
+        static let initialSkeletonCount: Int = 9
+        static let cornerRadius: CGFloat = 16
     }
 
     var cellSize: CGSize {
