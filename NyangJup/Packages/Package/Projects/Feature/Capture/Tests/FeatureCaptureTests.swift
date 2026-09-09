@@ -102,6 +102,14 @@ private actor MediaFetchRecorder {
     }
 }
 
+private actor ThumbnailDurationRecorder {
+    private(set) var duration: Double?
+
+    func record(_ duration: Double) {
+        self.duration = duration
+    }
+}
+
 @Test
 @MainActor
 func videoExportTargetsSixMegabitsAtSixtyFramesPerSecond() throws {
@@ -581,6 +589,40 @@ func capturedVideoSynchronizesModeAndPreparingState() async {
     await waitUntil { viewModel.state.isPreparingMedia == false }
     #expect(viewModel.state.showsLoadingOverlay == false)
     #expect(outputSpy.completionCount == 0)
+}
+
+@MainActor
+@Test
+func capturedVideoPassesLoadedDurationToThumbnailGeneration() async {
+    let recorder = ThumbnailDurationRecorder()
+    let videoTrimClient = VideoTrimClient(
+        loadDuration: { _ in 42 },
+        generateThumbnails: { _, duration, _ in
+            await recorder.record(duration)
+            return []
+        },
+        exportTrimmedVideo: { sourceURL, _, _ in sourceURL },
+        generateUploadThumbnail: { _, _ in Data() }
+    )
+    let viewModel = CaptureViewModel(
+        cameraClient: .test,
+        mediaClient: .test,
+        videoTrimClient: videoTrimClient,
+        configuration: .init(showsModePicker: true),
+        onComplete: { _, _ in },
+        onClose: {}
+    )
+    let selectedVideo = CapturedMedia(
+        url: FileManager.default.temporaryDirectory
+            .appendingPathComponent("selected-video.mov"),
+        mode: .video
+    )
+
+    viewModel.send(.internal(.captureCompleted(selectedVideo)))
+
+    await waitUntilAsync { await recorder.duration != nil }
+    #expect(await recorder.duration == 42)
+    #expect(viewModel.state.videoTrimState?.duration == 42)
 }
 
 @MainActor

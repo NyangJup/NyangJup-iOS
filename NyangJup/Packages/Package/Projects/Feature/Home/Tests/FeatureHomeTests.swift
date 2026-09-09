@@ -136,7 +136,7 @@ private actor VideoUploadGate {
 private func makeVideoTrimClient() -> VideoTrimClient {
     VideoTrimClient(
         loadDuration: { _ in 0 },
-        generateThumbnails: { _, _ in [] },
+        generateThumbnails: { _, _, _ in [] },
         exportTrimmedVideo: { sourceURL, _, _ in sourceURL },
         generateUploadThumbnail: { _, _ in Data() }
     )

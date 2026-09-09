@@ -291,7 +291,11 @@ private extension CaptureViewModel {
 
                     do {
                         let duration = try await videoTrimClient.loadDuration(from: url)
-                        let thumbnails = try await videoTrimClient.generateThumbnails(from: url, count: 12)
+                        let thumbnails = try await videoTrimClient.generateThumbnails(
+                            from: url,
+                            duration: duration,
+                            count: 12
+                        )
                         
                         let trimState = VideoTrimState(
                             duration: duration,

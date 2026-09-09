@@ -15,7 +15,9 @@ public extension VideoTrimClient {
     static var live: Self {
         Self(
             loadDuration: { try await Self.loadDuration(from: $0) },
-            generateThumbnails: { try await Self.generateThumbnails(from: $0, count: $1) },
+            generateThumbnails: {
+                try await Self.generateThumbnails(from: $0, duration: $1, count: $2)
+            },
             exportTrimmedVideo: {
                 try await Self.exportTrimmedVideo(
                     sourceURL: $0,
@@ -37,12 +39,10 @@ public extension VideoTrimClient {
     
     private static func generateThumbnails(
         from url: URL,
+        duration: Double,
         count: Int
     ) async throws -> [UIImage] {
         let asset = AVURLAsset(url: url)
-        let duration = try await asset.load(.duration)
-        let totalSeconds = duration.seconds
-        
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = .init(width: 100, height: 100)
@@ -50,7 +50,7 @@ public extension VideoTrimClient {
         var images: [UIImage] = []
         
         for index in 0..<count {
-            let seconds = totalSeconds * Double(index) / Double(count)
+            let seconds = duration * Double(index) / Double(count)
             let time = CMTime(seconds: seconds, preferredTimescale: 600)
             let result = try await generator.image(at: time)
             let image = UIImage(cgImage: result.image)

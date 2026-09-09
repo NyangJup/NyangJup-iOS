@@ -17,13 +17,13 @@ public enum VideoTrimError: Error {
 @MainActor
 public struct VideoTrimClient: Sendable {
     private let loadDurationOperation: @Sendable (URL) async throws -> Double
-    private let generateThumbnailsOperation: @Sendable (URL, Int) async throws -> [UIImage]
+    private let generateThumbnailsOperation: @Sendable (URL, Double, Int) async throws -> [UIImage]
     private let exportTrimmedVideoOperation: @Sendable (URL, Double, Double) async throws -> URL
     private let generateUploadThumbnailOperation: @Sendable (URL, Double) async throws -> Data
 
     public init(
         loadDuration: @escaping @Sendable (URL) async throws -> Double,
-        generateThumbnails: @escaping @Sendable (URL, Int) async throws -> [UIImage],
+        generateThumbnails: @escaping @Sendable (URL, Double, Int) async throws -> [UIImage],
         exportTrimmedVideo: @escaping @Sendable (URL, Double, Double) async throws -> URL,
         generateUploadThumbnail: @escaping @Sendable (URL, Double) async throws -> Data
     ) {
@@ -36,7 +36,7 @@ public struct VideoTrimClient: Sendable {
     public init() {
         self.init(
             loadDuration: { _ in throw CancellationError() },
-            generateThumbnails: { _, _ in throw CancellationError() },
+            generateThumbnails: { _, _, _ in throw CancellationError() },
             exportTrimmedVideo: { _, _, _ in throw CancellationError() },
             generateUploadThumbnail: { _, _ in throw CancellationError() }
         )
@@ -46,8 +46,12 @@ public struct VideoTrimClient: Sendable {
         try await loadDurationOperation(url)
     }
 
-    public func generateThumbnails(from url: URL, count: Int) async throws -> [UIImage] {
-        try await generateThumbnailsOperation(url, count)
+    public func generateThumbnails(
+        from url: URL,
+        duration: Double,
+        count: Int
+    ) async throws -> [UIImage] {
+        try await generateThumbnailsOperation(url, duration, count)
     }
 
     public func exportTrimmedVideo(
