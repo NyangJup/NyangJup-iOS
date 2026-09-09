@@ -73,6 +73,14 @@ private actor UploadFlowStub {
     }
 }
 
+private actor PresignedUploadRecorder {
+    private(set) var count = 0
+
+    func record() {
+        count += 1
+    }
+}
+
 private actor UpdateMediaRecorder {
     private(set) var mediaId: String?
     private(set) var request: UploadMediaRequestDTO?
@@ -377,6 +385,7 @@ func catRegistrationUseCompletesWithCapturedMediaWithoutPresentingConfirmation()
 func completingPhotoWaitsForBothUploadRequests() async {
     let outputSpy = CaptureOutputSpy()
     let uploadFlow = UploadFlowStub()
+    let presignedUploads = PresignedUploadRecorder()
     let mediaFetchRecorder = MediaFetchRecorder()
     let cat = Cat(
         id: "cat-id",
@@ -390,6 +399,9 @@ func completingPhotoWaitsForBothUploadRequests() async {
     }
     mediaClient.registerMedia = {
         try await uploadFlow.uploadMedia($0)
+    }
+    mediaClient.uploadToPresignedURL = { _, _, _ in
+        await presignedUploads.record()
     }
     mediaClient.fetchMedia = { mediaId in
         await mediaFetchRecorder.record(mediaId)
@@ -453,9 +465,11 @@ func completingPhotoWaitsForBothUploadRequests() async {
     let uploadRequest = await uploadFlow.uploadRequests.first
     #expect(uploadRequest?.catId == cat.id)
     #expect(uploadRequest?.fileName == "photo.jpg")
+    #expect(uploadRequest?.thumbnailFileName == nil)
     #expect(uploadRequest?.mediaType == "PHOTO")
     #expect(uploadRequest?.place == cat.place)
     #expect(uploadRequest?.comment == "귀여워")
+    #expect(await presignedUploads.count == 1)
 
     await uploadFlow.resumeUpload(
         with: Media(
@@ -674,9 +688,14 @@ func videoCaptureCanStopManuallyBeforeSixtySeconds() async {
 @MainActor
 @Test
 func photoUploadSourceNormalizesImageDataToJPEG() throws {
-    let image = UIGraphicsImageRenderer(size: CGSize(width: 2, height: 2)).image { context in
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = 1
+    let image = UIGraphicsImageRenderer(
+        size: CGSize(width: 3_000, height: 1_500),
+        format: format
+    ).image { context in
         UIColor.systemBlue.setFill()
-        context.cgContext.fill(CGRect(x: 0, y: 0, width: 2, height: 2))
+        context.cgContext.fill(CGRect(x: 0, y: 0, width: 3_000, height: 1_500))
     }
     let pngData = try #require(image.pngData())
     let outputSpy = CaptureOutputSpy()
@@ -697,8 +716,48 @@ func photoUploadSourceNormalizesImageDataToJPEG() throws {
     )))
     viewModel.send(.view(.useButtonTapped))
     let data = try #require(outputSpy.completedMedia?.data)
+    let normalizedImage = try #require(UIImage(data: data)?.cgImage)
 
     #expect(Array(data.prefix(3)) == [0xFF, 0xD8, 0xFF])
+    #expect(normalizedImage.width == 2_048)
+    #expect(normalizedImage.height == 1_024)
+}
+
+@MainActor
+@Test
+func photoUploadSourceDoesNotUpscaleSmallImage() throws {
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = 1
+    let image = UIGraphicsImageRenderer(
+        size: CGSize(width: 320, height: 160),
+        format: format
+    ).image { context in
+        UIColor.systemBlue.setFill()
+        context.cgContext.fill(CGRect(x: 0, y: 0, width: 320, height: 160))
+    }
+    let pngData = try #require(image.pngData())
+    let outputSpy = CaptureOutputSpy()
+    let viewModel = CaptureViewModel(
+        cameraClient: .test,
+        mediaClient: .test,
+        videoTrimClient: VideoTrimClient(),
+        configuration: .init(
+            usage: .catRegistration,
+            showsModePicker: false
+        ),
+        onComplete: { outputSpy.complete(capturedMedia: $0, uploadedMedia: $1) },
+        onClose: {}
+    )
+
+    viewModel.send(.internal(.captureCompleted(
+        CapturedMedia(data: pngData, mode: .photo)
+    )))
+    viewModel.send(.view(.useButtonTapped))
+    let data = try #require(outputSpy.completedMedia?.data)
+    let normalizedImage = try #require(UIImage(data: data)?.cgImage)
+
+    #expect(normalizedImage.width == 320)
+    #expect(normalizedImage.height == 160)
 }
 
 @MainActor

@@ -535,12 +535,35 @@ private extension CaptureViewModel {
     }
 
     func normalizedMedia(from media: CapturedMedia) -> CapturedMedia {
+        let photoMaximumPixelSize: CGFloat = 2_048
+        let photoCompressionQuality: CGFloat = 0.82
+        
         guard media.mode == .photo else { return media }
         guard let data = media.data,
-              let image = UIImage(data: data),
-              let jpegData = image.jpegData(compressionQuality: 0.9) else {
+              let image = UIImage(data: data) else {
             return media
         }
+
+        let longestSide = max(image.size.width, image.size.height)
+        let ratio = min(photoMaximumPixelSize / longestSide, 1)
+        let targetSize = CGSize(
+            width: max((image.size.width * ratio).rounded(), 1),
+            height: max((image.size.height * ratio).rounded(), 1)
+        )
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let normalizedImage = UIGraphicsImageRenderer(
+            size: targetSize,
+            format: format
+        ).image { context in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+        guard let jpegData = normalizedImage.jpegData(
+            compressionQuality: photoCompressionQuality
+        ) else {
+            return media
+        }
+
         return CapturedMedia(data: jpegData, mode: .photo)
     }
 }
