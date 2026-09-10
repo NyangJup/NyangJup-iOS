@@ -69,5 +69,6 @@ struct GenerateCatView: View {
             maxWidth: .infinity,
             maxHeight: .infinity
         )
+        .toolbarVisibility(.hidden, for: .navigationBar)
     }
 }

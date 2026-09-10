@@ -9,17 +9,69 @@ import AVKit
 import SwiftUI
 
 import CoreVideoInterface
+import DomainMediaInterface
+
+@MainActor
+@Observable
+final class RelayVideoPlayerPool {
+    private var players: [String: AVPlayer] = [:]
+    private var prerollObservers: [String: NSKeyValueObservation] = [:]
+
+    func player(for mediaId: String) -> AVPlayer? {
+        players[mediaId]
+    }
+
+    func preload(items: [RelayCat], currentItemId: String?) {
+        guard let currentIndex = items.firstIndex(
+            where: { $0.mediaId == currentItemId }
+        ) else { return }
+
+        let nearbyItems = [
+            currentIndex - 1,
+            currentIndex,
+            currentIndex + 1,
+            currentIndex + 2
+        ]
+            .filter(items.indices.contains)
+            .map { items[$0] }
+
+        let nearbyVideoItems = nearbyItems.compactMap { item -> RelayCat? in
+            guard item.mediaType == .video, URL(string: item.mediaURL) != nil else {
+                return nil
+            }
+            return item
+        }
+        let nearbyIDs = Set(nearbyVideoItems.map(\.mediaId))
+
+        players = players.filter { nearbyIDs.contains($0.key) }
+        prerollObservers = prerollObservers.filter { nearbyIDs.contains($0.key) }
+
+        for item in nearbyVideoItems where players[item.mediaId] == nil {
+            guard let url = URL(string: item.mediaURL) else { continue }
+
+            let player = AVPlayer(url: url)
+            players[item.mediaId] = player
+            prerollObservers[item.mediaId] = player.observe(
+                \.status,
+                options: [.initial, .new]
+            ) { player, _ in
+                guard player.status == .readyToPlay else { return }
+                player.preroll(atRate: 1) { _ in }
+            }
+        }
+    }
+}
 
 struct RelayVideo: View {
-    @State private var player: AVPlayer
+    let player: AVPlayer
     @State private var playbackProgress: Double = 0
     @State private var timeObserverToken: Any?
     @State private var shouldPlay = true
 
     let isActive: Bool
 
-    init(url: URL, isActive: Bool) {
-        self._player = State(initialValue: AVPlayer(url: url))
+    init(player: AVPlayer, isActive: Bool) {
+        self.player = player
         self.isActive = isActive
     }
 
@@ -44,7 +96,10 @@ struct RelayVideo: View {
         ) { _ in
             handlePlaybackEnded()
         }
-        .onDisappear(perform: stopProgressObservation)
+        .onDisappear {
+            stopProgressObservation()
+            player.pause()
+        }
     }
 
     private var videoContent: some View {

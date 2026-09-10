@@ -59,7 +59,8 @@ private extension CameraControlBar {
                 get: { nil },
                 set: { onPhotoPickerChanged($0) }
             ),
-            matching: .any(of: [.images, .videos])
+            matching: .any(of: [.images, .videos]),
+            preferredItemEncoding: .current
         ) {
             Image(systemName: Constant.albumImage)
                 .font(.system(size: Constant.secondaryButtonImageSize, weight: .semibold))

@@ -8,13 +8,15 @@
 import SwiftUI
 
 import CoreCameraInterface
+import CoreVideoInterface
 import DomainMediaInterface
 import FeatureCaptureInterface
 
 public extension CaptureFactory {
     static func live(
         cameraClient: CameraClient,
-        mediaClient: MediaClient
+        mediaClient: MediaClient,
+        videoTrimClient: VideoTrimClient
     ) -> Self {
         Self(
             makeView: {
@@ -31,11 +33,14 @@ public extension CaptureFactory {
                         viewModel: CaptureViewModel(
                             cameraClient: cameraClient,
                             mediaClient: mediaClient,
-                            videoTrimClient: VideoTrimClient(),
+                            videoTrimClient: videoTrimClient,
                             configuration: configuration ?? .init(
                                 showsModePicker: true,
                                 cat: nil
                             ),
+                            onUpload: { request in
+                                onAction(.upload(request))
+                            },
                             onComplete: { capturedMedia, uploadedMedia in
                                 if let uploadedMedia {
                                     onAction(.complete(uploadedMedia))

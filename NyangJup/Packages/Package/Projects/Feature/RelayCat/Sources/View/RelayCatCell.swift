@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AVFoundation
 
 import CoreImageLoaderInterface
 import DomainMediaInterface
@@ -17,18 +18,21 @@ struct RelayCatCell: View {
     let relayCat: RelayCat
     let size: CGSize
     let isActive: Bool
+    let videoPlayer: AVPlayer?
     let onHeartTapped: (Bool) -> Void
 
     init(
         relayCat: RelayCat,
         size: CGSize,
         isActive: Bool,
+        videoPlayer: AVPlayer?,
         onHeartTapped: @escaping (Bool) -> Void
     ) {
         self._displayedIsLiked = State(initialValue: relayCat.isLiked)
         self.relayCat = relayCat
         self.size = size
         self.isActive = isActive
+        self.videoPlayer = videoPlayer
         self.onHeartTapped = onHeartTapped
     }
 
@@ -76,9 +80,9 @@ struct RelayCatCell: View {
 
     @ViewBuilder
     private var videoContent: some View {
-        if let url = URL(string: relayCat.mediaURL) {
+        if let videoPlayer {
             RelayVideo(
-                url: url,
+                player: videoPlayer,
                 isActive: isActive
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -146,11 +150,11 @@ struct RelayCatCell: View {
                        )
                 }, placeholder: {
                     Circle()
-                        .fill(.gray.opacity(0.8))
                         .frame(
                             width: Constant.avatarBackgroundSize,
                             height: Constant.avatarBackgroundSize
                         )
+                        .skeleton()
                 }
             )
         }

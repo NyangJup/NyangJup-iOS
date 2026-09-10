@@ -19,7 +19,7 @@ public extension RelayCatFactory {
         adsClient: AdsClient
     ) -> Self {
         Self(
-            makeView: { configuration, _ in
+            makeView: { configuration, delegate in
                 guard let configuration = configuration as? RelayCatConfiguration else {
                     return AnyView(EmptyView())
                 }
@@ -30,7 +30,8 @@ public extension RelayCatFactory {
                             configuration: configuration,
                             mediaClient: mediaClient,
                             imageLoaderClient: imageLoaderClient,
-                            adsClient: adsClient
+                            adsClient: adsClient,
+                            delegate: delegate as? RelayCatDelegate
                         )
                     )
                 )

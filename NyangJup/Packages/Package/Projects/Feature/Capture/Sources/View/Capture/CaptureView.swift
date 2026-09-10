@@ -81,7 +81,10 @@ public struct CaptureView: View {
             Constant.uploadFailureAlertTitle,
             isPresented: $viewModel.state.isUploadFailureAlertPresented
         ) {
-            Button(Constant.confirmTitle, role: .cancel) {}
+            Button(Constant.cancelTitle, role: .cancel) {}
+            Button("다시 시도") {
+                viewModel.send(.view(.retryUploadButtonTapped))
+            }
         } message: {
             Text(Constant.uploadFailureAlertMessage)
         }
@@ -108,6 +111,12 @@ private extension CaptureView {
         VStack(spacing: 0) {
             if viewModel.state.mode == .photo {
                 Spacer()
+            }
+            
+            if viewModel.state.usage == .catRegistration {
+                Text(Constant.catRegistrationExplainText)
+                    .foregroundStyle(.white)
+                    .padding(.bottom, 4)
             }
 
             capturePreivewView
@@ -265,5 +274,6 @@ private extension CaptureView {
         static let uploadFailureAlertTitle = "업로드에 실패했어요"
         static let uploadFailureAlertMessage = "잠시 후 다시 시도해 주세요."
         static let confirmTitle = "확인"
+        static let catRegistrationExplainText = "고양이가 잘 보이도록 찍어주세요"
     }
 }

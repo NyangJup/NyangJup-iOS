@@ -63,14 +63,18 @@ private extension CatProfileInfoView {
                 targetSize: CGSize(
                     width: catImageSize,
                     height: catImageSize
-                )
-            ) { image in
-                CatAvatarView(
-                    image: image,
-                    backgroundSize: imageBackgroundSize,
-                    imageSize: catImageSize
-                )
-            }
+                ), content: { image in
+                    CatAvatarView(
+                        image: image,
+                        backgroundSize: imageBackgroundSize,
+                        imageSize: catImageSize
+                    )
+                }, placeholder: {
+                    Circle()
+                        .frame(width: imageBackgroundSize, height: imageBackgroundSize)
+                        .skeleton()
+                }
+            )
         }
     }
 }

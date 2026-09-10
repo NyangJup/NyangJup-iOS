@@ -11,6 +11,7 @@ import UIKit
 
 import CoreAdsInterface
 import CoreImageLoaderInterface
+import CoreVideoInterface
 import DomainCatsInterface
 import DomainCatsTesting
 import DomainMediaInterface
@@ -19,6 +20,7 @@ import DomainPixelRewardInterface
 import DomainPixelRewardTesting
 import DomainProfileTesting
 import FeatureCommonInterface
+import FeatureCaptureInterface
 import FeatureHomeInterface
 @testable import FeatureHome
 
@@ -103,6 +105,58 @@ private enum TestError: Error, Sendable {
     case deleteCatFailed
     case imageLoadingFailed
     case pixelRewardFailed
+    case videoUploadFailed
+}
+
+private actor VideoUploadGate {
+    private var continuation: CheckedContinuation<Media, Error>?
+
+    var isWaiting: Bool {
+        continuation != nil
+    }
+
+    func wait() async throws -> Media {
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func succeed(with media: Media) {
+        continuation?.resume(returning: media)
+        continuation = nil
+    }
+
+    func fail() {
+        continuation?.resume(throwing: TestError.videoUploadFailed)
+        continuation = nil
+    }
+}
+
+@MainActor
+private func makeVideoTrimClient() -> VideoTrimClient {
+    VideoTrimClient(
+        loadDuration: { _ in 0 },
+        generateThumbnails: { _, _, _ in [] },
+        exportTrimmedVideo: { sourceURL, _, _ in sourceURL },
+        generateUploadThumbnail: { _, _ in Data() }
+    )
+}
+
+private func makeVideoUploadRequest(comment: String) -> VideoUploadRequest {
+    VideoUploadRequest(
+        sourceURL: URL(fileURLWithPath: "/tmp/\(comment).mov"),
+        trimStartTime: 0,
+        trimEndTime: 1,
+        catID: "feed-cat",
+        place: "집",
+        comment: comment
+    )
+}
+
+private func makeVideoUploadMediaClient(_ gate: VideoUploadGate) -> MediaClient {
+    var client = MediaClient.test
+    client.uploadVideo = { _ in try await gate.wait() }
+    return client
 }
 
 private actor RewardAdRecorder {
@@ -1093,6 +1147,8 @@ func feedOnAppearLoadsFirstPage() async {
     let viewModel = FeedViewModel(
         cat: cat,
         catsClient: .test,
+        mediaClient: .test,
+        videoTrimClient: makeVideoTrimClient(),
         onCatDeleted: { _ in },
         onCatUpdated: { _ in }
     )
@@ -1106,6 +1162,67 @@ func feedOnAppearLoadsFirstPage() async {
 
 @MainActor
 @Test
+func feedOnAppearRecordsAnEmptyFirstPageAsLoaded() async {
+    let cat = Cat(
+        id: "empty-feed-cat",
+        name: "나비",
+        place: "집",
+        imageURL: "https://example.com/cats/cat-1.png"
+    )
+    var catsClient = CatsClient.test
+    catsClient.fetchCatFeed = { _, _ in
+        CatFeed(cat: cat, items: [], nextCursor: nil)
+    }
+    let viewModel = FeedViewModel(
+        cat: cat,
+        catsClient: catsClient,
+        mediaClient: .test,
+        videoTrimClient: makeVideoTrimClient(),
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
+    )
+
+    viewModel.send(.view(.onAppear))
+    await waitUntil { !viewModel.state.isLoading }
+
+    #expect(viewModel.state.items.isEmpty)
+    #expect(viewModel.state.hasLoadedInitialFeed)
+}
+
+@MainActor
+@Test
+func feedOnAppearDoesNotReloadAnEmptyFeed() async {
+    let recorder = FeedRequestRecorder()
+    let cat = Cat(
+        id: "empty-feed-cat",
+        name: "나비",
+        place: "집",
+        imageURL: "https://example.com/cats/cat-1.png"
+    )
+    var catsClient = CatsClient.test
+    catsClient.fetchCatFeed = { _, cursor in
+        await recorder.record(cursor: cursor)
+        return CatFeed(cat: cat, items: [], nextCursor: nil)
+    }
+    let viewModel = FeedViewModel(
+        cat: cat,
+        catsClient: catsClient,
+        mediaClient: .test,
+        videoTrimClient: makeVideoTrimClient(),
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
+    )
+
+    viewModel.send(.view(.onAppear))
+    await waitUntil { !viewModel.state.isLoading }
+    viewModel.send(.view(.onAppear))
+    await Task.yield()
+
+    #expect(await recorder.cursors == [nil])
+}
+
+@MainActor
+@Test
 func feedPlusButtonPresentsAndDismissesCamera() {
     let viewModel = FeedViewModel(
         cat: Cat(
@@ -1115,6 +1232,8 @@ func feedPlusButtonPresentsAndDismissesCamera() {
             imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: .test,
+        mediaClient: .test,
+        videoTrimClient: makeVideoTrimClient(),
         onCatDeleted: { _ in },
         onCatUpdated: { _ in }
     )
@@ -1166,10 +1285,12 @@ func feedCameraCompletionPrependsItemAndKeepsExistingPagination() {
             imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: .test,
+        mediaClient: .test,
+        videoTrimClient: makeVideoTrimClient(),
         onCatDeleted: { _ in },
         onCatUpdated: { _ in }
     )
-    viewModel.state.items = existingItems
+    viewModel.state.items = existingItems.map(FeedItem.media)
     viewModel.state.nextCursor = "existing-cursor"
     viewModel.state.isCameraPresented = true
 
@@ -1186,7 +1307,7 @@ func feedCameraCompletionPrependsItemAndKeepsExistingPagination() {
 
 @MainActor
 @Test
-func feedCameraCompletionDismissesProcessingVideoWithoutInsertingIt() {
+func feedCameraCompletionInsertsUploadedVideoImmediately() {
     let viewModel = FeedViewModel(
         cat: Cat(
             id: "feed-cat",
@@ -1195,25 +1316,212 @@ func feedCameraCompletionDismissesProcessingVideoWithoutInsertingIt() {
             imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: .test,
+        mediaClient: .test,
+        videoTrimClient: makeVideoTrimClient(),
         onCatDeleted: { _ in },
         onCatUpdated: { _ in }
     )
     viewModel.state.isCameraPresented = true
-    let processingVideo = Media(
-        id: "processing-video",
+    let uploadedVideo = Media(
+        id: "uploaded-video",
         catId: "feed-cat",
         userId: "test-user-id",
         comment: "처리 중",
-        thumbnailURL: nil,
+        thumbnailURL: "https://example.com/video.jpg",
         mediaType: .video,
-        mediaURL: nil,
-        processingStatus: .processing
+        mediaURL: "https://example.com/video.mp4"
     )
 
-    viewModel.send(.view(.cameraCompleted(processingVideo)))
+    viewModel.send(.view(.cameraCompleted(uploadedVideo)))
+
+    #expect(viewModel.state.items.map(\.id) == ["uploaded-video"])
+    #expect(!viewModel.state.isCameraPresented)
+}
+
+@MainActor
+@Test
+func feedVideoUploadShowsPlaceholderThenReplacesItInPlace() async {
+    let gate = VideoUploadGate()
+    let uploadedVideo = Media(
+        id: "uploaded-video",
+        catId: "feed-cat",
+        userId: "test-user-id",
+        comment: "업로드 완료",
+        thumbnailURL: "https://example.com/video.jpg",
+        mediaType: .video,
+        mediaURL: "https://example.com/video.mp4"
+    )
+    let viewModel = FeedViewModel(
+        cat: Cat(id: "feed-cat", name: "나비", place: "집", imageURL: ""),
+        catsClient: .test,
+        mediaClient: makeVideoUploadMediaClient(gate),
+        videoTrimClient: makeVideoTrimClient(),
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
+    )
+    viewModel.state.isCameraPresented = true
+
+    viewModel.send(.view(.videoUploadRequested(
+        makeVideoUploadRequest(comment: "업로드 완료")
+    )))
+
+    #expect(!viewModel.state.isCameraPresented)
+    #expect(viewModel.state.items.count == 1)
+    #expect(viewModel.state.items[0].uploadID != nil)
+    await waitUntilAsync { await gate.isWaiting }
+
+    await gate.succeed(with: uploadedVideo)
+    await waitUntil { viewModel.state.items.first?.media?.id == uploadedVideo.id }
+
+    #expect(viewModel.state.items.count == 1)
+    #expect(viewModel.state.items[0].media?.thumbnailURL == uploadedVideo.thumbnailURL)
+    #expect(!viewModel.state.showsUploadFailureAlert)
+}
+
+@MainActor
+@Test
+func initialFeedResponsePreservesUploadingVideo() async {
+    let feedGate = FetchCatsGate()
+    let uploadGate = VideoUploadGate()
+    let cat = Cat(id: "feed-cat", name: "나비", place: "집", imageURL: "")
+    let serverMedia = Media(
+        id: "server-media",
+        catId: cat.id,
+        userId: "user",
+        comment: "기존 피드",
+        thumbnailURL: "https://example.com/server.jpg",
+        mediaType: .photo,
+        mediaURL: "https://example.com/server.jpg"
+    )
+    let uploadedVideo = Media(
+        id: "uploaded-video",
+        catId: cat.id,
+        userId: "user",
+        comment: "업로드 완료",
+        thumbnailURL: "https://example.com/video.jpg",
+        mediaType: .video,
+        mediaURL: "https://example.com/video.mp4"
+    )
+    var catsClient = CatsClient.test
+    catsClient.fetchCatFeed = { _, _ in
+        await feedGate.wait()
+        return CatFeed(cat: cat, items: [serverMedia], nextCursor: nil)
+    }
+    let viewModel = FeedViewModel(
+        cat: cat,
+        catsClient: catsClient,
+        mediaClient: makeVideoUploadMediaClient(uploadGate),
+        videoTrimClient: makeVideoTrimClient(),
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
+    )
+
+    viewModel.send(.view(.onAppear))
+    await waitUntilAsync { await feedGate.isWaiting }
+    viewModel.send(.view(.videoUploadRequested(
+        makeVideoUploadRequest(comment: "업로드 완료")
+    )))
+    await waitUntilAsync { await uploadGate.isWaiting }
+
+    await feedGate.resume()
+    await waitUntil { viewModel.state.hasLoadedInitialFeed }
+    #expect(viewModel.state.items.first?.uploadID != nil)
+    #expect(viewModel.state.items.compactMap(\.media).map(\.id) == [serverMedia.id])
+
+    await uploadGate.succeed(with: uploadedVideo)
+    await waitUntil { viewModel.state.items.first?.media?.id == uploadedVideo.id }
+    #expect(viewModel.state.items.compactMap(\.media).map(\.id) == [
+        uploadedVideo.id,
+        serverMedia.id
+    ])
+}
+
+@MainActor
+@Test
+func feedVideoUploadFailureRemovesPlaceholderAndPresentsAlert() async {
+    let gate = VideoUploadGate()
+    let viewModel = FeedViewModel(
+        cat: Cat(id: "feed-cat", name: "나비", place: "집", imageURL: ""),
+        catsClient: .test,
+        mediaClient: makeVideoUploadMediaClient(gate),
+        videoTrimClient: makeVideoTrimClient(),
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
+    )
+
+    viewModel.send(.view(.videoUploadRequested(
+        makeVideoUploadRequest(comment: "실패")
+    )))
+    await waitUntilAsync { await gate.isWaiting }
+    await gate.fail()
+    await waitUntil { viewModel.state.showsUploadFailureAlert }
 
     #expect(viewModel.state.items.isEmpty)
-    #expect(!viewModel.state.isCameraPresented)
+    #expect(viewModel.state.showsUploadFailureAlert)
+}
+
+@MainActor
+@Test
+func concurrentVideoUploadsReplaceTheirOwnPlaceholders() async {
+    let firstGate = VideoUploadGate()
+    let secondGate = VideoUploadGate()
+    let firstMedia = Media(
+        id: "first-video",
+        catId: "feed-cat",
+        userId: "user",
+        comment: "첫 번째",
+        thumbnailURL: "https://example.com/first.jpg",
+        mediaType: .video,
+        mediaURL: "https://example.com/first.mp4"
+    )
+    let secondMedia = Media(
+        id: "second-video",
+        catId: "feed-cat",
+        userId: "user",
+        comment: "두 번째",
+        thumbnailURL: "https://example.com/second.jpg",
+        mediaType: .video,
+        mediaURL: "https://example.com/second.mp4"
+    )
+    var mediaClient = MediaClient.test
+    mediaClient.uploadVideo = { upload in
+        if upload.comment == "첫 번째" {
+            return try await firstGate.wait()
+        }
+        return try await secondGate.wait()
+    }
+    let viewModel = FeedViewModel(
+        cat: Cat(id: "feed-cat", name: "나비", place: "집", imageURL: ""),
+        catsClient: .test,
+        mediaClient: mediaClient,
+        videoTrimClient: makeVideoTrimClient(),
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
+    )
+
+    viewModel.send(.view(.videoUploadRequested(
+        makeVideoUploadRequest(comment: "첫 번째")
+    )))
+    viewModel.send(.view(.videoUploadRequested(
+        makeVideoUploadRequest(comment: "두 번째")
+    )))
+    await waitUntilAsync {
+        let isFirstWaiting = await firstGate.isWaiting
+        let isSecondWaiting = await secondGate.isWaiting
+        return isFirstWaiting && isSecondWaiting
+    }
+
+    await firstGate.succeed(with: firstMedia)
+    await waitUntil { viewModel.state.items[1].media?.id == firstMedia.id }
+    #expect(viewModel.state.items[0].uploadID != nil)
+
+    await secondGate.succeed(with: secondMedia)
+    await waitUntil { viewModel.state.items[0].media?.id == secondMedia.id }
+
+    #expect(viewModel.state.items.compactMap(\.media).map(\.id) == [
+        secondMedia.id,
+        firstMedia.id
+    ])
 }
 
 @MainActor
@@ -1242,10 +1550,12 @@ func feedOnAppearDoesNotReloadExistingItems() async {
             imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: catsClient,
+        mediaClient: .test,
+        videoTrimClient: makeVideoTrimClient(),
         onCatDeleted: { _ in },
         onCatUpdated: { _ in }
     )
-    viewModel.state.items = [existingItem]
+    viewModel.state.items = [.media(existingItem)]
     viewModel.state.nextCursor = "preserved-cursor"
 
     viewModel.send(.view(.onAppear))
@@ -1296,6 +1606,8 @@ func feedLoadNextPageAppendsItemsAndStopsAtLastPage() async {
     let viewModel = FeedViewModel(
         cat: cat,
         catsClient: catsClient,
+        mediaClient: .test,
+        videoTrimClient: makeVideoTrimClient(),
         onCatDeleted: { _ in },
         onCatUpdated: { _ in }
     )
@@ -1337,10 +1649,12 @@ func feedFetchFailureKeepsItemsAndEndsLoading() async {
             imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: catsClient,
+        mediaClient: .test,
+        videoTrimClient: makeVideoTrimClient(),
         onCatDeleted: { _ in },
         onCatUpdated: { _ in }
     )
-    viewModel.state.items = [existingItem]
+    viewModel.state.items = [.media(existingItem)]
 
     viewModel.send(.view(.onAppear))
     await waitUntil { !viewModel.state.isLoading }
@@ -1370,6 +1684,8 @@ func feedPhotoTappedPushesRelayCatRoute() {
             imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: .test,
+        mediaClient: .test,
+        videoTrimClient: makeVideoTrimClient(),
         onCatDeleted: { _ in },
         onCatUpdated: { _ in },
         coordinator: coordinator
@@ -1412,6 +1728,8 @@ func feedVideoTappedUsesMediaURL() {
             imageURL: "https://example.com/cats/cat-1.png"
         ),
         catsClient: .test,
+        mediaClient: .test,
+        videoTrimClient: makeVideoTrimClient(),
         onCatDeleted: { _ in },
         onCatUpdated: { _ in },
         coordinator: coordinator
@@ -1453,6 +1771,8 @@ func feedUpdateProfileSuccessUpdatesStateAndSendsOutput() async {
     let viewModel = FeedViewModel(
         cat: originalCat,
         catsClient: catsClient,
+        mediaClient: .test,
+        videoTrimClient: makeVideoTrimClient(),
         onCatDeleted: outputSpy.catDeleted,
         onCatUpdated: outputSpy.catUpdated
     )
@@ -1490,6 +1810,8 @@ func feedUpdateProfileFailureKeepsStateAndDoesNotSendOutput() async {
     let viewModel = FeedViewModel(
         cat: originalCat,
         catsClient: catsClient,
+        mediaClient: .test,
+        videoTrimClient: makeVideoTrimClient(),
         onCatDeleted: outputSpy.catDeleted,
         onCatUpdated: outputSpy.catUpdated
     )
@@ -1526,6 +1848,8 @@ func feedDeleteSuccessSendsOutputAndPopsCoordinator() async {
     let viewModel = FeedViewModel(
         cat: cat,
         catsClient: catsClient,
+        mediaClient: .test,
+        videoTrimClient: makeVideoTrimClient(),
         onCatDeleted: outputSpy.catDeleted,
         onCatUpdated: outputSpy.catUpdated,
         coordinator: coordinator
@@ -1560,6 +1884,8 @@ func feedDeleteFailureDoesNotSendOutputOrPopCoordinator() async {
     let viewModel = FeedViewModel(
         cat: cat,
         catsClient: catsClient,
+        mediaClient: .test,
+        videoTrimClient: makeVideoTrimClient(),
         onCatDeleted: outputSpy.catDeleted,
         onCatUpdated: outputSpy.catUpdated,
         coordinator: coordinator
@@ -1571,6 +1897,70 @@ func feedDeleteFailureDoesNotSendOutputOrPopCoordinator() async {
 
     #expect(outputSpy.deletedCatIDs.isEmpty)
     #expect(coordinator.routes == [.feed(catId: cat.id)])
+}
+
+@MainActor
+@Test
+func relayCatDelegateUpdatesOnlyAffectedFeedItemAndKeepsPagination() {
+    let cat = Cat(
+        id: "feed-cat",
+        name: "나비",
+        place: "집",
+        imageURL: "https://example.com/cat.png"
+    )
+    let first = Media(
+        id: "first",
+        catId: cat.id,
+        userId: "user",
+        comment: "수정 전",
+        thumbnailURL: "https://example.com/first.jpg",
+        mediaType: .photo,
+        mediaURL: "https://example.com/first.jpg"
+    )
+    let second = Media(
+        id: "second",
+        catId: cat.id,
+        userId: "user",
+        comment: "유지",
+        thumbnailURL: "https://example.com/second.jpg",
+        mediaType: .photo,
+        mediaURL: "https://example.com/second.jpg"
+    )
+    let viewModel = FeedViewModel(
+        cat: cat,
+        catsClient: .test,
+        mediaClient: .test,
+        videoTrimClient: makeVideoTrimClient(),
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
+    )
+    viewModel.state.items = [.media(first), .media(second)]
+    viewModel.state.nextCursor = "next-cursor"
+    let delegate = viewModel.makeRelayCatDelegate()
+
+    delegate.send(.likeUpdated(mediaId: first.id, isLiked: true))
+    #expect(viewModel.state.items[0].media?.isLiked == true)
+    #expect(viewModel.state.items[1].media?.comment == second.comment)
+    #expect(viewModel.state.nextCursor == "next-cursor")
+
+    let updated = Media(
+        id: first.id,
+        catId: cat.id,
+        userId: "user",
+        comment: "수정 후",
+        thumbnailURL: "https://example.com/updated.jpg",
+        mediaType: .video,
+        mediaURL: "https://example.com/updated.mp4"
+    )
+    delegate.send(.mediaUpdated(updated))
+    #expect(viewModel.state.items[0].media?.comment == updated.comment)
+    #expect(viewModel.state.items[0].media?.mediaType == .video)
+    #expect(viewModel.state.items[0].media?.isLiked == true)
+    #expect(viewModel.state.nextCursor == "next-cursor")
+
+    delegate.send(.mediaDeleted(mediaId: first.id))
+    #expect(viewModel.state.items.map(\.id) == [second.id])
+    #expect(viewModel.state.nextCursor == "next-cursor")
 }
 
 @MainActor

@@ -6,6 +6,8 @@ import CoreNetwork
 import CoreNetworkInterface
 import CoreSecureStorage
 import CoreSecureStorageInterface
+import CoreVideoClient
+import CoreVideoInterface
 import CoreImageLoader
 import CoreImageLoaderInterface
 import CoreAds
@@ -40,7 +42,11 @@ struct HomeExampleApp: App {
     private let deviceSecurityClient: DeviceSecurityClient
     private let profileClient: ProfileClient
     private let pixelRewardClient: PixelRewardClient
+    private let mediaClient: MediaClient
+    private let videoTrimClient: VideoTrimClient
 
+    @State private var showsSplash = true
+    @State private var authenticationAttempt = 0
     @State private var isAuthenticated = false
     @State private var authenticationFailed = false
     @State private var authenticationFailureMessage = ""
@@ -64,10 +70,12 @@ struct HomeExampleApp: App {
             deviceSecurityClient: deviceSecurityClient
         )
         let mediaClient = MediaClient.live(networkClient: networkClient)
+        let videoTrimClient = VideoTrimClient.live
 
         self.captureFactory = CaptureFactory.live(
             cameraClient: .live,
-            mediaClient: mediaClient
+            mediaClient: mediaClient,
+            videoTrimClient: videoTrimClient
         )
         self.catRegistrationFactory = CatRegistrationFactory.live(
             catsClient: catsClient,
@@ -88,24 +96,30 @@ struct HomeExampleApp: App {
             networkClient: networkClient,
             deviceSecurityClient: deviceSecurityClient
         )
+        self.mediaClient = mediaClient
+        self.videoTrimClient = videoTrimClient
     }
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                if isAuthenticated {
-                    HomeRootView(
-                        catsClient: catsClient,
-                        profileClient: profileClient,
-                        adsClient: adsClient,
-                        pixelRewardClient: pixelRewardClient
-                    )
-                } else if authenticationFailed {
-                    ContentUnavailableView(
-                        "보안 인증에 실패했습니다.",
-                        systemImage: "lock.slash",
-                        description: Text(authenticationFailureMessage)
-                    )
+            ZStack {
+                Group {
+                    if isAuthenticated {
+                        HomeRootView(
+                            catsClient: catsClient,
+                            mediaClient: mediaClient,
+                            videoTrimClient: videoTrimClient,
+                            profileClient: profileClient,
+                            adsClient: adsClient,
+                            pixelRewardClient: pixelRewardClient
+                        )
+                    }
+                }
+
+                if showsSplash {
+                    NyangJupSplashView(showSplash: $showsSplash)
+                        .transition(.opacity)
+                        .zIndex(1)
                 }
             }
             .environment(\.captureFactory, captureFactory)
@@ -115,16 +129,20 @@ struct HomeExampleApp: App {
             .environment(\.nativeAdFactory, nativeAdFactory)
             .task {
                 await adsClient.setup()
+            }
+            .task(id: authenticationAttempt) {
+                guard !isAuthenticated else { return }
                 do {
                     try await deviceSecurityClient.authenticate()
                     _ = try await profileClient.fetchProfile()
+                    try Task.checkCancellation()
                     isAuthenticated = true
+                } catch is CancellationError {
+                    return
                 } catch {
                     authenticationFailureMessage = authenticationErrorMessage(error)
                     authenticationFailed = true
                 }
-                
-                
             }
         }
     }

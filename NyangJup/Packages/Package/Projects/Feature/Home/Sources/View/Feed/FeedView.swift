@@ -25,16 +25,23 @@ struct FeedView: View {
                         profileHeader
                         Divider()
                         feedHeader
-                        FeedList(
-                            items: viewModel.state.items,
-                            availableWidth: proxy.size.width - Constant.horizontalPadding * 2,
-                            onTap: { media in
-                                viewModel.send(.view(.feedContentTapped(media)))
-                            },
-                            onLoadNextPage: {
-                                viewModel.send(.view(.loadNextPage))
-                            }
-                        )
+                        if viewModel.state.hasLoadedInitialFeed,
+                           viewModel.state.items.isEmpty {
+                            emptyFeedView
+                        } else {
+                            FeedList(
+                                items: viewModel.state.items,
+                                isInitialLoading: viewModel.state.isLoading
+                                    && !viewModel.state.hasLoadedInitialFeed,
+                                availableWidth: proxy.size.width - Constant.horizontalPadding * 2,
+                                onTap: { media in
+                                    viewModel.send(.view(.feedContentTapped(media)))
+                                },
+                                onLoadNextPage: {
+                                    viewModel.send(.view(.loadNextPage))
+                                }
+                            )
+                        }
                         Spacer()
                     }
                     .padding(.horizontal, Constant.horizontalPadding)
@@ -51,23 +58,31 @@ struct FeedView: View {
             .alert(Constant.editAlertTitle, isPresented: $viewModel.state.showsEditAlert) {
                 editNameField
                 editPlaceField
-
+                
                 Button(Constant.saveButtonTitle) {
                     viewModel.send(.view(.updateProfileAlertTapped))
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(!viewModel.state.canUpdateProfile)
-
+                
                 Button(Constant.cancelButtonTitle, role: .cancel) { }
             }
             .alert(Constant.deleteAlertTitle, isPresented: $viewModel.state.showsDeleteAlert) {
                 Button(Constant.deleteConfirmButtonTitle, role: .destructive) {
                     viewModel.send(.view(.deleteAlertTapped))
                 }
-
+                
                 Button(Constant.deleteCancelButtonTitle, role: .cancel) { }
             } message: {
                 Text(Constant.deleteAlertMessage)
+            }
+            .alert(
+                Constant.uploadFailureAlertTitle,
+                isPresented: $viewModel.state.showsUploadFailureAlert
+            ) {
+                Button(Constant.confirmButtonTitle, role: .cancel) { }
+            } message: {
+                Text(Constant.uploadFailureAlertMessage)
             }
             .overlay(alignment: .bottomTrailing) {
                 plusButton
@@ -90,6 +105,9 @@ struct FeedView: View {
                         case let .complete(media):
                             viewModel.send(.view(.cameraCompleted(media)))
                             scrollProxy.scrollTo(Constant.scrollTopID, anchor: .top)
+                        case let .upload(request):
+                            viewModel.send(.view(.videoUploadRequested(request)))
+                            scrollProxy.scrollTo(Constant.scrollTopID, anchor: .top)
                         case .close:
                             viewModel.send(.view(.cameraDismissed))
                         case .register: break
@@ -100,7 +118,6 @@ struct FeedView: View {
             .onAppear {
                 viewModel.send(.view(.onAppear))
             }
-            .loadingOverlay(isPresented: viewModel.state.isLoading)
         }
     }
 }
@@ -174,6 +191,26 @@ private extension FeedView {
             Spacer()
         }
     }
+
+    var emptyFeedView: some View {
+        VStack(spacing: Constant.emptyFeedSpacing) {
+            NJImage.feedEmptyCat.image
+                .resizable()
+                .scaledToFit()
+                .frame(
+                    width: Constant.emptyFeedImageSize,
+                    height: Constant.emptyFeedImageSize
+                )
+
+            Text(Constant.emptyFeedTitle)
+                .font(.system(size: Constant.emptyFeedTitleFontSize, weight: .heavy))
+        }
+        .frame(
+            maxWidth: .infinity,
+            maxHeight: .infinity,
+            alignment: .center
+        )
+    }
     
     var plusButton: some View {
         CircleButton(
@@ -202,6 +239,7 @@ private extension FeedView {
         static let bottomButtonImage: String = "plus"
         static let closeImageName: String = "xmark"
         static let feedTitle: String = "피드"
+        static let emptyFeedTitle: String = "첫 번째 게시물을 업로드하세요"
         static let scrollTopID: String = "feed-scroll-top"
         static let editButtonTitle = "수정"
         static let deleteButtonTitle = "삭제"
@@ -215,6 +253,9 @@ private extension FeedView {
         static let deleteConfirmButtonTitle = "네"
         static let deleteCancelButtonTitle = "아니요"
         static let deleteAlertMessage = "피드 콘텐츠도 전부 사라져요."
+        static let uploadFailureAlertTitle = "업로드에 실패했어요"
+        static let uploadFailureAlertMessage = "잠시 후 다시 시도해 주세요."
+        static let confirmButtonTitle = "확인"
 
         static let menuImageRotationDegrees: Double = 90
         static let nameFieldTrailingPadding: CGFloat = 32
@@ -227,11 +268,14 @@ private extension FeedView {
         static let profileTopPadding: CGFloat = 60
         static let profileBottomPadding: CGFloat = 20
         static let avatarBackgroundSize: CGFloat = 96
-        static let catImageSize: CGFloat = 64
+        static let catImageSize: CGFloat = 80
         static let informationSpacing: CGFloat = 8
         static let nameFontSize: CGFloat = 30
         static let placeFontSize: CGFloat = 15
         static let feedTitleFontSize: CGFloat = 24
+        static let emptyFeedTitleFontSize: CGFloat = 24
+        static let emptyFeedImageSize: CGFloat = 230
+        static let emptyFeedSpacing: CGFloat = -20
         
         static let bottomButtonImageSize: CGFloat = 24
         static let bottomButtonSize: CGFloat = 60

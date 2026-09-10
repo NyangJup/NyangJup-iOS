@@ -14,6 +14,7 @@ enum MediaEndpoint: Endpoint {
     case fetchUploadURL(FetchUploadURLRequestDTO)
     case uploadMedia(UploadMediaRequestDTO)
     case updateMedia(id: String, request: UploadMediaRequestDTO)
+    case updateComment(id: String, request: UpdateMediaCommentRequestDTO)
     case fetchMedia(id: String)
     case updateIsLiked(id: String, request: LikeRequestDTO)
     case fetchRelayCats(FetchRelayCatsRequestDTO)
@@ -27,6 +28,8 @@ enum MediaEndpoint: Endpoint {
             "/media"
         case let .updateMedia(id, _), let .fetchMedia(id), let .deleteMedia(id):
             "/media/\(id)"
+        case let .updateComment(id, _):
+            "/media/\(id)/comment"
         case let .updateIsLiked(id, _):
             "/media/\(id)/like"
         case .fetchRelayCats:
@@ -40,6 +43,8 @@ enum MediaEndpoint: Endpoint {
             .post
         case .updateMedia, .updateIsLiked:
             .put
+        case .updateComment:
+            .patch
         case .fetchMedia, .fetchRelayCats:
             .get
         case .deleteMedia:
@@ -68,6 +73,8 @@ enum MediaEndpoint: Endpoint {
         case let .fetchUploadURL(request):
             request
         case let .uploadMedia(request), let .updateMedia(_, request):
+            request
+        case let .updateComment(_, request):
             request
         case let .updateIsLiked(_, request):
             request

@@ -9,6 +9,7 @@ import SwiftUI
 
 import CoreImageLoaderInterface
 import DomainMediaInterface
+import SharedDesign
 
 struct FeedCell: View {
     let media: Media
@@ -18,7 +19,7 @@ struct FeedCell: View {
 
     var body: some View {
         Group {
-            if let url = media.thumbnailURL.flatMap(URL.init(string:)) {
+            if let url = URL(string: media.thumbnailURL) {
                 NZAsyncImage(
                     url: url,
                     targetSize: targetSize
@@ -45,13 +46,21 @@ struct FeedCell: View {
                     .padding(Constant.playImagePadding)
             }
         }
+        .overlay(alignment: .bottomTrailing) {
+            if media.isLiked {
+                Image(systemName: Constant.likedImageName)
+                    .font(.system(size: Constant.heartImageSize, weight: .semibold))
+                    .foregroundStyle(.red)
+                    .padding(Constant.heartImagePadding)
+            }
+        }
         .clipShape(.rect(cornerRadius: Constant.cornerRadius))
         .onTapGesture { onTap(media) }
     }
 
     private var placeholder: some View {
         Rectangle()
-            .fill(.gray.opacity(0.8))
+            .skeleton()
     }
 }
 
@@ -62,5 +71,8 @@ private extension FeedCell {
         static let playImageName: String = "play.square.fill"
         static let playImageSize: CGFloat = 16
         static let playImagePadding: CGFloat = 12
+        static let likedImageName = "heart.fill"
+        static let heartImageSize: CGFloat = 22
+        static let heartImagePadding: CGFloat = 6
     }
 }

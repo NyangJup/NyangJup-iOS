@@ -70,7 +70,7 @@ private extension CatSpeechBubble {
 
         static let bubbleWidth: CGFloat = 250
         static let imageBackgroundSize: CGFloat = 54
-        static let catImageSize: CGFloat = 34
+        static let catImageSize: CGFloat = 44
         static let contentSpacing: CGFloat = 16
         static let informationSpacing: CGFloat = 0
         static let horizontalPadding: CGFloat = 20

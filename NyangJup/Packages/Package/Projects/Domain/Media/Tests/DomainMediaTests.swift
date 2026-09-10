@@ -85,7 +85,7 @@ func testClientUploadCompletes() async throws {
         comment: "귀여워"
     )
 
-    let response = try await MediaClient.test.uploadMedia(request)
+    let response = try await MediaClient.test.registerMedia(request)
 
     #expect(response.catId == request.catId)
     #expect(response.id == "test-media-id")

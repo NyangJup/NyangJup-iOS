@@ -211,7 +211,7 @@ extension HomeMapScene {
         let nameTagSize = nameTagSize(for: label)
         let nameTagPosition = CGPoint(
             x: 0,
-            y: -(Constant.catSize.height / 2 + Constant.nameTagSpacing + Constant.nameTagHeight / 2)
+            y: -(Constant.catSize.height / 2 + Constant.nameTagHeight / 2)
         )
 
         let background = SKShapeNode(rectOf: nameTagSize)
@@ -356,7 +356,6 @@ extension HomeMapScene {
 
         let positionBelowCat = catPositionY
             + Constant.catSize.height / 2
-            + Constant.nameTagSpacing
             + Constant.nameTagHeight
             + Constant.speechBubbleSpacing
             + Constant.speechBubbleSize.height / 2
@@ -376,7 +375,7 @@ private extension HomeMapScene {
     enum Constant {
         static let mapNodeName = "map"
         static let catNodeName = "cat"
-        static let catSize = CGSize(width: 48, height: 48)
+        static let catSize = CGSize(width: 64, height: 64)
         static let catDefaultZPosition: CGFloat = 10
         static let catZPositionBase: CGFloat = 1000
 
@@ -389,7 +388,6 @@ private extension HomeMapScene {
         static let nameTagHeight: CGFloat = 16
         static let nameTagMinimumWidth: CGFloat = 24
         static let nameTagHorizontalPadding: CGFloat = 4
-        static let nameTagSpacing: CGFloat = 2
 
         static let speechBubbleSize = CGSize(width: 250, height: 112)
         static let speechBubbleSpacing: CGFloat = 8
@@ -399,7 +397,7 @@ private extension HomeMapScene {
         static let mapZPosition: CGFloat = 0
 
         static let horizontalMoveInset: CGFloat = catSize.width / 2
-        static let bottomMoveInset: CGFloat = catSize.height / 2 + nameTagSpacing + nameTagHeight
+        static let bottomMoveInset: CGFloat = catSize.height / 2 + nameTagHeight
         static let topMoveInset: CGFloat = catSize.height / 2
 
         static let waitDurationRange: ClosedRange<TimeInterval> = 0.5...1.5

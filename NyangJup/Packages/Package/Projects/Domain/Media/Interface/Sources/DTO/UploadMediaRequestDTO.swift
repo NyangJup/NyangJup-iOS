@@ -11,6 +11,7 @@ public struct UploadMediaRequestDTO: Encodable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case catId
         case fileName
+        case thumbnailFileName
         case mediaType
         case place
         case comment
@@ -18,6 +19,7 @@ public struct UploadMediaRequestDTO: Encodable, Sendable {
 
     public let catId: String?
     public let fileName: String
+    public let thumbnailFileName: String?
     public let mediaType: String
     public let place: String?
     public let comment: String
@@ -25,12 +27,14 @@ public struct UploadMediaRequestDTO: Encodable, Sendable {
     public init(
         catId: String?,
         fileName: String,
+        thumbnailFileName: String? = nil,
         mediaType: String,
         place: String?,
         comment: String
     ) {
         self.catId = catId
         self.fileName = fileName
+        self.thumbnailFileName = thumbnailFileName
         self.mediaType = mediaType
         self.place = place
         self.comment = comment
@@ -40,6 +44,7 @@ public struct UploadMediaRequestDTO: Encodable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(catId, forKey: .catId)
         try container.encode(fileName, forKey: .fileName)
+        try container.encode(thumbnailFileName, forKey: .thumbnailFileName)
         try container.encode(mediaType, forKey: .mediaType)
         try container.encode(place, forKey: .place)
         try container.encode(comment, forKey: .comment)
