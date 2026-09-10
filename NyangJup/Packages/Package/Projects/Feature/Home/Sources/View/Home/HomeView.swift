@@ -41,6 +41,7 @@ public struct HomeView: View {
         .onAppear {
             viewModel.send(.view(.onAppear))
         }
+        .loadingOverlay(isPresented: viewModel.state.isFetching)
         .fullScreenCover(isPresented: $viewModel.state.isMakeCatPresented) {
             catRegistrationFactory.makeView(
                 nil,
