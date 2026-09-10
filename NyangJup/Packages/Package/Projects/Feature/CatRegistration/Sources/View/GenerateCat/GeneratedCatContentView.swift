@@ -22,6 +22,8 @@ struct GeneratedCatContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             if let imageURL {
+                Spacer()
+                
                 NZAsyncImage(
                     url: imageURL,
                     targetSize: Constant.imageTargetSize

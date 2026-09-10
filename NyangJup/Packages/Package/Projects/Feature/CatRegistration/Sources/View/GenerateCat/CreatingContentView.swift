@@ -13,18 +13,22 @@ struct CreatingContentView: View {
 
     var body: some View {
         VStack {
+            
+            Spacer()
+            
             if let rhythmURL = Constant.rhythmURL {
                 WebView(url: rhythmURL)
                     .frame(height: Constant.webViewHeight)
             }
-
             Text(
                 isGenerated
                     ? Constant.generatedText
                     : Constant.generatingText
             )
             .font(.headline)
-
+            
+            Spacer()
+            
             if isGenerated {
                 showGeneratedImageButton
             }
