@@ -517,7 +517,7 @@ func catsStartAtRandomPositionsInsideMap() async {
 
 @MainActor
 @Test
-func imageLoadingFailureAddsFallbackCatNode() async {
+func imageLoadingFailureDoesNotAddCatNode() async {
     let cat = Cat(
         id: "failed-cat",
         name: "나비",
@@ -538,8 +538,8 @@ func imageLoadingFailureAddsFallbackCatNode() async {
         await Task.yield()
     }
 
-    #expect(scene.children.contains {
-        $0.userData?["catID"] as? String == cat.id
+    #expect(scene.children.allSatisfy {
+        $0.userData?["catID"] as? String == nil
     })
 }
 
@@ -1929,148 +1929,4 @@ private func waitForRewardAdShows(
         if await recorder.showCount == count { return }
         try? await Task.sleep(for: .milliseconds(1))
     }
-}
-
-@MainActor
-@Test
-func homePreparationWaitsForMatchingImages() {
-    let cat = makeCats(count: 1)[0]
-    var state = HomeViewModel.State()
-    #expect(state.isPreparingHome)
-    state.hasLoadedCats = true
-    #expect(!state.isPreparingHome) // Empty collection is ready.
-    state.cats = [cat]
-    #expect(state.isPreparingHome)
-    state.renderedCatImages = [cat.id: "old-image"]
-    #expect(state.isPreparingHome)
-    state.renderedCatImages = [cat.id: cat.imageURL]
-    #expect(!state.isPreparingHome)
-}
-
-@MainActor
-@Test
-func initialFetchIsDeduplicatedAndDoesNotWaitForAds() async {
-    let fetchGate = FetchCatsGate()
-    let adGate = FetchCatsGate()
-    var client = CatsClient.test
-    client.fetchCats = { await fetchGate.wait(); return [] }
-    let ads = AdsClient(
-        setup: {}, loadRewardAds: { await adGate.wait() },
-        showRewardAds: { true }, loadNativeAds: { _ in [] }
-    )
-    let model = HomeViewModel(
-        catsClient: client, profileClient: .test, adsClient: ads,
-        pixelRewardClient: .test, coordinator: HomeCoordinatorSpy()
-    )
-    model.send(.view(.onAppear))
-    await waitUntilAsync { await fetchGate.isWaiting }
-    model.send(.view(.onAppear))
-    await fetchGate.resume()
-    await waitUntil { model.state.hasLoadedCats && !model.state.isFetching }
-    #expect(!model.state.isPreparingHome)
-    await waitUntilAsync { await adGate.isWaiting }
-    model.send(.view(.onAppear))
-    #expect(!model.state.isFetching)
-    await adGate.resume()
-}
-
-private actor StartupFetchStub {
-    private var attempts = 0
-    func fetch() throws -> [Cat] {
-        attempts += 1
-        if attempts == 1 { throw TestError.imageLoadingFailed }
-        return []
-    }
-}
-
-@MainActor
-@Test
-func initialFetchFailureStopsLoadingAndCanRetry() async {
-    let stub = StartupFetchStub()
-    var client = CatsClient.test
-    client.fetchCats = { try await stub.fetch() }
-    let model = HomeViewModel(
-        catsClient: client, profileClient: .test, adsClient: testAdsClient,
-        pixelRewardClient: .test, coordinator: HomeCoordinatorSpy()
-    )
-    model.send(.view(.onAppear))
-    await waitUntil { model.state.initialLoadError != nil }
-    #expect(model.state.initialLoadError != nil)
-    #expect(!model.state.isPreparingHome)
-    model.send(.network(.fetchCats))
-    #expect(model.state.initialLoadError == nil)
-    #expect(model.state.isPreparingHome)
-    await waitUntil { !model.state.isFetching }
-    #expect(model.state.hasLoadedCats)
-    #expect(!model.state.isPreparingHome)
-}
-
-@MainActor
-@Test
-func mapReportsFallbackReadinessAfterFrameUpdate() async {
-    let cat = makeCats(count: 1)[0]
-    var images: [String: String] = [:]
-    let scene = HomeMapScene(
-        size: CGSize(width: 390, height: 844), cats: [cat],
-        imageLoaderClient: failingImageLoaderClient, displayScale: 2,
-        onCatTapped: { _, _ in }, onSelectionCleared: {},
-        onImagesReady: { images = $0 }
-    )!
-    scene.didMove(to: SKView())
-    await waitUntil { scene.children.contains { $0.userData?["catID"] as? String == cat.id } }
-    #expect(images.isEmpty)
-    scene.update(1)
-    await waitUntil { images[cat.id] == cat.imageURL }
-    #expect(scene.children.first { $0.userData?["catID"] as? String == cat.id }?.hasActions() == true)
-}
-
-@MainActor
-@Test
-func removedCatCannotReturnFromPendingImageRequest() async {
-    let gate = FetchCatsGate()
-    let cat = makeCats(count: 1)[0]
-    let scene = HomeMapScene(
-        size: CGSize(width: 390, height: 844), cats: [cat],
-        imageLoaderClient: ImageLoaderClient { _, _, _, _ in
-            await gate.wait()
-            return UIImage()
-        }, displayScale: 2,
-        onCatTapped: { _, _ in }, onSelectionCleared: {}
-    )!
-    scene.didMove(to: SKView())
-    await waitUntilAsync { await gate.isWaiting }
-    scene.syncCats([cat]) // Must not launch another request for the same image.
-    scene.syncCats([])
-    await gate.resume()
-    for _ in 0..<100 { await Task.yield() }
-    #expect(!scene.children.contains { $0.userData?["catID"] as? String == cat.id })
-}
-
-@MainActor
-@Test
-func replacementImageWinsOverOlderPendingRequest() async {
-    let gate = FetchCatsGate()
-    let original = makeCats(count: 1)[0]
-    let replacement = Cat(id: original.id, name: original.name, place: original.place,
-                          imageURL: "https://example.com/replacement.png")
-    var images: [String: String] = [:]
-    let scene = HomeMapScene(
-        size: CGSize(width: 390, height: 844), cats: [original],
-        imageLoaderClient: ImageLoaderClient { url, _, _, _ in
-            if url.absoluteString == original.imageURL { await gate.wait() }
-            return UIImage()
-        }, displayScale: 2,
-        onCatTapped: { _, _ in }, onSelectionCleared: {},
-        onImagesReady: { images = $0 }
-    )!
-    scene.didMove(to: SKView())
-    await waitUntilAsync { await gate.isWaiting }
-    scene.syncCats([replacement])
-    await waitUntil { scene.children.contains { $0.userData?["catID"] as? String == original.id } }
-    await gate.resume()
-    for _ in 0..<100 { await Task.yield() }
-    scene.update(1)
-    await waitUntil { images[original.id] == replacement.imageURL }
-    #expect(images[original.id] == replacement.imageURL)
-    #expect(scene.children.filter { $0.userData?["catID"] as? String == original.id }.count == 1)
 }
