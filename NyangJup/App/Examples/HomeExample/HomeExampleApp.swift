@@ -103,14 +103,18 @@ struct HomeExampleApp: App {
     var body: some Scene {
         WindowGroup {
             ZStack {
-                HomeRootView(
-                    catsClient: catsClient,
-                    mediaClient: mediaClient,
-                    videoTrimClient: videoTrimClient,
-                    profileClient: profileClient,
-                    adsClient: adsClient,
-                    pixelRewardClient: pixelRewardClient
-                )
+                Group {
+                    if isAuthenticated {
+                        HomeRootView(
+                            catsClient: catsClient,
+                            mediaClient: mediaClient,
+                            videoTrimClient: videoTrimClient,
+                            profileClient: profileClient,
+                            adsClient: adsClient,
+                            pixelRewardClient: pixelRewardClient
+                        )
+                    }
+                }
 
                 if showsSplash {
                     NyangJupSplashView(showSplash: $showsSplash)
@@ -123,6 +127,9 @@ struct HomeExampleApp: App {
             .environment(\.imageLoaderClient, imageLoaderClient)
             .environment(\.relayCatFactory, relayCatFactory)
             .environment(\.nativeAdFactory, nativeAdFactory)
+            .task {
+                await adsClient.setup()
+            }
             .task(id: authenticationAttempt) {
                 guard !isAuthenticated else { return }
                 do {
