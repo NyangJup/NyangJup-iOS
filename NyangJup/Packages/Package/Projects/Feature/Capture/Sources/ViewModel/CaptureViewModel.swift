@@ -120,6 +120,7 @@ public final class CaptureViewModel: NZViewModel {
     private let onClose: @MainActor @Sendable () -> Void
     private var uploadTask: Task<Void, Never>?
     private var pendingRegistration: PendingRegistration?
+    private var hasSubmittedVideoUpload = false
     
     public init(
         cameraClient: CameraClient,
@@ -359,6 +360,8 @@ private extension CaptureViewModel {
         state.showsConfirmSheet = false
 
         if let request = makeVideoUploadRequest(for: media) {
+            guard !hasSubmittedVideoUpload else { return }
+            hasSubmittedVideoUpload = true
             onUpload(request)
             return
         }
