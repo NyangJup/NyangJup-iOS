@@ -1380,6 +1380,64 @@ func feedVideoUploadShowsPlaceholderThenReplacesItInPlace() async {
 
 @MainActor
 @Test
+func initialFeedResponsePreservesUploadingVideo() async {
+    let feedGate = FetchCatsGate()
+    let uploadGate = VideoUploadGate()
+    let cat = Cat(id: "feed-cat", name: "나비", place: "집", imageURL: "")
+    let serverMedia = Media(
+        id: "server-media",
+        catId: cat.id,
+        userId: "user",
+        comment: "기존 피드",
+        thumbnailURL: "https://example.com/server.jpg",
+        mediaType: .photo,
+        mediaURL: "https://example.com/server.jpg"
+    )
+    let uploadedVideo = Media(
+        id: "uploaded-video",
+        catId: cat.id,
+        userId: "user",
+        comment: "업로드 완료",
+        thumbnailURL: "https://example.com/video.jpg",
+        mediaType: .video,
+        mediaURL: "https://example.com/video.mp4"
+    )
+    var catsClient = CatsClient.test
+    catsClient.fetchCatFeed = { _, _ in
+        await feedGate.wait()
+        return CatFeed(cat: cat, items: [serverMedia], nextCursor: nil)
+    }
+    let viewModel = FeedViewModel(
+        cat: cat,
+        catsClient: catsClient,
+        mediaClient: makeVideoUploadMediaClient(uploadGate),
+        videoTrimClient: makeVideoTrimClient(),
+        onCatDeleted: { _ in },
+        onCatUpdated: { _ in }
+    )
+
+    viewModel.send(.view(.onAppear))
+    await waitUntilAsync { await feedGate.isWaiting }
+    viewModel.send(.view(.videoUploadRequested(
+        makeVideoUploadRequest(comment: "업로드 완료")
+    )))
+    await waitUntilAsync { await uploadGate.isWaiting }
+
+    await feedGate.resume()
+    await waitUntil { viewModel.state.hasLoadedInitialFeed }
+    #expect(viewModel.state.items.first?.uploadID != nil)
+    #expect(viewModel.state.items.compactMap(\.media).map(\.id) == [serverMedia.id])
+
+    await uploadGate.succeed(with: uploadedVideo)
+    await waitUntil { viewModel.state.items.first?.media?.id == uploadedVideo.id }
+    #expect(viewModel.state.items.compactMap(\.media).map(\.id) == [
+        uploadedVideo.id,
+        serverMedia.id
+    ])
+}
+
+@MainActor
+@Test
 func feedVideoUploadFailureRemovesPlaceholderAndPresentsAlert() async {
     let gate = VideoUploadGate()
     let viewModel = FeedViewModel(

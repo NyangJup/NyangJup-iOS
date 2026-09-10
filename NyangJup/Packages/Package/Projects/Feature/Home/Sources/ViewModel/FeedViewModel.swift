@@ -356,7 +356,8 @@ public final class FeedViewModel: NZViewModel {
                     onCatUpdated(page.cat)
 
                     if cursor == nil {
-                        state.items = page.items.map(FeedItem.media)
+                        let uploadingItems = state.items.filter { $0.uploadID != nil }
+                        state.items = uploadingItems + page.items.map(FeedItem.media)
                         state.hasLoadedInitialFeed = true
                     } else {
                         state.items.append(contentsOf: page.items.map(FeedItem.media))
