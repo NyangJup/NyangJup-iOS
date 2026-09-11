@@ -9,61 +9,68 @@ let package = Package(
         // MARK: - Feature Products
         .library(
             name: "FeatureCommon",
-            targets: ["FeatureCommon", "FeatureCommonInterface", "FeatureCommonTesting"]
+            targets: ["FeatureCommon", "FeatureCommonInterface"]
         ),
         .library(
             name: "FeatureCatRegistration",
-            targets: ["FeatureCatRegistration", "FeatureCatRegistrationInterface", "FeatureCatRegistrationTesting"]
+            targets: ["FeatureCatRegistration", "FeatureCatRegistrationInterface"]
         ),
         .library(
             name: "FeatureHome",
-            targets: ["FeatureHome", "FeatureHomeInterface", "FeatureHomeTesting"]
+            targets: ["FeatureHome", "FeatureHomeInterface"]
         ),
         .library(
             name: "FeatureCapture",
-            targets: ["FeatureCapture", "FeatureCaptureInterface", "FeatureCaptureTesting"]
+            targets: ["FeatureCapture", "FeatureCaptureInterface"]
         ),
         .library(
             name: "FeatureRelayCat",
-            targets: ["FeatureRelayCat", "FeatureRelayCatInterface", "FeatureRelayCatTesting"]
+            targets: ["FeatureRelayCat", "FeatureRelayCatInterface"]
         ),
+        .library(name: "FeatureCaptureTesting", targets: ["FeatureCaptureTesting"]),
+        .library(name: "FeatureCatRegistrationTesting", targets: ["FeatureCatRegistrationTesting"]),
+        .library(name: "FeatureRelayCatTesting", targets: ["FeatureRelayCatTesting"]),
         // MARK: - Domain Products
         .library(
             name: "DomainProfile",
-            targets: ["DomainProfile", "DomainProfileInterface", "DomainProfileTesting"]
+            targets: ["DomainProfile", "DomainProfileInterface"]
         ),
         .library(
             name: "DomainDeviceSecurity",
-            targets: ["DomainDeviceSecurity", "DomainDeviceSecurityInterface", "DomainDeviceSecurityTesting"]
+            targets: ["DomainDeviceSecurity", "DomainDeviceSecurityInterface"]
         ),
         .library(
             name: "DomainPixelReward",
-            targets: ["DomainPixelReward", "DomainPixelRewardInterface", "DomainPixelRewardTesting"]
+            targets: ["DomainPixelReward", "DomainPixelRewardInterface"]
         ),
         .library(
             name: "DomainMedia",
-            targets: ["DomainMedia", "DomainMediaInterface", "DomainMediaTesting"]
+            targets: ["DomainMedia", "DomainMediaInterface"]
         ),
         .library(
             name: "DomainCats",
-            targets: ["DomainCats", "DomainCatsInterface", "DomainCatsTesting"]
+            targets: ["DomainCats", "DomainCatsInterface"]
         ),
+        .library(name: "DomainProfileTesting", targets: ["DomainProfileTesting"]),
+        .library(name: "DomainPixelRewardTesting", targets: ["DomainPixelRewardTesting"]),
+        .library(name: "DomainMediaTesting", targets: ["DomainMediaTesting"]),
+        .library(name: "DomainCatsTesting", targets: ["DomainCatsTesting"]),
         // MARK: - Core Products
         .library(
             name: "CoreSecureStorage",
-            targets: ["CoreSecureStorage", "CoreSecureStorageInterface", "CoreSecureStorageTesting"]
+            targets: ["CoreSecureStorage", "CoreSecureStorageInterface"]
         ),
         .library(
             name: "CoreImageLoader",
-            targets: ["CoreImageLoader", "CoreImageLoaderInterface", "CoreImageLoaderTesting"]
+            targets: ["CoreImageLoader", "CoreImageLoaderInterface"]
         ),
         .library(
             name: "CoreNetwork",
-            targets: ["CoreNetwork", "CoreNetworkInterface", "CoreNetworkTesting"]
+            targets: ["CoreNetwork", "CoreNetworkInterface"]
         ),
         .library(
             name: "CoreCamera",
-            targets: ["CoreCamera", "CoreCameraInterface", "CoreCameraTesting"]
+            targets: ["CoreCamera", "CoreCameraInterface"]
         ),
         .library(
             name: "CoreVideo",
@@ -73,10 +80,14 @@ let package = Package(
             name: "CoreAds",
             targets: ["CoreAds", "CoreAdsInterface"]
         ),
+        .library(name: "CoreImageLoaderTesting", targets: ["CoreImageLoaderTesting"]),
+        .library(name: "CoreCameraTesting", targets: ["CoreCameraTesting"]),
+        .library(name: "CoreVideoTesting", targets: ["CoreVideoTesting"]),
+        .library(name: "CoreAdsTesting", targets: ["CoreAdsTesting"]),
         // MARK: - Shared Products
         .library(
             name: "SharedDesign",
-            targets: ["SharedDesign", "SharedDesignTesting"]
+            targets: ["SharedDesign"]
         ),
     ],
     dependencies: [
@@ -135,7 +146,10 @@ let package = Package(
         ),
         .target(
             name: "FeatureCatRegistrationTesting",
-            dependencies: [],
+            dependencies: [
+                .domain(module: .cats, target: .interface),
+                .feature(module: .catRegistration, target: .interface)
+            ],
             path: "Projects/Feature/CatRegistration/Testing/Sources"
         ),
         .testTarget(
@@ -221,7 +235,8 @@ let package = Package(
         .target(
             name: "FeatureCaptureTesting",
             dependencies: [
-                .core(module: .camera, target: .interface)
+                .core(module: .camera, target: .interface),
+                .feature(module: .capture, target: .interface)
             ],
             path: "Projects/Feature/Capture/Testing/Sources"
         ),
@@ -574,6 +589,13 @@ let package = Package(
             path: "Projects/Core/Video/Sources"
         ),
         .target(
+            name: "CoreVideoTesting",
+            dependencies: [
+                .core(module: .video, target: .interface)
+            ],
+            path: "Projects/Core/Video/Testing/Sources"
+        ),
+        .target(
             name: "CoreAdsInterface",
             dependencies: [],
             path: "Projects/Core/Ads/Interface/Sources"
@@ -588,6 +610,13 @@ let package = Package(
                 )
             ],
             path: "Projects/Core/Ads/Sources"
+        ),
+        .target(
+            name: "CoreAdsTesting",
+            dependencies: [
+                .core(module: .ads, target: .interface)
+            ],
+            path: "Projects/Core/Ads/Testing/Sources"
         ),
         // MARK: - Shared Targets
         .target(

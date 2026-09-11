@@ -19,6 +19,13 @@ public struct CaptureFactory: Factorable, Sendable {
     }
 }
 
+public extension CaptureFactory {
+    static let unimplemented = Self { _, _ in
+        assertionFailure("CaptureFactory가 Environment에 주입되지 않았습니다.")
+        return AnyView(EmptyView())
+    }
+}
+
 public struct CaptureConfiguration: FeatureConfiguration {
     public let usage: CaptureUsage
     public let showsModePicker: Bool
@@ -44,15 +51,6 @@ public struct CaptureConfiguration: FeatureConfiguration {
     }
 }
 
-private struct CaptureFactoryKey: EnvironmentKey {
-    static let defaultValue = CaptureFactory { _, _ in
-        AnyView(EmptyView())
-    }
-}
-
 public extension EnvironmentValues {
-    var captureFactory: CaptureFactory {
-        get { self[CaptureFactoryKey.self] }
-        set { self[CaptureFactoryKey.self] = newValue }
-    }
+    @Entry var captureFactory = CaptureFactory.unimplemented
 }

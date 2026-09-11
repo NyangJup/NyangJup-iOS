@@ -5,13 +5,13 @@
 	<key>API_BASE_URL</key>
 	<string>$(BASE_URL)</string>
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-5153214263116373~7551477484</string>
+	<string>$(GAD_ID)</string>
 	<key>MiniGameURL</key>
 	<string>$(MINIGAME_URL)</string>
 	<key>NATIVE_AD_ID</key>
-	<string>ca-app-pub-3940256099942544/3986624511</string>
+	<string>$(NATIVE_AD_ID)</string>
 	<key>REWARD_AD_ID</key>
-	<string>ca-app-pub-3940256099942544/1712485313</string>
+	<string>$(REWARD_AD_ID)</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>
