@@ -1,166 +1,26 @@
-import AVFAudio
 import SwiftUI
 
-import CoreCamera
-import CoreNetwork
-import CoreNetworkInterface
-import CoreSecureStorage
-import CoreSecureStorageInterface
-import CoreVideoClient
-import CoreVideoInterface
-import CoreImageLoader
-import CoreImageLoaderInterface
-import CoreAds
-import CoreAdsInterface
-import FeatureCapture
-import FeatureCaptureInterface
-import FeatureCatRegistration
-import FeatureCatRegistrationInterface
 import FeatureHome
-import FeatureRelayCat
-import FeatureRelayCatInterface
-import DomainCats
-import DomainCatsInterface
-import DomainMedia
-import DomainMediaInterface
-import DomainDeviceSecurity
-import DomainDeviceSecurityInterface
-import DomainProfile
-import DomainProfileInterface
-import DomainPixelReward
-import DomainPixelRewardInterface
 
 @main
 struct HomeExampleApp: App {
-    private let captureFactory: CaptureFactory
-    private let catRegistrationFactory: CatRegistrationFactory
-    private let imageLoaderClient: ImageLoaderClient
-    private let relayCatFactory: RelayCatFactory
-    private let nativeAdFactory: NativeAdFactory
-    private let adsClient: AdsClient
-    private let catsClient: CatsClient
-    private let deviceSecurityClient: DeviceSecurityClient
-    private let profileClient: ProfileClient
-    private let pixelRewardClient: PixelRewardClient
-    private let mediaClient: MediaClient
-    private let videoTrimClient: VideoTrimClient
-
-    @State private var showsSplash = true
-    @State private var authenticationAttempt = 0
-    @State private var isAuthenticated = false
-    @State private var authenticationFailed = false
-    @State private var authenticationFailureMessage = ""
-
-    init() {
-        try? AVAudioSession.sharedInstance().setCategory(.playback)
-
-        let imageLoaderClient = ImageLoaderClient.live()
-        let adsClient = AdsClient.live
-        let secureStorageClient = SecureStorageClient.live
-        let networkClient = NetworkClient.live(
-            secureStorageClient: secureStorageClient
-        )
-
-        let deviceSecurityClient = DeviceSecurityClient.live(
-            networkClient: networkClient,
-            secureStorageClient: secureStorageClient
-        )
-        let catsClient = CatsClient.live(
-            networkClient: networkClient,
-            deviceSecurityClient: deviceSecurityClient
-        )
-        let mediaClient = MediaClient.live(networkClient: networkClient)
-        let videoTrimClient = VideoTrimClient.live
-
-        self.captureFactory = CaptureFactory.live(
-            cameraClient: .live,
-            mediaClient: mediaClient,
-            videoTrimClient: videoTrimClient
-        )
-        self.catRegistrationFactory = CatRegistrationFactory.live(
-            catsClient: catsClient,
-            mediaClient: mediaClient
-        )
-        self.imageLoaderClient = imageLoaderClient
-        self.relayCatFactory = RelayCatFactory.live(
-            mediaClient: mediaClient,
-            imageLoaderClient: imageLoaderClient,
-            adsClient: adsClient
-        )
-        self.adsClient = adsClient
-        self.catsClient = catsClient
-        self.nativeAdFactory = .live
-        self.deviceSecurityClient = deviceSecurityClient
-        self.profileClient = ProfileClient.live(networkClient: networkClient)
-        self.pixelRewardClient = PixelRewardClient.live(
-            networkClient: networkClient,
-            deviceSecurityClient: deviceSecurityClient
-        )
-        self.mediaClient = mediaClient
-        self.videoTrimClient = videoTrimClient
-    }
+    private let dependencies = HomeExampleDependencies.example()
 
     var body: some Scene {
         WindowGroup {
-            ZStack {
-                Group {
-                    if isAuthenticated {
-                        HomeRootView(
-                            catsClient: catsClient,
-                            mediaClient: mediaClient,
-                            videoTrimClient: videoTrimClient,
-                            profileClient: profileClient,
-                            adsClient: adsClient,
-                            pixelRewardClient: pixelRewardClient
-                        )
-                    }
-                }
-
-                if showsSplash {
-                    NyangJupSplashView(showSplash: $showsSplash)
-                        .transition(.opacity)
-                        .zIndex(1)
-                }
-            }
-            .environment(\.captureFactory, captureFactory)
-            .environment(\.catRegistrationFactory, catRegistrationFactory)
-            .environment(\.imageLoaderClient, imageLoaderClient)
-            .environment(\.relayCatFactory, relayCatFactory)
-            .environment(\.nativeAdFactory, nativeAdFactory)
-            .task {
-                await adsClient.setup()
-            }
-            .task(id: authenticationAttempt) {
-                guard !isAuthenticated else { return }
-                do {
-                    try await deviceSecurityClient.authenticate()
-                    _ = try await profileClient.fetchProfile()
-                    try Task.checkCancellation()
-                    isAuthenticated = true
-                } catch is CancellationError {
-                    return
-                } catch {
-                    authenticationFailureMessage = authenticationErrorMessage(error)
-                    authenticationFailed = true
-                }
-            }
+            HomeRootView(
+                catsClient: dependencies.catsClient,
+                mediaClient: dependencies.mediaClient,
+                videoTrimClient: dependencies.videoTrimClient,
+                profileClient: dependencies.profileClient,
+                adsClient: dependencies.adsClient,
+                pixelRewardClient: dependencies.pixelRewardClient
+            )
+            .environment(\.captureFactory, dependencies.captureFactory)
+            .environment(\.catRegistrationFactory, dependencies.catRegistrationFactory)
+            .environment(\.imageLoaderClient, dependencies.imageLoaderClient)
+            .environment(\.relayCatFactory, dependencies.relayCatFactory)
+            .environment(\.nativeAdFactory, dependencies.nativeAdFactory)
         }
-    }
-
-    private func authenticationErrorMessage(_ error: Error) -> String {
-        if let error = error as? NetworkError {
-            switch error {
-            case let .authorization(response),
-                 let .badRequest(response),
-                 let .notFound(response),
-                 let .server(response),
-                 let .client(response):
-                return response.map { "\($0.code): \($0.message)" } ?? error.errorMessage
-            default:
-                return error.errorMessage
-            }
-        }
-
-        return error.localizedDescription
     }
 }
