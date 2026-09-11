@@ -675,7 +675,6 @@
 				INFOPLIST_FILE = "NyangJup-Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "고양이 사진과 영상을 촬영하기 위해 카메라 접근이 필요합니다.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "고양이 영상을 촬영하기 위해 마이크 접근이 필요합니다.";
-				INFOPLIST_KEY_NSUserTrackingUsageDescription = "사용자에게 더 관련성 높은 광고를 제공하기 위해 앱 사용 정보를 활용합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -715,7 +714,6 @@
 				INFOPLIST_FILE = "NyangJup-Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "고양이 사진과 영상을 촬영하기 위해 카메라 접근이 필요합니다.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "고양이 영상을 촬영하기 위해 마이크 접근이 필요합니다.";
-				INFOPLIST_KEY_NSUserTrackingUsageDescription = "사용자에게 더 관련성 높은 광고를 제공하기 위해 앱 사용 정보를 활용합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -751,7 +749,6 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "고양이 사진과 영상을 촬영하기 위해 카메라 접근이 필요합니다.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "고양이 영상을 촬영하기 위해 마이크 접근이 필요합니다.";
-				INFOPLIST_KEY_NSUserTrackingUsageDescription = "사용자에게 더 관련성 높은 광고를 제공하기 위해 앱 사용 정보를 활용합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -787,7 +784,6 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "고양이 사진과 영상을 촬영하기 위해 카메라 접근이 필요합니다.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "고양이 영상을 촬영하기 위해 마이크 접근이 필요합니다.";
-				INFOPLIST_KEY_NSUserTrackingUsageDescription = "사용자에게 더 관련성 높은 광고를 제공하기 위해 앱 사용 정보를 활용합니다.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

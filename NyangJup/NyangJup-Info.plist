@@ -8,6 +8,8 @@
 	<string>$(GAD_ID)</string>
 	<key>MiniGameURL</key>
 	<string>$(MINIGAME_URL)</string>
+	<key>PrivacyPolicyURL</key>
+	<string>$(PRIVACY_POLICY_URL)</string>
 	<key>NATIVE_AD_ID</key>
 	<string>$(NATIVE_AD_ID)</string>
 	<key>REWARD_AD_ID</key>
