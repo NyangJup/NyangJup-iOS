@@ -86,9 +86,12 @@ export MATCH_PASSWORD="충분히 긴 임의의 암호"
 저장소 루트에서 의존성을 설치하고 최초 signing asset을 만든다.
 
 ```sh
+bundle config set --local path vendor/bundle
 bundle install
 bundle exec fastlane ios bootstrap_signing
 ```
+
+`bundle config set --local path vendor/bundle`은 gem을 Homebrew 전역 경로가 아니라 이 프로젝트의 `vendor/bundle`에 설치한다. `/opt/homebrew` 권한 오류를 피하기 위해 `sudo bundle install`은 사용하지 않는다. `.bundle` 설정과 `vendor/bundle`은 Git에서 제외된다.
 
 `bootstrap_signing`은 CI에서 실행되지 않는다. 권한이 있는 개발자 PC에서만 인증서와 App Store provisioning profile을 생성하거나 갱신한다.
 
