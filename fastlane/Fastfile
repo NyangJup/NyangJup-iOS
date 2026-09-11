@@ -1,0 +1,244 @@
+require "fileutils"
+require "open3"
+require "plist"
+require "time"
+require "uri"
+
+default_platform(:ios)
+
+APP_IDENTIFIER = "com.colin.NyangJup"
+APP_SCHEME = "NyangJup"
+REPOSITORY_ROOT = File.expand_path("..", __dir__)
+XCODE_PROJECT = File.join(REPOSITORY_ROOT, "NyangJup/NyangJup.xcodeproj")
+CONFIG_PATH = File.join(REPOSITORY_ROOT, "NyangJup/Config.xcconfig")
+ARCHIVE_PATH = File.join(REPOSITORY_ROOT, "fastlane/build/NyangJup.xcarchive")
+OUTPUT_DIRECTORY = File.join(REPOSITORY_ROOT, "fastlane/build")
+SAMPLE_AD_PUBLISHER = "ca-app-pub-3940256099942544"
+ORIGINAL_CONFIG = File.binread(CONFIG_PATH) if File.exist?(CONFIG_PATH)
+ORIGINAL_CONFIG_MODE = File.stat(CONFIG_PATH).mode if File.exist?(CONFIG_PATH)
+
+def required_environment!(names)
+  missing = names.select { |name| ENV[name].to_s.strip.empty? }
+  UI.user_error!("Missing required environment variables: #{missing.join(', ')}") unless missing.empty?
+end
+
+def validate_https_url!(name)
+  value = ENV.fetch(name)
+  uri = URI.parse(value)
+  valid = uri.is_a?(URI::HTTPS) && !uri.host.to_s.empty?
+  UI.user_error!("#{name} must be a valid HTTPS URL") unless valid
+rescue URI::InvalidURIError
+  UI.user_error!("#{name} must be a valid HTTPS URL")
+end
+
+def validate_ad_id!(name, pattern)
+  value = ENV.fetch(name)
+  UI.user_error!("#{name} must not use Google's sample ad publisher") if value.start_with?(SAMPLE_AD_PUBLISHER)
+  UI.user_error!("#{name} has an invalid AdMob identifier format") unless value.match?(pattern)
+end
+
+def validate_release_environment!
+  required_environment!(%w[
+    ASC_ISSUER_ID
+    ASC_KEY_ID
+    ASC_KEY_P8_BASE64
+    BASE_URL
+    GAD_ID
+    MATCH_GIT_URL
+    MATCH_PASSWORD
+    MINIGAME_URL
+    NATIVE_AD_ID
+    PRIVACY_POLICY_URL
+    REWARD_AD_ID
+  ])
+
+  %w[BASE_URL MINIGAME_URL PRIVACY_POLICY_URL].each { |name| validate_https_url!(name) }
+  validate_ad_id!("GAD_ID", /\Aca-app-pub-\d{16}~\d{10}\z/)
+  validate_ad_id!("NATIVE_AD_ID", /\Aca-app-pub-\d{16}\/\d{10}\z/)
+  validate_ad_id!("REWARD_AD_ID", /\Aca-app-pub-\d{16}\/\d{10}\z/)
+
+  project = File.read(XCODE_PROJECT + "/project.pbxproj")
+  entitlements = File.read(File.join(REPOSITORY_ROOT, "NyangJup/NyangJup.entitlements"))
+  UI.user_error!("Release App Attest must be production") unless project.include?("APP_ATTEST_ENVIRONMENT = production;")
+  UI.user_error!("App Attest entitlement must use the build setting") unless entitlements.include?("$(APP_ATTEST_ENVIRONMENT)")
+end
+
+def xcconfig_value(value)
+  UI.user_error!("xcconfig values must be single-line") if value.include?("\n") || value.include?("\r")
+  value.gsub("//", "$(NJ_SLASH)$(NJ_SLASH)")
+end
+
+def write_release_config!
+  values = %w[BASE_URL MINIGAME_URL PRIVACY_POLICY_URL GAD_ID NATIVE_AD_ID REWARD_AD_ID]
+  lines = ["NJ_SLASH = /", ""]
+  values.each { |name| lines << "#{name} = #{xcconfig_value(ENV.fetch(name))}" }
+  lines.concat([
+    "",
+    "INFOPLIST_KEY_MiniGameURL = $(MINIGAME_URL)",
+    "INFOPLIST_KEY_API_BASE_URL = $(BASE_URL)",
+    "INFOPLIST_KEY_PrivacyPolicyURL = $(PRIVACY_POLICY_URL)",
+  ])
+
+  File.write(CONFIG_PATH, lines.join("\n") + "\n")
+  File.chmod(0o600, CONFIG_PATH)
+end
+
+def app_store_api_key
+  app_store_connect_api_key(
+    key_id: ENV.fetch("ASC_KEY_ID"),
+    issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+    key_content: ENV.fetch("ASC_KEY_P8_BASE64"),
+    is_key_content_base64: true,
+    in_house: false
+  )
+end
+
+def plist_from_command(*command)
+  stdout, stderr, status = Open3.capture3(*command)
+  UI.user_error!("Command failed while validating the archive: #{command.first}") unless status.success?
+
+  output = stdout.include?("<?xml") ? stdout : stderr
+  xml_start = output.index("<?xml")
+  UI.user_error!("No plist was returned while validating the archive") unless xml_start
+  Plist.parse_xml(output[xml_start..])
+end
+
+def validate_archive!
+  app_path = File.join(ARCHIVE_PATH, "Products/Applications/NyangJup.app")
+  info_path = File.join(app_path, "Info.plist")
+  UI.user_error!("Archived app was not found") unless File.directory?(app_path)
+
+  info = plist_from_command(
+    "/usr/bin/plutil", "-convert", "xml1", "-o", "-", info_path
+  )
+  expected_info = {
+    "CFBundleIdentifier" => APP_IDENTIFIER,
+    "API_BASE_URL" => ENV.fetch("BASE_URL"),
+    "MiniGameURL" => ENV.fetch("MINIGAME_URL"),
+    "PrivacyPolicyURL" => ENV.fetch("PRIVACY_POLICY_URL"),
+    "GADApplicationIdentifier" => ENV.fetch("GAD_ID"),
+    "NATIVE_AD_ID" => ENV.fetch("NATIVE_AD_ID"),
+    "REWARD_AD_ID" => ENV.fetch("REWARD_AD_ID"),
+  }
+  expected_info.each do |key, expected|
+    UI.user_error!("Archive has an unexpected #{key}") unless info[key] == expected
+  end
+
+  signed_entitlements = plist_from_command(
+    "/usr/bin/codesign", "-d", "--entitlements", "-", app_path
+  )
+  attest_environment = signed_entitlements["com.apple.developer.devicecheck.appattest-environment"]
+  UI.user_error!("Archived App Attest entitlement is not production") unless attest_environment == "production"
+
+  profile_path = File.join(app_path, "embedded.mobileprovision")
+  UI.user_error!("Archive has no embedded provisioning profile") unless File.exist?(profile_path)
+  profile = plist_from_command("/usr/bin/security", "cms", "-D", "-i", profile_path)
+  application_identifier = profile.dig("Entitlements", "application-identifier").to_s
+  UI.user_error!("Provisioning profile does not match #{APP_IDENTIFIER}") unless application_identifier.end_with?(".#{APP_IDENTIFIER}")
+  expiration = profile["ExpirationDate"]
+  expiration = Time.parse(expiration.to_s) unless expiration.is_a?(Time)
+  UI.user_error!("Provisioning profile is expired") unless expiration > Time.now
+
+  privacy_manifest = File.join(app_path, "PrivacyInfo.xcprivacy")
+  UI.user_error!("App PrivacyInfo.xcprivacy is missing from the archive") unless File.exist?(privacy_manifest)
+end
+
+def build_and_upload!(api_key)
+  version = get_version_number(xcodeproj: XCODE_PROJECT, target: APP_SCHEME)
+  latest_build = latest_testflight_build_number(
+    api_key: api_key,
+    app_identifier: APP_IDENTIFIER,
+    version: version,
+    initial_build_number: 0
+  )
+  build_number = latest_build + 1
+
+  match(
+    api_key: api_key,
+    app_identifier: APP_IDENTIFIER,
+    git_url: ENV.fetch("MATCH_GIT_URL"),
+    readonly: true,
+    type: "appstore"
+  )
+
+  build_app(
+    project: XCODE_PROJECT,
+    scheme: APP_SCHEME,
+    configuration: "Release",
+    clean: true,
+    archive_path: ARCHIVE_PATH,
+    output_directory: OUTPUT_DIRECTORY,
+    output_name: "NyangJup.ipa",
+    export_method: "app-store",
+    export_options: {
+      provisioningProfiles: {
+        APP_IDENTIFIER => "match AppStore #{APP_IDENTIFIER}",
+      },
+    },
+    xcargs: "CURRENT_PROJECT_VERSION=#{build_number}"
+  )
+
+  validate_archive!
+
+  upload_to_testflight(
+    api_key: api_key,
+    app_identifier: APP_IDENTIFIER,
+    ipa: File.join(OUTPUT_DIRECTORY, "NyangJup.ipa"),
+    distribute_external: false,
+    skip_waiting_for_build_processing: true
+  )
+end
+
+def restore_local_config!
+  if ORIGINAL_CONFIG
+    File.binwrite(CONFIG_PATH, ORIGINAL_CONFIG)
+    File.chmod(ORIGINAL_CONFIG_MODE, CONFIG_PATH)
+  elsif File.exist?(CONFIG_PATH)
+    File.delete(CONFIG_PATH)
+  end
+end
+
+platform :ios do
+  desc "Create the initial App Store signing assets from a developer machine"
+  lane :bootstrap_signing do
+    UI.user_error!("bootstrap_signing must not run in CI") if ENV["CI"]
+    required_environment!(%w[ASC_ISSUER_ID ASC_KEY_ID ASC_KEY_P8_BASE64 MATCH_GIT_URL MATCH_PASSWORD])
+    match(
+      api_key: app_store_api_key,
+      app_identifier: APP_IDENTIFIER,
+      git_url: ENV.fetch("MATCH_GIT_URL"),
+      readonly: false,
+      type: "appstore"
+    )
+  end
+
+  desc "Archive develop and upload it for internal TestFlight testing"
+  lane :internal do
+    setup_ci if ENV["CI"]
+    validate_release_environment!
+    write_release_config!
+    build_and_upload!(app_store_api_key)
+  end
+
+  desc "Archive a main version tag and upload it to TestFlight"
+  lane :release do
+    setup_ci if ENV["CI"]
+    validate_release_environment!
+
+    version = get_version_number(xcodeproj: XCODE_PROJECT, target: APP_SCHEME)
+    tag = ENV["GITHUB_REF_NAME"] || ENV["RELEASE_TAG"]
+    UI.user_error!("GITHUB_REF_NAME or RELEASE_TAG is required") if tag.to_s.empty?
+    UI.user_error!("Release tag #{tag} must match v#{version}") unless tag == "v#{version}"
+
+    write_release_config!
+    build_and_upload!(app_store_api_key)
+  end
+
+  after_all do
+    restore_local_config!
+  end
+
+  error do |_lane, _exception|
+    restore_local_config!
+  end
+end

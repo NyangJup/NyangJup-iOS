@@ -46,8 +46,6 @@
 		B15324020000000000000001 /* CoreAdsTesting in Frameworks */ = {isa = PBXBuildFile; productRef = B15300050000000000000001 /* CoreAdsTesting */; };
 		B15324030000000000000001 /* CoreImageLoaderTesting in Frameworks */ = {isa = PBXBuildFile; productRef = B15300040000000000000001 /* CoreImageLoaderTesting */; };
 		B15324040000000000000001 /* DomainMediaTesting in Frameworks */ = {isa = PBXBuildFile; productRef = B15300080000000000000001 /* DomainMediaTesting */; };
-		CA404BDF3024684800679AA2 /* Config.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = CA404BDE3024684800679AA2 /* Config.xcconfig */; };
-		CA404BE03024684800679AA2 /* Config.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = CA404BDE3024684800679AA2 /* Config.xcconfig */; };
 		CA404BEE30258F4200679AA2 /* CoreAds in Frameworks */ = {isa = PBXBuildFile; productRef = CA404BED30258F4200679AA2 /* CoreAds */; };
 		CA6BE5392FF7A59100458997 /* DomainCats in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE5382FF7A59100458997 /* DomainCats */; };
 		CA6BE53B2FF7A59100458997 /* DomainProfile in Frameworks */ = {isa = PBXBuildFile; productRef = CA6BE53A2FF7A59100458997 /* DomainProfile */; };
@@ -466,7 +464,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				CA404BDF3024684800679AA2 /* Config.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -664,6 +661,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = CA404BDE3024684800679AA2 /* Config.xcconfig */;
 			buildSettings = {
+				APP_ATTEST_ENVIRONMENT = development;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = NyangJup.entitlements;
@@ -703,10 +701,12 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = CA404BDE3024684800679AA2 /* Config.xcconfig */;
 			buildSettings = {
+				APP_ATTEST_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = NyangJup.entitlements;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = WBG9V97XP4;
 				ENABLE_PREVIEWS = YES;
@@ -724,8 +724,9 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.colin.NyangJup2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.colin.NyangJup;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "match AppStore com.colin.NyangJup";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
