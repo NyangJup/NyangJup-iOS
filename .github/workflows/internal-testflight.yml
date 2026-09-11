@@ -1,0 +1,59 @@
+name: Internal TestFlight
+
+on:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight-upload
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: internal-testflight
+    runs-on: macos-26
+    environment: testflight
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app
+
+      - name: Set up Ruby and Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Configure read-only match access
+        env:
+          MATCH_GIT_PRIVATE_KEY: ${{ secrets.MATCH_GIT_PRIVATE_KEY }}
+        run: |
+          if [ -z "$MATCH_GIT_PRIVATE_KEY" ]; then
+            echo "MATCH_GIT_PRIVATE_KEY is required."
+            exit 1
+          fi
+
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$MATCH_GIT_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          ssh-keyscan -t ed25519 github.com >> "$HOME/.ssh/known_hosts"
+
+      - name: Archive and upload
+        env:
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_URL: ${{ vars.MATCH_GIT_URL }}
+          BASE_URL: ${{ vars.BASE_URL }}
+          MINIGAME_URL: ${{ vars.MINIGAME_URL }}
+          PRIVACY_POLICY_URL: ${{ vars.PRIVACY_POLICY_URL }}
+          GAD_ID: ${{ vars.GAD_ID }}
+          NATIVE_AD_ID: ${{ vars.NATIVE_AD_ID }}
+          REWARD_AD_ID: ${{ vars.REWARD_AD_ID }}
+        run: bundle exec fastlane ios internal
