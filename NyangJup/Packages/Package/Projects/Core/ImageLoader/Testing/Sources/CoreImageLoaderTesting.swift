@@ -1,8 +1,9 @@
-//
-//  CoreImageLoaderTesting.swift
-//  NJPackage
-//
-//  Created by 정지훈 on 7/22/26.
-//
+import UIKit
 
-public struct CoreImageLoaderTesting {}
+import CoreImageLoaderInterface
+
+public extension ImageLoaderClient {
+    static let test = Self { _, _, _, _ in
+        UIImage(systemName: "photo") ?? UIImage()
+    }
+}

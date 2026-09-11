@@ -1,10 +1,14 @@
-//
-//  FeatureRelayCatTesting.swift
-//  NJPackage
-//
-//  Created by 정지훈 on 7/22/26.
-//
+import SwiftUI
 
-public struct FeatureRelayCatTesting {
-    public init() {}
+import FeatureRelayCatInterface
+
+public extension RelayCatFactory {
+    static let test = Self { _, _ in
+        AnyView(
+            ContentUnavailableView(
+                "RelayCat 테스트 대역",
+                systemImage: "play.rectangle"
+            )
+        )
+    }
 }
