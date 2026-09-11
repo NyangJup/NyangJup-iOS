@@ -19,7 +19,7 @@ final class RewardedAdsManager: NSObject {
             rewardedAd = try await RewardedAd
                 .load(
                     with: AdsType.reward.adsId,
-                    request: Request()
+                    request: NonPersonalizedAdRequest.make()
                 )
             rewardedAd?.fullScreenContentDelegate = self
         } catch {
