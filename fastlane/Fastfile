@@ -125,7 +125,7 @@ def validate_archive!
   end
 
   signed_entitlements = plist_from_command(
-    "/usr/bin/codesign", "-d", "--entitlements", "-", app_path
+    "/usr/bin/codesign", "-d", "--entitlements", "-", "--xml", app_path
   )
   attest_environment = signed_entitlements["com.apple.developer.devicecheck.appattest-environment"]
   UI.user_error!("Archived App Attest entitlement is not production") unless attest_environment == "production"
