@@ -37,6 +37,13 @@ public struct HomeView: View {
         .overlay(alignment: .bottomTrailing) {
             plusButton
         }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Link(destination: Constant.privacyPolicyURL) {
+                    Image(systemName: Constant.privacyPolicyImage)
+                }
+            }
+        }
         .ignoresSafeArea()
         .onAppear {
             viewModel.send(.view(.onAppear))
@@ -150,6 +157,16 @@ private extension HomeView {
         static let catLimitAlertTitle = "최대 \(HomeViewModel.maximumCatCount)마리까지 냥줍할 수 있어요"
         static let catLimitAlertMessage = "추후 업데이트에서 더 많은 냥줍을 지원할 예정이에요."
         static let confirmButtonTitle = "확인"
+        static let privacyPolicyImage = "hand.raised"
+        static var privacyPolicyURL: URL {
+            guard let value = Bundle.main.object(
+                forInfoDictionaryKey: "PrivacyPolicyURL"
+            ) as? String,
+                  let url = URL(string: value) else {
+                preconditionFailure("PrivacyPolicyURL 설정을 확인해 주세요.")
+            }
+            return url
+        }
         static let plusButtonDebounceDuration: Duration = .milliseconds(300)
 
         static let catCountFontSize: CGFloat = 16

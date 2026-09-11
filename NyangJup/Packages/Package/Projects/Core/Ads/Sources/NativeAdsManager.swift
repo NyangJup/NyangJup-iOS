@@ -33,7 +33,7 @@ final class NativeAdsManager: NSObject {
 
         return await withCheckedContinuation { continuation in
             self.continuation = continuation
-            loader.load(Request())
+            loader.load(NonPersonalizedAdRequest.make())
         }
     }
 
