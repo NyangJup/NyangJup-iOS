@@ -18,15 +18,13 @@ public struct CatRegistrationFactory: Factorable, Sendable {
     }
 }
 
-private struct CatRegistrationFactoryKey: EnvironmentKey {
-    static let defaultValue = CatRegistrationFactory { _, _ in
-        AnyView(EmptyView())
+public extension CatRegistrationFactory {
+    static let unimplemented = Self { _, _ in
+        assertionFailure("CatRegistrationFactory가 Environment에 주입되지 않았습니다.")
+        return AnyView(EmptyView())
     }
 }
 
 public extension EnvironmentValues {
-    var catRegistrationFactory: CatRegistrationFactory {
-        get { self[CatRegistrationFactoryKey.self] }
-        set { self[CatRegistrationFactoryKey.self] = newValue }
-    }
+    @Entry var catRegistrationFactory = CatRegistrationFactory.unimplemented
 }

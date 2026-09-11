@@ -17,15 +17,13 @@ public struct NativeAdFactory: Sendable {
     }
 }
 
-private struct NativeAdFactoryKey: EnvironmentKey {
-    static let defaultValue = NativeAdFactory { _ in
-        AnyView(EmptyView())
+public extension NativeAdFactory {
+    static let unimplemented = Self { _ in
+        assertionFailure("NativeAdFactory가 Environment에 주입되지 않았습니다.")
+        return AnyView(EmptyView())
     }
 }
 
 public extension EnvironmentValues {
-    var nativeAdFactory: NativeAdFactory {
-        get { self[NativeAdFactoryKey.self] }
-        set { self[NativeAdFactoryKey.self] = newValue }
-    }
+    @Entry var nativeAdFactory = NativeAdFactory.unimplemented
 }

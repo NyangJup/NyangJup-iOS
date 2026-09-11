@@ -20,6 +20,17 @@ public struct RelayCatFactory: Factorable, Sendable {
     }
 }
 
+public extension RelayCatFactory {
+    static let unimplemented = Self { _, _ in
+        assertionFailure("RelayCatFactory가 Environment에 주입되지 않았습니다.")
+        return AnyView(EmptyView())
+    }
+}
+
+public extension EnvironmentValues {
+    @Entry var relayCatFactory = RelayCatFactory.unimplemented
+}
+
 public struct RelayCatConfiguration: FeatureConfiguration {
     public let relayCat: RelayCat
 

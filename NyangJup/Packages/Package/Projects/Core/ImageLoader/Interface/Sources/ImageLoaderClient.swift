@@ -30,3 +30,11 @@ public struct ImageLoaderClient: Sendable {
         self.loadImage = loadImage
     }
 }
+
+public extension ImageLoaderClient {
+    static let unimplemented = Self(
+        loadImage: { _, _, _, _ in
+            throw NZImageLoaderError.clientNotConfigured
+        }
+    )
+}
