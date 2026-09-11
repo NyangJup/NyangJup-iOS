@@ -14,8 +14,8 @@ CONFIG_PATH = File.join(REPOSITORY_ROOT, "NyangJup/Config.xcconfig")
 ARCHIVE_PATH = File.join(REPOSITORY_ROOT, "fastlane/build/NyangJup.xcarchive")
 OUTPUT_DIRECTORY = File.join(REPOSITORY_ROOT, "fastlane/build")
 SAMPLE_AD_PUBLISHER = "ca-app-pub-3940256099942544"
-ORIGINAL_CONFIG = File.binread(CONFIG_PATH) if File.exist?(CONFIG_PATH)
-ORIGINAL_CONFIG_MODE = File.stat(CONFIG_PATH).mode if File.exist?(CONFIG_PATH)
+ORIGINAL_CONFIG = File.exist?(CONFIG_PATH) ? File.binread(CONFIG_PATH) : nil
+ORIGINAL_CONFIG_MODE = File.exist?(CONFIG_PATH) ? File.stat(CONFIG_PATH).mode : nil
 
 def required_environment!(names)
   missing = names.select { |name| ENV[name].to_s.strip.empty? }
