@@ -14,8 +14,8 @@ CONFIG_PATH = File.join(REPOSITORY_ROOT, "NyangJup/Config.xcconfig")
 ARCHIVE_PATH = File.join(REPOSITORY_ROOT, "fastlane/build/NyangJup.xcarchive")
 OUTPUT_DIRECTORY = File.join(REPOSITORY_ROOT, "fastlane/build")
 SAMPLE_AD_PUBLISHER = "ca-app-pub-3940256099942544"
-ORIGINAL_CONFIG = File.binread(CONFIG_PATH) if File.exist?(CONFIG_PATH)
-ORIGINAL_CONFIG_MODE = File.stat(CONFIG_PATH).mode if File.exist?(CONFIG_PATH)
+ORIGINAL_CONFIG = File.exist?(CONFIG_PATH) ? File.binread(CONFIG_PATH) : nil
+ORIGINAL_CONFIG_MODE = File.exist?(CONFIG_PATH) ? File.stat(CONFIG_PATH).mode : nil
 
 def required_environment!(names)
   missing = names.select { |name| ENV[name].to_s.strip.empty? }
@@ -97,10 +97,10 @@ def plist_from_command(*command)
   stdout, stderr, status = Open3.capture3(*command)
   UI.user_error!("Command failed while validating the archive: #{command.first}") unless status.success?
 
-  output = stdout.include?("<?xml") ? stdout : stderr
-  xml_start = output.index("<?xml")
-  UI.user_error!("No plist was returned while validating the archive") unless xml_start
-  Plist.parse_xml(output[xml_start..])
+  output = stdout.empty? ? stderr : stdout
+  plist_start = [output.index("<?xml"), output.index("<plist")].compact.min
+  UI.user_error!("No plist was returned while validating the archive") unless plist_start
+  Plist.parse_xml(output[plist_start..])
 end
 
 def validate_archive!
