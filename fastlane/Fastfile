@@ -97,10 +97,10 @@ def plist_from_command(*command)
   stdout, stderr, status = Open3.capture3(*command)
   UI.user_error!("Command failed while validating the archive: #{command.first}") unless status.success?
 
-  output = stdout.include?("<?xml") ? stdout : stderr
-  xml_start = output.index("<?xml")
-  UI.user_error!("No plist was returned while validating the archive") unless xml_start
-  Plist.parse_xml(output[xml_start..])
+  output = stdout.empty? ? stderr : stdout
+  plist_start = [output.index("<?xml"), output.index("<plist")].compact.min
+  UI.user_error!("No plist was returned while validating the archive") unless plist_start
+  Plist.parse_xml(output[plist_start..])
 end
 
 def validate_archive!
